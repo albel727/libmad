@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_null.c,v 1.3 2000/03/05 07:31:54 rob Exp $
+ * $Id: audio_null.c,v 1.4 2000/03/26 20:16:59 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -25,6 +25,8 @@
 
 # include "libmad.h"
 # include "audio.h"
+
+/* this can be used as a template to create new output modules */
 
 static
 int init(struct audio_init *init)

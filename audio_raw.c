@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_raw.c,v 1.1 2000/03/19 06:43:38 rob Exp $
+ * $Id: audio_raw.c,v 1.2 2000/04/22 04:36:50 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -57,7 +57,7 @@ int config(struct audio_config *config)
 }
 
 static inline
-signed long scale(fixed_t sample)
+signed short scale(mad_fixed_t sample)
 {
   /* round */
   sample += 0x00001000L;
@@ -75,7 +75,7 @@ static
 int play(struct audio_play *play)
 {
   unsigned char data[MAX_NSAMPLES * 2 * 2], *ptr;
-  fixed_t const *left, *right;
+  mad_fixed_t const *left, *right;
   unsigned int len;
 
   ptr   = data;
@@ -84,7 +84,7 @@ int play(struct audio_play *play)
   right = play->samples[1];
 
   while (len--) {
-    signed long sample;
+    signed short sample;
 
     /* little-endian */
 

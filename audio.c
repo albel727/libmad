@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.c,v 1.3 2000/03/19 06:43:38 rob Exp $
+ * $Id: audio.c,v 1.4 2000/03/26 20:16:59 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -56,7 +56,9 @@ audio_ctlfunc_t audio_output(char const **path)
     }
 
     if (strncmp(type, "raw", ext - type) == 0 ||
-	strncmp(type, "RAW", ext - type) == 0) {
+	strncmp(type, "RAW", ext - type) == 0 ||
+	strncmp(type, "pcm", ext - type) == 0 ||
+	strncmp(type, "PCM", ext - type) == 0) {
       *path = ext + 1;
       return audio_raw;
     }

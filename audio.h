@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.h,v 1.6 2000/03/19 06:43:38 rob Exp $
+ * $Id: audio.h,v 1.7 2000/04/22 04:36:50 rob Exp $
  */
 
 # ifndef AUDIO_H
@@ -50,7 +50,7 @@ union audio_control {
   struct audio_play {
     short command;
     unsigned short nsamples;
-    fixed_t const *samples[2];
+    mad_fixed_t const *samples[2];
   } play;
 
   struct audio_finish {

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_sun.c,v 1.4 2000/03/06 15:20:43 rob Exp $
+ * $Id: audio_sun.c,v 1.5 2000/04/22 04:36:50 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -103,7 +103,7 @@ int output(unsigned char const *ptr, unsigned int len)
 }
 
 static inline
-signed short scale(fixed_t sample)
+signed short scale(mad_fixed_t sample)
 {
   /* round */
   sample += 0x00001000L;
@@ -122,7 +122,7 @@ int play(struct audio_play *play)
 {
   unsigned char data[MAX_NSAMPLES * 2 * 2];
   unsigned char *ptr;
-  fixed_t const *left, *right;
+  mad_fixed_t const *left, *right;
   unsigned int len;
 
   ptr   = data;

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.17 2000/03/19 06:43:38 rob Exp $
+ * $Id: madplay.c,v 1.20 2000/04/22 04:36:50 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -31,8 +31,11 @@
 # include <sys/stat.h>
 # include <fcntl.h>
 # include <unistd.h>
-# include <sys/mman.h>
 # include <errno.h>
+
+# ifdef HAVE_MMAP
+#  include <sys/mman.h>
+# endif
 
 # include "libmad.h"
 # include "audio.h"
@@ -163,18 +166,16 @@ char const *const layer_str[3] = { "I", "II", "III" };
 
 static
 char const *const mode_str[4] = {
-  "single channel", "dual channel", "joint stereo", "stereo"
+  "single channel", "dual channel", "stereo", "stereo"
 };
 
 /*
- * NAME:	show_stats()
- * DESCRIPTION:	output stream statistics
+ * NAME:	gen_stats()
+ * DESCRIPTION:	generate and output stream statistics
  */
 static
-void show_stats(struct mad_frame const *frame, struct stats *stats)
+void gen_stats(struct mad_frame const *frame, struct stats *stats)
 {
-  char time_str[6];
-
   if (stats->bitrate && frame->bitrate != stats->bitrate)
     stats->vbr = 1;
 
@@ -190,17 +191,36 @@ void show_stats(struct mad_frame const *frame, struct stats *stats)
   }
 
   if (mad_timer_seconds(&stats->timer) >= stats->nsecs) {
+    char time_str[6];
+    char const *joint_str = "";
+
     stats->nsecs = mad_timer_seconds(&stats->timer) + 1;
 
     mad_timer_str(&stats->timer, time_str, "%02u:%02u", MAD_TIMER_MINUTES);
 
-    message(" %s Layer %s, %s%u kbps%s, %u Hz, %s, %sCRC",
+    if (frame->mode == MAD_MODE_JOINT_STEREO) {
+      switch (frame->flags & (MAD_FLAG_I_STEREO | MAD_FLAG_MS_STEREO)) {
+      case MAD_FLAG_MS_STEREO:
+	joint_str = "M/S ";
+	break;
+
+      case MAD_FLAG_I_STEREO:
+	joint_str = "intensity ";
+	break;
+
+      case (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO):
+	joint_str = "M/S + intensity ";
+	break;
+      }
+    }
+
+    message(" %s Layer %s, %s%u Kbps%s, %u Hz, %s%s, %sCRC",
 	    time_str, layer_str[frame->layer - 1],
 	    stats->vbr ? "VBR (avg " : "",
 	    stats->vbr ? (stats->vbr_rate / stats->vbr_frames + 500) / 1000 :
 	    stats->bitrate / 1000,
 	    stats->vbr ? ")" : "",
-	    frame->sfreq, mode_str[frame->mode],
+	    frame->sfreq, joint_str, mode_str[frame->mode],
 	    (frame->flags & MAD_FLAG_PROTECTION) ? "" : "no ");
   }
 }
@@ -225,10 +245,11 @@ char const *error_str(int error)
   case MAD_ERR_BADCRC:		return "CRC check failed";
   case MAD_ERR_BADBITALLOC:	return "forbidden bit allocation value";
   case MAD_ERR_BADSCALEFACTOR:	return "bad scalefactor index";
+  case MAD_ERR_BADFRAMELEN:	return "bad frame length";
   case MAD_ERR_BADBIGVALUES:	return "bad big_values count";
   case MAD_ERR_BADBLOCKTYPE:	return "reserved block_type";
   case MAD_ERR_BADDATAPTR:	return "bad main_data_begin pointer";
-  case MAD_ERR_BADDATALENGTH:	return "bad main data length";
+  case MAD_ERR_BADDATALEN:	return "bad main data length";
   case MAD_ERR_BADPART3LEN:	return "bad audio data length";
   case MAD_ERR_BADHUFFTABLE:	return "bad Huffman table select";
   case MAD_ERR_BADHUFFDATA:	return "Huffman data value out of range";
@@ -358,7 +379,7 @@ int decode_output(void *data,
   audio->stats.framecount++;
 
   if (audio->verbose)
-    show_stats(frame, &audio->stats);
+    gen_stats(frame, &audio->stats);
 
   return MAD_DECODER_CONTINUE;
 }
@@ -473,7 +494,7 @@ static
 int filter_mono(void *data, struct mad_frame *frame)
 {
   unsigned int ns, s, sb;
-  fixed_t left, right;
+  mad_fixed_t left, right;
 
   if (frame->mode == MAD_MODE_SINGLE_CHANNEL)
     return MAD_DECODER_CONTINUE;
@@ -485,7 +506,7 @@ int filter_mono(void *data, struct mad_frame *frame)
       left  = frame->sbsample[0][s][sb];
       right = frame->sbsample[1][s][sb];
 
-      frame->sbsample[0][s][sb] = (left + right) >> 1;
+      frame->sbsample[0][s][sb] = (left + right) / 2;
       /* frame->sbsample[1][s][sb] = 0; */
     }
   }
@@ -583,7 +604,7 @@ int decode(struct audio *audio)
 # ifdef HAVE_MMAP
   if (audio->fdm) {
     if (munmap(audio->fdm, audio->len) == -1) {
-      error("decode", ":unmap");
+      error("decode", ":munmap");
       result = -1;
     }
 
@@ -610,6 +631,7 @@ int audio_init(int (*audio)(union audio_control *), char const *path)
 
   control.command   = audio_cmd_init;
   control.init.path = path;
+
   if (audio(&control) == -1) {
     error("audio", audio_error, control.init.path);
     return -1;
@@ -627,6 +649,7 @@ int audio_finish(int (*audio)(union audio_control *))
   union audio_control control;
 
   control.command = audio_cmd_finish;
+
   if (audio(&control) == -1) {
     error("audio", audio_error);
     return -1;
@@ -636,12 +659,24 @@ int audio_finish(int (*audio)(union audio_control *))
 }
 
 /*
+ * NAME:	usage()
+ * DESCRIPTION:	display usage and exit
+ */
+static
+void usage(char const *argv0)
+{
+  fprintf(stderr,
+	  "Usage: %s [-m] [-v|-q|-Q] [-o [type:]file.out] file.mpg [...]\n",
+	  argv0);
+}
+
+/*
  * NAME:	main()
  * DESCRIPTION:	program entry point
  */
 int main(int argc, char *argv[])
 {
-  int opt, read_stdin = 0, verbose = 0, quiet = 0;
+  int opt, verbose = 0, quiet = 0;
   int i, result, fd;
   int (*filter)(void *, struct mad_frame *) = 0;
   int (*output)(union audio_control *) = 0;
@@ -649,7 +684,8 @@ int main(int argc, char *argv[])
   struct audio audio;
 
   if (argc > 1) {
-    if (strcmp(argv[1], "--version") == 0) {
+    if (strcmp(argv[1], "--version") == 0 ||
+	strcmp(argv[1], "--copyright") == 0) {
       printf("%s - %s\n", mad_version, mad_copyright);
       printf("`%s --license' for licensing information.\n", argv[0]);
       return 0;
@@ -694,19 +730,18 @@ int main(int argc, char *argv[])
       break;
 
     default:
-      error(0, "Usage: %s [-m] [-v|-q|-Q] [-o file.out] [file.mpg ...]",
-	    argv[0]);
+      usage(argv[0]);
       return 1;
     }
   }
 
+  if (optind == argc) {
+    usage(argv[0]);
+    return 1;
+  }
+
   if (output == 0)
     output = audio_output(0);
-
-  if (optind == argc) {
-    read_stdin = 1;
-    ++argc;
-  }
 
   if (!quiet)
     message("%s - %s\n", mad_version, mad_copyright);
@@ -717,10 +752,7 @@ int main(int argc, char *argv[])
   result = 0;
 
   for (i = optind; i < argc; ++i) {
-    if (!read_stdin && strcmp(argv[i], "-") == 0)
-      read_stdin = 1;
-
-    if (read_stdin) {
+    if (strcmp(argv[i], "-") == 0) {
       fname = "stdin";
       fd = STDIN_FILENO;
     }
@@ -750,9 +782,7 @@ int main(int argc, char *argv[])
 
     finish(&audio);
 
-    if (read_stdin)
-      read_stdin = 0;
-    else if (close(fd) == -1) {
+    if (fd != STDIN_FILENO && close(fd) == -1) {
       error(0, ":", fname);
       result = 5;
     }

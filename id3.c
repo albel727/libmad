@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: id3.c,v 1.2 2000/03/19 06:43:38 rob Exp $
+ * $Id: id3.c,v 1.4 2000/04/22 04:36:50 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -171,8 +171,8 @@ int skip(int fd, unsigned long count)
 
     while (count) {
       do {
-	len = read(fd, buffer, count < sizeof(buffer) ?
-		   count : sizeof(buffer));
+	len = read(fd, buffer,
+		   count < sizeof(buffer) ? count : sizeof(buffer));
       }
       while (len == -1 && errno == EINTR);
 
@@ -369,7 +369,7 @@ int id3_v2_read(int (*message)(char const *, ...),
 	ptr   += 4;
 	count -= 4;
 
-	/* check CRC... */
+	/* FIXME: check CRC... */
 	message("ID3: total frame CRC 0x%04lx\n", crc);
       }
     }

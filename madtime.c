@@ -16,28 +16,20 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: synth.h,v 1.6 2000/04/22 04:36:51 rob Exp $
+ * $Id: madtime.c,v 1.2 2000/04/23 07:05:13 rob Exp $
  */
 
-# ifndef SYNTH_H
-# define SYNTH_H
-
-# include "fixed.h"
-# include "frame.h"
-
-struct mad_synth {
-  mad_fixed_t filterout[2][2][256];	/* polyphase filterbank outputs */
-  unsigned short slot;			/* current processing slot */
-
-  unsigned short pcmlen;		/* number of PCM samples */
-  mad_fixed_t pcmout[2][1152];		/* PCM sample outputs */
-};
-
-void mad_synth_init(struct mad_synth *);
-
-# define mad_synth_finish(synth)  /* nothing */
-
-void mad_synth_frame(struct mad_synth *, struct mad_frame const *);
-
+# ifdef HAVE_CONFIG_H
+#  include "config.h"
 # endif
 
+# include "libmad.h"
+
+/*
+ * NAME:	main()
+ * DESCRIPTION:	program entry point
+ */
+int main(int argc, char *argv[])
+{
+  return 0;
+}
