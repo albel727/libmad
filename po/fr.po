@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: mad 0.12.0a\n"
-"POT-Creation-Date: 2000-11-17 02:47-0500\n"
+"POT-Creation-Date: 2000-11-18 07:42-0500\n"
 "PO-Revision-Date: 2000-11-03 23:54-05:00\n"
 "Last-Translator: Gabriel Bouvigne <bouvigne@mp3-tech.org>\n"
 "Language-Team: French <bouvigne@mp3-tech.org>\n"
@@ -623,15 +623,15 @@ msgstr "pas assez de mémoire pour allouer les filtres"
 msgid "lead-in"
 msgstr ""
 
-#: audio_oss.c:144
+#: audio_oss.c:148
 msgid "no supported audio format available"
 msgstr "aucun format audio supporté disponible"
 
-#: audio_oss.c:155
+#: audio_oss.c:159
 msgid "required number of channels not available"
 msgstr "nombre de canaux requis non disponible"
 
-#: audio_oss.c:166
+#: audio_oss.c:170
 msgid "sample speed not available"
 msgstr "vitesse d'échantillonnage non disponible"
 

@@ -17,7 +17,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: abxtest,v 1.3 2000/11/17 07:41:42 rob Exp $
+# $Id: abxtest,v 1.4 2000/11/18 12:38:27 rob Exp $
 #
 
 #
@@ -29,7 +29,7 @@ max=20
 goal=.05
 
 usage() {
-    echo 1>&2 "Usage: $0 [-n min] [-m max] [-g goal] A-cmd B-cmd"
+    echo >&2 "Usage: $0 [-n min] [-m max] [-g goal] A-cmd B-cmd"
     exit 1
 }
 
@@ -71,7 +71,7 @@ done
 
 test $# -eq 2 || usage
 
-echo 1>&2 "ABX Double-Blind Test - Copyright (C) 2000 Robert Leslie"
+echo >&2 "ABX Double-Blind Test - Copyright (C) 2000 Robert Leslie"
 echo "minimum $min, maximum $max trials"
 echo "statistical goal to disprove null hypothesis is p <= $goal"
 
@@ -103,7 +103,7 @@ do
 	    *[1357]) x="B" ;;
 
 	    *)
-		echo 1>&2 "bad output from od"
+		echo >&2 "bad output from od"
 		exit 3
 		;;
 	esac
@@ -215,7 +215,7 @@ do
 		rm -f $tmp
 		trap - 2
 	    else
-		cat 1>&2 $tmp
+		cat >&2 $tmp
 		exit $status
 	    fi
 	    input=""

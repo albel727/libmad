@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_oss.c,v 1.17 2000/11/16 10:51:04 rob Exp $
+ * $Id: audio_oss.c,v 1.18 2000/11/18 12:38:27 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -55,6 +55,10 @@
 #  define AUDIO_TRY32BITS
 # else
 #  undef  AUDIO_TRY32BITS
+# endif
+
+# if !defined(SNDCTL_DSP_CHANNELS) && defined(SOUND_PCM_WRITE_CHANNELS)
+#  define SNDCTL_DSP_CHANNELS	SOUND_PCM_WRITE_CHANNELS
 # endif
 
 # define AUDIO_DEVICE	"/dev/dsp"

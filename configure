@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# From configure.in Id: configure.in,v 1.32 2000/11/17 06:17:45 rob Exp 
+# From configure.in Id: configure.in,v 1.33 2000/11/18 12:38:27 rob Exp 
 
 
 
@@ -870,7 +870,7 @@ fi
 
 PACKAGE=mad
 
-VERSION=0.12.1b
+VERSION=0.12.2b
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: in_mad.c,v 1.4 2000/11/16 10:51:34 rob Exp $
+ * $Id: in_mad.c,v 1.5 2000/11/20 04:58:13 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -949,9 +949,9 @@ DWORD WINAPI run_decode_thread(void *param)
       skip = 2;
       while (skip) {
 	if (mad_frame_decode(&frame, &stream) == 0) {
-	  mad_synth_frame(&synth, &frame);
 	  mad_timer_add(&timer, frame.header.duration);
-	  --skip;
+	  if (--skip == 0)
+	    mad_synth_frame(&synth, &frame);
 	}
 	else if (!MAD_RECOVERABLE(stream.error))
 	  break;

@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2000-11-17 02:47-0500\n"
+"POT-Creation-Date: 2000-11-18 07:42-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -564,15 +564,15 @@ msgstr ""
 msgid "lead-in"
 msgstr ""
 
-#: audio_oss.c:144
+#: audio_oss.c:148
 msgid "no supported audio format available"
 msgstr ""
 
-#: audio_oss.c:155
+#: audio_oss.c:159
 msgid "required number of channels not available"
 msgstr ""
 
-#: audio_oss.c:166
+#: audio_oss.c:170
 msgid "sample speed not available"
 msgstr ""
 

@@ -61,9 +61,11 @@ host_alias = @host_alias@
 host_triplet = @host@
 ARCH = @ARCH@
 AS = @AS@
+ASO = @ASO@
 CC = @CC@
 DEBUGGER = @DEBUGGER@
 DLLTOOL = @DLLTOOL@
+FPM = @FPM@
 IMDCT_L = @IMDCT_L@
 LIBTOOL = @LIBTOOL@
 LN_S = @LN_S@
@@ -98,8 +100,8 @@ EXTRA_libmad_la_SOURCES = imdct_l_arm.S
 libmad_la_DEPENDENCIES = @IMDCT_L@
 libmad_la_LIBADD = @IMDCT_L@
 
-CFLAGS = -Wall @CFLAGS@ @ARCH@ @DEBUGGER@ @OPTIMIZER@ @PROFILER@
-LDFLAGS = @LDFLAGS@ @PROFILER@
+CFLAGS = -Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
+LDFLAGS = @LDFLAGS@ $(PROFILER)
 INCLUDES = $(FPM) $(ASO)
 
 BUILT_SOURCES = mad.h
@@ -109,9 +111,6 @@ CLEANFILES = mad.h
 # release numbering instead.
 
 libmad_la_LDFLAGS = -release $(VERSION)
-
-FPM = @FPM@
-ASO = @ASO@
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/../mkinstalldirs
 CONFIG_HEADER = config.h

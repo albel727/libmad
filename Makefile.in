@@ -141,8 +141,8 @@ madmix_LDADD = $(AUDIO) $(LDADD)
 localedir = $(datadir)/locale
 INCLUDES = -Ilibmad -Iintl -DLOCALEDIR=\"$(localedir)\"
 
-CFLAGS = -Wall @CFLAGS@ @ARCH@ @DEBUGGER@ @OPTIMIZER@ @PROFILER@
-LDFLAGS = @LDFLAGS@ @PROFILER@
+CFLAGS = -Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
+LDFLAGS = @LDFLAGS@ $(PROFILER)
 
 BUILT_SOURCES = id3v2.c
 

@@ -19,7 +19,7 @@
 ## If you would like to negotiate alternate licensing terms, you may do
 ## so by contacting the author: Robert Leslie <rob@mars.org>
 ##
-## $Id: Makefile.am,v 1.4 2000/11/17 06:17:45 rob Exp $
+## $Id: Makefile.am,v 1.5 2000/11/20 04:56:56 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
@@ -76,8 +76,8 @@ madmix_LDADD =		$(AUDIO) $(LDADD)
 localedir =		$(datadir)/locale
 INCLUDES =		-Ilibmad -Iintl -DLOCALEDIR=\"$(localedir)\"
 
-CFLAGS =		-Wall @CFLAGS@ @ARCH@ @DEBUGGER@ @OPTIMIZER@ @PROFILER@
-LDFLAGS =		@LDFLAGS@ @PROFILER@
+CFLAGS =	-Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
+LDFLAGS =	@LDFLAGS@ $(PROFILER)
 
 BUILT_SOURCES =		id3v2.c
 

@@ -28,9 +28,9 @@ Configuration
   1. Start Winamp.
 
   2. Configure the plug-in from Winamp's Preferences panel under the
-     Plug-ins/Input section. Choose the highest resolution supported by your
-     sound card (usually 8 or 16 bits, but possibly 24 or 32 for high-end
-     cards.)
+     Plug-ins/Input section. Choose the highest output resolution supported
+     by your sound card (usually 8 or 16 bits, but possibly 24 or 32 for
+     high-end cards.)
 
   3. Disable the Nullsoft MPEG audio decoder plug-in by deleting the file
      association extension list (version 2.7), unchecking the "Use for MP1,
@@ -44,8 +44,24 @@ Configuration
 
   4. Play MP3, MP2, or MP1 files and enjoy high quality sound.
 
+Frequently Asked Questions
+==========================
+
+  - On some files, Winamp seems to play as normal except I hear no sound.
+    What's wrong?
+
+    The most likely cause for this is that the files were encoded with CRC
+    protection, but the checksums are wrong. Some early encoders were known
+    to create such files. MAD has to assume the CRCs are valid, so it thinks
+    every frame in the file is corrupted, and plays silence instead.
+
+    You will have to fix these files before MAD will play them.
+
 Changes
 =======
+
+  Changes since 0.12.1b:
+    - several performance improvements
 
   Changes since 0.7.3b:
     - fixed a potential problem related to a thread conflict
