@@ -16,18 +16,17 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: mad.h,v 1.4 2000/03/05 07:31:55 rob Exp $
+ * $Id: id3.h,v 1.2 2000/03/19 06:43:38 rob Exp $
  */
 
-# ifndef MAD_H
-# define MAD_H
+extern char const *id3_error;
 
-# include "bit.h"
-# include "stream.h"
-# include "frame.h"
+void id3_v1_show(int (*)(char const *, ...), unsigned char const [128]);
+int id3_v2_read(int (*)(char const *, ...), unsigned char const *,
+		 unsigned long, int, int, unsigned long *);
 
-unsigned short mad_crc(unsigned short, struct mad_bitptr, unsigned int);
-int mad_decode(struct mad_stream *, struct mad_frame *);
-
-# endif
+void id3_text(int (*)(char const *, ...), char const *, char const *,
+	      unsigned int, unsigned char const *, unsigned long);
+void id3_comment(int (*)(char const *, ...), char const *, char const *,
+		 unsigned int, unsigned char const *, unsigned long);
 

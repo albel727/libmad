@@ -16,14 +16,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: layer12.h,v 1.4 2000/03/19 06:43:38 rob Exp $
+ * $Id: id3v2.h,v 1.2 2000/03/19 06:43:38 rob Exp $
  */
 
-# include "stream.h"
-# include "frame.h"
+struct id3v2_frame {
+  char const *id;
+  char const *description;
+  void (*handler)(int (*)(char const *, ...), char const *, char const *,
+		  unsigned int, unsigned char const *, unsigned long);
+};
 
-int mad_layer_I(struct mad_stream *, struct mad_frame *,
-		unsigned short const [2]);
-int mad_layer_II(struct mad_stream *, struct mad_frame *,
-		 unsigned short const [2]);
+struct id3v2_frame const *id3v2_hash(register char const *,
+				     register unsigned int);
 

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_hex.c,v 1.3 2000/03/19 06:43:38 rob Exp $
+ * $Id: audio_raw.c,v 1.1 2000/03/19 06:43:38 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -36,7 +36,7 @@ static
 int init(struct audio_init *init)
 {
   if (init->path && strcmp(init->path, "-") != 0) {
-    outfile = fopen(init->path, "w");
+    outfile = fopen(init->path, "wb");
     if (outfile == 0) {
       audio_error = ":";
       return -1;
@@ -51,9 +51,6 @@ int init(struct audio_init *init)
 static
 int config(struct audio_config *config)
 {
-  fprintf(outfile, "# %u channel%s, %u Hz\n",
-	  config->channels, config->channels == 1 ? "" : "s", config->speed);
-
   stereo = (config->channels == 2);
 
   return 0;
@@ -63,23 +60,25 @@ static inline
 signed long scale(fixed_t sample)
 {
   /* round */
-  sample += 0x00000010L;
+  sample += 0x00001000L;
 
-  /* scale to signed 24-bit integer value */
+  /* scale to signed 16-bit integer value */
   if (sample >= 0x10000000L)		/* +1.0 */
-    return 0x7fffffL;
-  else if (sample < -0x10000000L)	/* -1.0 */
-    return -0x800000L;
+    return 0x7fff;
+  else if (sample <= -0x10000000L)	/* -1.0 */
+    return -0x8000;
   else
-    return sample >> 5;
+    return sample >> 13;
 }
 
 static
 int play(struct audio_play *play)
 {
+  unsigned char data[MAX_NSAMPLES * 2 * 2], *ptr;
   fixed_t const *left, *right;
   unsigned int len;
 
+  ptr   = data;
   len   = play->nsamples;
   left  = play->samples[0];
   right = play->samples[1];
@@ -87,19 +86,23 @@ int play(struct audio_play *play)
   while (len--) {
     signed long sample;
 
+    /* little-endian */
+
     sample = scale(*left++);
-    fprintf(outfile, "%02X%02X%02X\n",
-	    (unsigned int) ((sample & 0xff0000L) >> 16),
-	    (unsigned int) ((sample & 0x00ff00L) >>  8),
-	    (unsigned int) ((sample & 0x0000ffL) >>  0));
+    *ptr++ = (sample >> 0) & 0xff;
+    *ptr++ = (sample >> 8) & 0xff;
 
     if (stereo) {
       sample = scale(*right++);
-      fprintf(outfile, "%02X%02X%02X\n",
-	      (unsigned int) ((sample & 0xff0000L) >> 16),
-	      (unsigned int) ((sample & 0x00ff00L) >>  8),
-	      (unsigned int) ((sample & 0x0000ffL) >>  0));
+      *ptr++ = (sample >> 0) & 0xff;
+      *ptr++ = (sample >> 8) & 0xff;
     }
+  }
+
+  if (fwrite(data, stereo ? 4 : 2,
+	     play->nsamples, outfile) != play->nsamples) {
+    audio_error = ":fwrite";
+    return -1;
   }
 
   return 0;
@@ -117,7 +120,7 @@ int finish(struct audio_finish *finish)
   return 0;
 }
 
-int audio_hex(union audio_control *control)
+int audio_raw(union audio_control *control)
 {
   audio_error = 0;
 

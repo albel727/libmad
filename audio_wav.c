@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_wav.c,v 1.4 2000/03/05 18:11:34 rob Exp $
+ * $Id: audio_wav.c,v 1.6 2000/03/19 06:43:38 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -31,13 +31,13 @@
 
 static FILE *outfile;
 static unsigned long riff_len, chunk_len;
-static long last_chunk;
+static long prev_chunk;
 static int stereo;
 
 static
 int init(struct audio_init *init)
 {
-  if (init->path) {
+  if (init->path && strcmp(init->path, "-") != 0) {
     outfile = fopen(init->path, "wb");
     if (outfile == 0) {
       audio_error = ":";
@@ -49,10 +49,13 @@ int init(struct audio_init *init)
 
   /* RIFF header and (WAVE) data type identifier */
 
-  fwrite("RIFF\0\0\0\0WAVE", 8 + 4, 1, outfile);
+  if (fwrite("RIFF\0\0\0\0WAVE", 8 + 4, 1, outfile) != 1) {
+    audio_error = ":fwrite";
+    return -1;
+  }
 
   riff_len   = 4;
-  last_chunk = 0;
+  prev_chunk = 0;
 
   return 0;
 }
@@ -60,17 +63,17 @@ int init(struct audio_init *init)
 static
 void int4(unsigned char *ptr, unsigned long num)
 {
-  *ptr++ = (num & 0x000000ff) >>  0;
-  *ptr++ = (num & 0x0000ff00) >>  8;
-  *ptr++ = (num & 0x00ff0000) >> 16;
-  *ptr++ = (num & 0xff000000) >> 24;
+  *ptr++ = (num >>  0) & 0xff;
+  *ptr++ = (num >>  8) & 0xff;
+  *ptr++ = (num >> 16) & 0xff;
+  *ptr++ = (num >> 24) & 0xff;
 }
 
 static
 void int2(unsigned char *ptr, unsigned int num)
 {
-  *ptr++ = (num & 0x00ff) >> 0;
-  *ptr++ = (num & 0xff00) >> 8;
+  *ptr++ = (num >> 0) & 0xff;
+  *ptr++ = (num >> 8) & 0xff;
 }
 
 static
@@ -82,7 +85,8 @@ int patch_length(long address, unsigned long length)
     return -1;
 
   int4(dword, length);
-  fwrite(dword, 4, 1, outfile);
+  if (fwrite(dword, 4, 1, outfile) != 1)
+    return -1;
 
   if (fseek(outfile, 0, SEEK_END) == -1)
     return -1;
@@ -90,7 +94,7 @@ int patch_length(long address, unsigned long length)
   return 0;
 }
 
-# define close_chunk()	patch_length(last_chunk + 4, chunk_len)
+# define close_chunk()	patch_length(prev_chunk + 4, chunk_len)
 
 static
 int config(struct audio_config *config)
@@ -99,7 +103,7 @@ int config(struct audio_config *config)
   unsigned int block_al;
   unsigned long bytes_ps;
 
-  if (last_chunk)
+  if (prev_chunk)
     close_chunk();
 
   /* "fmt " chunk */
@@ -120,17 +124,23 @@ int config(struct audio_config *config)
 
   int2(&chunk[22], 16);			/* wBitsPerSample */
 
-  fwrite(chunk, 24, 1, outfile);
+  if (fwrite(chunk, 24, 1, outfile) != 1) {
+    audio_error = ":fwrite";
+    return -1;
+  }
 
   /* save current file position for later patching */
 
-  last_chunk = ftell(outfile);
-  if (last_chunk == -1)
-    last_chunk = 0;
+  prev_chunk = ftell(outfile);
+  if (prev_chunk == -1)
+    prev_chunk = 0;
 
   /* "data" chunk */
 
-  fwrite("data\0\0\0\0", 8, 1, outfile);
+  if (fwrite("data\0\0\0\0", 8, 1, outfile) != 1) {
+    audio_error = ":fwrite";
+    return -1;
+  }
 
   chunk_len = 0;
   riff_len += 24 + 8;
@@ -158,8 +168,7 @@ signed short scale(fixed_t sample)
 static
 int play(struct audio_play *play)
 {
-  unsigned char data[MAX_NSAMPLES * 2 * 2];
-  unsigned char *ptr;
+  unsigned char data[MAX_NSAMPLES * 2 * 2], *ptr;
   fixed_t const *left, *right;
   unsigned int len;
 
@@ -170,6 +179,8 @@ int play(struct audio_play *play)
 
   while (len--) {
     signed short sample;
+
+    /* little-endian */
 
     sample = scale(*left++);
     *ptr++ = (sample >> 0) & 0xff;
@@ -182,7 +193,11 @@ int play(struct audio_play *play)
     }
   }
 
-  fwrite(data, stereo ? 4 : 2, play->nsamples, outfile);
+  if (fwrite(data, stereo ? 4 : 2,
+	     play->nsamples, outfile) != play->nsamples) {
+    audio_error = ":fwrite";
+    return -1;
+  }
 
   len = play->nsamples * 2;
   if (stereo)
@@ -197,7 +212,7 @@ int play(struct audio_play *play)
 static
 int finish(struct audio_finish *finish)
 {
-  if (last_chunk)
+  if (prev_chunk)
     close_chunk();
 
   patch_length(4, riff_len);

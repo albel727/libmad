@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.15 2000/03/07 07:59:25 rob Exp $
+ * $Id: madplay.c,v 1.17 2000/03/19 06:43:38 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -36,27 +36,46 @@
 
 # include "libmad.h"
 # include "audio.h"
+# include "id3.h"
 
-# define MPEG_BUFSZ	16384
+# define MPEG_BUFSZ	32000
 
 struct audio {
-  struct mad_stream stream;
-  struct mad_frame frame;
-  struct mad_synth synth;
-  struct mad_timer timer;
+  int fd;
+# ifdef HAVE_MMAP
+  void *fdm;
+# endif
+
+  unsigned char *data;
+  unsigned long len;
+
+  int verbose;
+  int quiet;
+
+  struct mad_decoder decoder;
+
+  struct stats {
+    unsigned long framecount;
+    struct mad_timer timer;
+
+    int vbr;
+    unsigned int bitrate, vbr_frames, vbr_rate;
+    unsigned long nsecs;
+  } stats;
 
   unsigned int channels;
   unsigned int speed;
 
-  void (*filter)(struct mad_frame *);
   int (*command)(union audio_control *);
-
-  unsigned long framecount;
 };
 
 static
 int on_same_line;
 
+/*
+ * NAME:	message()
+ * DESCRIPTION:	show a message, possibly overwriting a previous w/o newline
+ */
 static
 int message(char const *format, ...)
 {
@@ -97,8 +116,12 @@ int message(char const *format, ...)
 
 # define newline()  (on_same_line ? message("\n") : 0)
 
+/*
+ * NAME:	error()
+ * DESCRIPTION:	show an error using proper interaction with message()
+ */
 static
-int error(char const *format, ...)
+int error(char const *id, char const *format, ...)
 {
   int err, result;
   va_list args;
@@ -106,6 +129,9 @@ int error(char const *format, ...)
   err = errno;
 
   newline();
+
+  if (id)
+    fprintf(stderr, "%s: ", id);
 
   va_start(args, format);
 
@@ -133,101 +159,63 @@ int error(char const *format, ...)
 }
 
 static
-void initialize(struct audio *audio, void (*filter)(struct mad_frame *),
-		int (*command)(union audio_control *))
-{
-  mad_stream_init(&audio->stream);
-  mad_frame_init(&audio->frame);
-  mad_synth_init(&audio->synth);
-  mad_timer_init(&audio->timer);
-
-  audio->channels = 0;
-  audio->speed    = 0;
-
-  audio->filter  = filter;
-  audio->command = command;
-
-  audio->framecount = 0;
-}
+char const *const layer_str[3] = { "I", "II", "III" };
 
 static
-int play(struct audio *audio, int quiet)
-{
-  union audio_control control;
+char const *const mode_str[4] = {
+  "single channel", "dual channel", "joint stereo", "stereo"
+};
 
-  if (audio->filter)
-    audio->filter(&audio->frame);
-
-  if (audio->channels != MAD_NUMCHANNELS(&audio->frame) ||
-      audio->speed    != audio->frame.samplefreq) {
-    control.command = audio_cmd_config;
-
-    control.config.channels = MAD_NUMCHANNELS(&audio->frame);
-    control.config.speed    = audio->frame.samplefreq;
-
-    if (audio->command(&control) == -1) {
-      error(audio_error);
-      return -1;
-    }
-
-    if (quiet < 2 && control.config.speed != audio->frame.samplefreq) {
-      error("audio: sample frequency %u not available (closest %u)",
-	    audio->frame.samplefreq, control.config.speed);
-    }
-
-    audio->channels = MAD_NUMCHANNELS(&audio->frame);
-    audio->speed    = audio->frame.samplefreq;
-  }
-
-  mad_synthesis(&audio->frame, &audio->synth);
-
-  control.command = audio_cmd_play;
-
-  control.play.nsamples   = audio->synth.pcmlen;
-  control.play.samples[0] = audio->synth.pcmout[0];
-  control.play.samples[1] = audio->synth.pcmout[1];
-
-  if (audio->command(&control) == -1) {
-    error(audio_error);
-    return -1;
-  }
-
-  mad_timer_add(&audio->timer, &audio->frame.duration);
-  audio->framecount++;
-
-  return 0;
-}
-
+/*
+ * NAME:	show_stats()
+ * DESCRIPTION:	output stream statistics
+ */
 static
-void filter_mono(struct mad_frame *frame)
+void show_stats(struct mad_frame const *frame, struct stats *stats)
 {
-  unsigned int ns, s, sb;
-  fixed_t left, right;
+  char time_str[6];
 
-  if (frame->mode == MAD_MODE_SINGLE_CHANNEL)
-    return;
+  if (stats->bitrate && frame->bitrate != stats->bitrate)
+    stats->vbr = 1;
 
-  ns = MAD_NUMSAMPLES(frame);
+  stats->vbr_rate += (stats->bitrate = frame->bitrate);
 
-  for (s = 0; s < ns; ++s) {
-    for (sb = 0; sb < 32; ++sb) {
-      left  = frame->sbsample[0][s][sb];
-      right = frame->sbsample[1][s][sb];
+  if (++stats->vbr_frames == 0)
+    stats->vbr = 0;  /* overflow; prevent division by 0 */
 
-      frame->sbsample[0][s][sb] = (left + right) >> 1;
-      /* frame->sbsample[1][s][sb] = 0; */
-    }
+  while (stats->vbr_rate   && stats->vbr_rate   % 2 == 0 &&
+	 stats->vbr_frames && stats->vbr_frames % 2 == 0) {
+    stats->vbr_rate   /= 2;
+    stats->vbr_frames /= 2;
   }
 
-  frame->mode = MAD_MODE_SINGLE_CHANNEL;
+  if (mad_timer_seconds(&stats->timer) >= stats->nsecs) {
+    stats->nsecs = mad_timer_seconds(&stats->timer) + 1;
+
+    mad_timer_str(&stats->timer, time_str, "%02u:%02u", MAD_TIMER_MINUTES);
+
+    message(" %s Layer %s, %s%u kbps%s, %u Hz, %s, %sCRC",
+	    time_str, layer_str[frame->layer - 1],
+	    stats->vbr ? "VBR (avg " : "",
+	    stats->vbr ? (stats->vbr_rate / stats->vbr_frames + 500) / 1000 :
+	    stats->bitrate / 1000,
+	    stats->vbr ? ")" : "",
+	    frame->sfreq, mode_str[frame->mode],
+	    (frame->flags & MAD_FLAG_PROTECTION) ? "" : "no ");
+  }
 }
 
+/*
+ * NAME:	error_str()
+ * DESCRIPTION:	return a string describing MAD error
+ */
 static
 char const *error_str(int error)
 {
   static char str[13];
 
   switch (error) {
+  case MAD_ERR_NOMEM:		return "not enough memory";
   case MAD_ERR_LOSTSYNC:	return "lost synchronization";
   case MAD_ERR_BADID:		return "bad header ID field";
   case MAD_ERR_BADLAYER:	return "reserved header layer value";
@@ -252,272 +240,370 @@ char const *error_str(int error)
   }
 }
 
+/*
+ * NAME:	decode_input()
+ * DESCRIPTION:	load input stream buffer with data
+ */
 static
-char const *const genre_str[256] = {
-  "Blues",		"Classic Rock",		"Country",
-  "Dance",		"Disco",		"Funk",
-  "Grunge",		"Hip-Hop",		"Jazz",
-  "Metal",		"New Age",		"Oldies",
-  "Other",		"Pop",			"R&B",
-  "Rap",		"Reggae",		"Rock",
-  "Techno",		"Industrial",		"Alternative",
-  "Ska",		"Death Metal",		"Pranks",
-  "Soundtrack",		"Euro-Techno",		"Ambient",
-  "Trip-Hop",		"Vocal",		"Jazz+Funk",
-  "Fusion",		"Trance",		"Classical",
-  "Instrumental",	"Acid",			"House",
-  "Game",		"Sound Clip",		"Gospel",
-  "Noise",		"AlternRock",		"Bass",
-  "Soul",		"Punk",			"Space",
-  "Meditative",		"Instrumental Pop",	"Instrumental Rock",
-  "Ethnic",		"Gothic",		"Darkwave",
-  "Techno-Industrial",	"Electronic",		"Pop-Folk",
-  "Eurodance",		"Dream",		"Southern Rock",
-  "Comedy",		"Cult",			"Gangsta",
-  "Top 40",		"Christian Rap",	"Pop/Funk",
-  "Jungle",		"Native American",	"Cabaret",
-  "New Wave",		"Psychadelic",		"Rave",
-  "Showtunes",		"Trailer",		"Lo-Fi",
-  "Tribal",		"Acid Punk",		"Acid Jazz",
-  "Polka",		"Retro",		"Musical",
-  "Rock & Roll",	"Hard Rock",
-
-  /* Winamp extensions */
-
-  "Folk",		"Folk-Rock",		"National Folk",
-  "Swing",		"Fast Fusion",		"Bebob",
-  "Latin",		"Revival",		"Celtic",
-  "Bluegrass",		"Avantgarde",		"Gothic Rock",
-  "Progressive Rock",	"Psychedelic Rock",	"Symphonic Rock",
-  "Slow Rock",		"Big Band",		"Chorus",
-  "Easy Listening",	"Acoustic",		"Humour",
-  "Speech",		"Chanson",		"Opera",
-  "Chamber Music",	"Sonata",		"Symphony",
-  "Booty Bass",		"Primus",		"Porn Groove",
-  "Satire",		"Slow Jam",		"Club",
-  "Tango",		"Samba",		"Folklore",
-  "Ballad",		"Power Ballad",		"Rhythmic Soul",
-  "Freestyle",		"Duet",			"Punk Rock",
-  "Drum Solo",		"A capella",		"Euro-House",
-  "Dance Hall"
-};
-
-static
-void show_id3v1(unsigned char const id3v1[128])
+int decode_input(void *data, struct mad_stream *stream)
 {
-  char title[31], artist[31], album[31], year[5], comment[31];
-  char const *genre;
+  struct audio *audio = data;
+  int len;
 
-  /* ID3v1 */
+# ifdef HAVE_MMAP
+  if (audio->fdm) {
+    unsigned long skip = 0;
 
-  title[30] = artist[30] = album[30] = year[4] = comment[30] = 0;
+    if (stream->next_frame) {
+      struct stat stat;
 
-  memcpy(title,   &id3v1[3],  30);
-  memcpy(artist,  &id3v1[33], 30);
-  memcpy(album,   &id3v1[63], 30);
-  memcpy(year,    &id3v1[93],  4);
-  memcpy(comment, &id3v1[97], 30);
+      if (fstat(audio->fd, &stat) == -1)
+	return MAD_DECODER_BREAK;
+      else if (stat.st_size <= audio->len)
+	return MAD_DECODER_STOP;
 
-  genre = genre_str[id3v1[127]];
-  if (genre == 0)
-    genre = "";
+      /* file size changed; update mmap */
 
-  message(" Title: %-30s  Artist: %s\n"
-	  " Album: %-30s   Genre: %s\n",
-	  title, artist, album, genre);
+      skip = stream->next_frame - audio->data;
 
-  if (comment[28] == 0 && comment[29] != 0) {
-    unsigned int track;
+      if (munmap(audio->fdm, audio->len) == -1) {
+	audio->fdm  = 0;
+	audio->data = 0;
+	return MAD_DECODER_BREAK;
+      }
 
-    /* ID3v1.1 */
+      audio->fdm = mmap(0, stat.st_size, PROT_READ, MAP_SHARED, audio->fd, 0);
+      if (audio->fdm == MAP_FAILED) {
+	audio->fdm  = 0;
+	audio->data = 0;
+	return MAD_DECODER_BREAK;
+      }
 
-    track = comment[29];
+      audio->data = audio->fdm;
+      audio->len  = stat.st_size;
+    }
 
-    message("  Year: %-4s  Track: %-3u               Comment: %s\n",
-	    year, track, comment);
+    mad_stream_buffer(stream, audio->data + skip, audio->len - skip);
+
+    return MAD_DECODER_CONTINUE;
   }
-  else {
-    message("  Year: %-4s                           Comment: %s\n",
-	    year, comment);
+# endif
+
+  if (stream->next_frame) {
+    memmove(audio->data, stream->next_frame,
+	    audio->len = &audio->data[audio->len] - stream->next_frame);
   }
+
+  do {
+    len = read(audio->fd, audio->data + audio->len, MPEG_BUFSZ - audio->len);
+  }
+  while (len == -1 && errno == EINTR);
+
+  if (len == -1) {
+    error("input", ":read");
+    return MAD_DECODER_BREAK;
+  }
+  else if (len == 0)
+    return MAD_DECODER_STOP;
+
+  mad_stream_buffer(stream, audio->data, audio->len += len);
+
+  return MAD_DECODER_CONTINUE;
 }
 
+/*
+ * NAME:	decode_output()
+ * DESCRIPTION:	configure audio module and output decoded samples
+ */
 static
-char const *const layer_str[3] = { "I", "II", "III" };
-
-static
-char const *const mode_str[4] = {
-  "single channel", "dual channel", "joint stereo", "stereo"
-};
-
-static
-int decode(int fd, struct audio *audio, int verbose, int quiet)
+int decode_output(void *data,
+		  struct mad_frame const *frame, struct mad_synth const *synth)
 {
-  static unsigned char *data;
-  unsigned int bitrate = 0, vbr_frames = 0, vbr_rate = 0, dlen = 0;
-  unsigned long nsecs = 0;
-  int layer = 0, vbr = 0;
+  struct audio *audio = data;
+  union audio_control control;
+
+  if (audio->channels != MAD_NUMCHANNELS(frame) ||
+      audio->speed    != frame->sfreq) {
+    control.command = audio_cmd_config;
+
+    control.config.channels = MAD_NUMCHANNELS(frame);
+    control.config.speed    = frame->sfreq;
+
+    if (audio->command(&control) == -1) {
+      error("output", audio_error);
+      return MAD_DECODER_BREAK;
+    }
+
+    if (audio->quiet < 2 && control.config.speed != frame->sfreq) {
+      error("output", "sample frequency %u not available (closest %u)",
+	    frame->sfreq, control.config.speed);
+    }
+
+    audio->channels = MAD_NUMCHANNELS(frame);
+    audio->speed    = frame->sfreq;
+  }
+
+  control.command = audio_cmd_play;
+
+  control.play.nsamples   = synth->pcmlen;
+  control.play.samples[0] = synth->pcmout[0];
+  control.play.samples[1] = synth->pcmout[1];
+
+  if (audio->command(&control) == -1) {
+    error("output", audio_error);
+    return MAD_DECODER_BREAK;
+  }
+
+  mad_timer_add(&audio->stats.timer, &frame->duration);
+  audio->stats.framecount++;
+
+  if (audio->verbose)
+    show_stats(frame, &audio->stats);
+
+  return MAD_DECODER_CONTINUE;
+}
+
+/*
+ * NAME:	decode_error()
+ * DESCRIPTION:	handle a decoding error
+ */
+static
+int decode_error(void *data, struct mad_stream *stream,
+		 struct mad_frame *frame)
+{
+  struct audio *audio = data;
+
+  if (stream->error == MAD_ERR_LOSTSYNC &&
+      strncmp(stream->this_frame, "ID3", 3) == 0) {
+    unsigned long tagsize;
+
+    /* ID3v2 tag */
+
 # ifdef HAVE_MMAP
-  void *fdm = 0;
+    if (audio->fdm &&
+	lseek(audio->fd,
+	      stream->this_frame - stream->buffer, SEEK_SET) == -1) {
+      error("error", ":lseek");
+      return MAD_DECODER_BREAK;
+    }
+# endif
+
+    if (id3_v2_read(message, stream->this_frame,
+		    stream->bufend - stream->this_frame,
+		    audio->fd, audio->quiet, &tagsize) == -1) {
+      error("ID3", id3_error);
+      return MAD_DECODER_BREAK;
+    }
+    else if (tagsize > stream->bufend - stream->this_frame)
+      mad_stream_skip(stream, stream->bufend - stream->this_frame);
+    else
+      mad_stream_skip(stream, tagsize);
+  }
+  else if (stream->error == MAD_ERR_LOSTSYNC &&
+	   strncmp(stream->this_frame, "TAG", 3) == 0) {
+    /* ID3v1 tag */
+    mad_stream_skip(stream, 128);
+  }
+  else if (audio->quiet < 2 &&
+	   (stream->error == MAD_ERR_LOSTSYNC || stream->sync)) {
+    error("error", "frame %lu: %s", audio->stats.framecount,
+	  error_str(stream->error));
+  }
+
+  return MAD_DECODER_CONTINUE;
+}
+
+/*
+ * NAME:	initialize()
+ * DESCRIPTION:	prepare audio struct for decoding and output
+ */
+static
+void initialize(struct audio *audio, int fd, int verbose, int quiet,
+		int (*filter)(void *, struct mad_frame *),
+		int (*command)(union audio_control *))
+{
+  audio->fd = fd;
+# ifdef HAVE_MMAP
+  audio->fdm = 0;
+# endif
+
+  audio->data = 0;
+  audio->len  = 0;
+
+  audio->verbose = verbose;
+  audio->quiet   = quiet;
+
+  mad_decoder_init(&audio->decoder);
+  mad_decoder_input(&audio->decoder, decode_input, audio);
+  mad_decoder_filter(&audio->decoder, filter, audio);
+  mad_decoder_output(&audio->decoder, decode_output, audio);
+  mad_decoder_error(&audio->decoder, decode_error, audio);
+
+  audio->stats.framecount = 0;
+  mad_timer_init(&audio->stats.timer);
+
+  audio->stats.vbr        = 0;
+  audio->stats.bitrate    = 0;
+  audio->stats.vbr_frames = 0;
+  audio->stats.vbr_rate   = 0;
+  audio->stats.nsecs      = 0;
+
+  audio->channels = 0;
+  audio->speed    = 0;
+
+  audio->command = command;
+}
+
+/*
+ * NAME:	finish()
+ * DESCRIPTION:	terminate decoding
+ */
+static
+void finish(struct audio *audio)
+{
+  mad_timer_finish(&audio->stats.timer);
+  mad_decoder_finish(&audio->decoder);
+}
+
+/*
+ * NAME:	filter->mono()
+ * DESCRIPTION:	transform stereo frame to mono
+ */
+static
+int filter_mono(void *data, struct mad_frame *frame)
+{
+  unsigned int ns, s, sb;
+  fixed_t left, right;
+
+  if (frame->mode == MAD_MODE_SINGLE_CHANNEL)
+    return MAD_DECODER_CONTINUE;
+
+  ns = MAD_NUMSBSAMPLES(frame);
+
+  for (s = 0; s < ns; ++s) {
+    for (sb = 0; sb < 32; ++sb) {
+      left  = frame->sbsample[0][s][sb];
+      right = frame->sbsample[1][s][sb];
+
+      frame->sbsample[0][s][sb] = (left + right) >> 1;
+      /* frame->sbsample[1][s][sb] = 0; */
+    }
+  }
+
+  frame->mode = MAD_MODE_SINGLE_CHANNEL;
+
+  return MAD_DECODER_CONTINUE;
+}
+
+/*
+ * NAME:	decode()
+ * DESCRIPTION:	decode and output an entire bitstream
+ */
+static
+int decode(struct audio *audio)
+{
+  unsigned char *ptr;
+  int len, count, result = 0;
+# ifdef HAVE_MMAP
   struct stat stat;
 # endif
 
   /* check for ID3v1 tag */
 
-  if (lseek(fd, -128, SEEK_END) != -1) {
+  if (!audio->quiet &&
+      lseek(audio->fd, -128, SEEK_END) != -1) {
     unsigned char id3v1[128];
 
-    if (read(fd, id3v1, 128) == 128 &&
-	id3v1[0] == 'T' && id3v1[1] == 'A' && id3v1[2] == 'G') {
-      if (!quiet)
-	show_id3v1(id3v1);
-    }
-
-    if (lseek(fd, 0, SEEK_SET) == -1) {
-      error(":lseek");
-      goto fail;
-    }
-  }
-
-  /* regular decoding */
-
-# ifdef HAVE_MMAP
-  if (fstat(fd, &stat) == -1) {
-    error(":fstat");
-    goto fail;
-  }
-
-  if (S_ISREG(stat.st_mode) && stat.st_size > 0) {
-    fdm = mmap(0, stat.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    if (fdm == MAP_FAILED) {
-      error(":mmap");
-      goto fail;
-    }
-
-    mad_stream_buffer(&audio->stream, fdm, stat.st_size);
-  }
-  else
-# endif
-    if (!data) {
-      data = malloc(MPEG_BUFSZ);
-      if (data == 0) {
-	error("decode: not enough memory to allocate input buffer");
-	goto fail;
+    for (ptr = id3v1, count = 128; count; count -= len, ptr += len) {
+      do {
+	len = read(audio->fd, ptr, count);
       }
-    }
+      while (len == -1 && errno == EINTR);
 
-  while (1) {
-# ifdef HAVE_MMAP
-    if (!fdm) {
-# endif
-      int len;
-
-      len = read(fd, data + dlen, MPEG_BUFSZ - dlen);
       if (len == -1) {
-	error(":read");
+	error("decode", ":read");
 	goto fail;
       }
       else if (len == 0)
 	break;
-
-      mad_stream_buffer(&audio->stream, data, dlen += len);
-# ifdef HAVE_MMAP
-    }
-# endif
-
-    while (1) {
-      if (mad_decode(&audio->stream, &audio->frame) == -1) {
-	if (MAD_RECOVERABLE(audio->stream.error)) {
-	  if (quiet < 2) {
-	    error("frame %lu: %s", audio->framecount,
-		  error_str(audio->stream.error));
-	  }
-	  continue;
-	}
-	else
-	  break;
-      }
-
-      if ((audio->frame.flags & MAD_FLAG_PROTECTION) &&
-	  (audio->frame.flags & MAD_FLAG_CRCFAILED) && quiet < 2)
-	error("frame %lu: CRC failed", audio->framecount);
-
-      if (layer == 0)
-	layer = audio->frame.layer;
-      else if (audio->frame.layer != layer ||
-	       audio->frame.samplefreq != audio->speed) {
-	/* not usually a good thing; avoid playing garbage */
-	layer = 0;
-	continue;
-      }
-
-      if (play(audio, quiet) == -1) {
-# ifdef HAVE_MMAP
-	if (fdm)
-	  munmap(fdm, stat.st_size);
-# endif
-
-	goto fail;
-      }
-
-      if (verbose) {
-	char time_str[6];
-
-	if (bitrate && audio->frame.bitrate != bitrate)
-	  vbr = 1;
-
-	bitrate   = audio->frame.bitrate;
-	vbr_rate += bitrate;
-
-	if (++vbr_frames == 0)
-	  vbr = 0;  /* overflow; prevent division by 0 */
-
-	while (vbr_rate   && vbr_rate   % 2 == 0 &&
-	       vbr_frames && vbr_frames % 2 == 0) {
-	  vbr_rate   /= 2;
-	  vbr_frames /= 2;
-	}
-
-	if (mad_timer_seconds(&audio->timer) >= nsecs) {
-	  nsecs = mad_timer_seconds(&audio->timer) + 1;
-
-	  mad_timer_str(&audio->timer, time_str, "%02u:%02u", timer_minutes);
-
-	  message(" %s Layer %s, %s%u kbps%s, %u Hz, %s, %sCRC",
-		  time_str, layer_str[audio->frame.layer - 1],
-		  vbr ? "VBR (avg " : "",
-		  vbr ? vbr_rate / vbr_frames / 1000 : bitrate / 1000,
-		  vbr ? ")" : "",
-		  audio->frame.samplefreq, mode_str[audio->frame.mode],
-		  (audio->frame.flags & MAD_FLAG_PROTECTION) ? "" : "no ");
-	}
-      }
     }
 
-# ifdef HAVE_MMAP
-    if (fdm)
-      break;
-    else
-# endif
-      memmove(data, audio->stream.next_frame,
-	      dlen = &data[dlen] - audio->stream.next_frame);
+    if (count == 0 && strncmp(id3v1, "TAG", 3) == 0)
+      id3_v1_show(message, id3v1);
+
+    if (lseek(audio->fd, 0, SEEK_SET) == -1) {
+      error("decode", ":lseek");
+      goto fail;
+    }
   }
 
-  newline();
+  /* prepare input buffers */
 
 # ifdef HAVE_MMAP
-  if (fdm && munmap(fdm, stat.st_size) == -1) {
-    error(":munmap");
+  if (fstat(audio->fd, &stat) == -1) {
+    error("decode", ":fstat");
     goto fail;
   }
+
+  if (S_ISREG(stat.st_mode) && stat.st_size > 0) {
+    audio->fdm = mmap(0, stat.st_size, PROT_READ, MAP_SHARED, audio->fd, 0);
+    if (audio->fdm == MAP_FAILED) {
+      error("decode", ":mmap");
+      goto fail;
+    }
+
+    audio->data = audio->fdm;
+    audio->len  = stat.st_size;
+  }
 # endif
 
-  return 0;
+  if (audio->data == 0) {
+    audio->data = malloc(MPEG_BUFSZ);
+    if (audio->data == 0) {
+      error("decode", "not enough memory to allocate input buffer");
+      goto fail;
+    }
+
+    audio->len = 0;
+  }
+
+  /* decode */
+
+  if (mad_decoder_run(&audio->decoder, MAD_DECODER_SYNC) == -1) {
+    error("decode", "error while decoding");
+    goto fail;
+  }
+
+  goto done;
 
  fail:
-  return -1;
+  result = -1;
+
+ done:
+# ifdef HAVE_MMAP
+  if (audio->fdm) {
+    if (munmap(audio->fdm, audio->len) == -1) {
+      error("decode", ":unmap");
+      result = -1;
+    }
+
+    audio->fdm  = 0;
+    audio->data = 0;
+  }
+# endif
+
+  if (audio->data) {
+    free(audio->data);
+    audio->data = 0;
+  }
+
+  return result;
 }
 
+/*
+ * NAME:	audio->init()
+ * DESCRIPTION:	initialize the audio output module
+ */
 int audio_init(int (*audio)(union audio_control *), char const *path)
 {
   union audio_control control;
@@ -525,34 +611,42 @@ int audio_init(int (*audio)(union audio_control *), char const *path)
   control.command   = audio_cmd_init;
   control.init.path = path;
   if (audio(&control) == -1) {
-    error(audio_error, control.init.path);
+    error("audio", audio_error, control.init.path);
     return -1;
   }
 
   return 0;
 }
 
+/*
+ * NAME:	audio->finish()
+ * DESCRIPTION:	terminate the audio output module
+ */
 int audio_finish(int (*audio)(union audio_control *))
 {
   union audio_control control;
 
   control.command = audio_cmd_finish;
   if (audio(&control) == -1) {
-    error(audio_error);
+    error("audio", audio_error);
     return -1;
   }
 
   return 0;
 }
 
+/*
+ * NAME:	main()
+ * DESCRIPTION:	program entry point
+ */
 int main(int argc, char *argv[])
 {
   int opt, read_stdin = 0, verbose = 0, quiet = 0;
   int i, result, fd;
-  void (*filter)(struct mad_frame *) = 0;
+  int (*filter)(void *, struct mad_frame *) = 0;
   int (*output)(union audio_control *) = 0;
   char const *fname, *opath = 0;
-  static struct audio audio;
+  struct audio audio;
 
   if (argc > 1) {
     if (strcmp(argv[1], "--version") == 0) {
@@ -589,15 +683,19 @@ int main(int argc, char *argv[])
     case 'Q':
       quiet   = 2;
       verbose = 0;
+      break;
 
     case 'o':
-      output = audio_output(opath = optarg);
+      opath = optarg;
+
+      output = audio_output(&opath);
       if (output == 0)
-	error("%s: no output module available; using default", opath);
+	error(0, "%s: no output module available; using default", opath);
       break;
 
     default:
-      error("Usage: %s [-m] [-v|-q|-Q] [-o file.out] [file.mpg ...]", argv[0]);
+      error(0, "Usage: %s [-m] [-v|-q|-Q] [-o file.out] [file.mpg ...]",
+	    argv[0]);
       return 1;
     }
   }
@@ -630,29 +728,32 @@ int main(int argc, char *argv[])
       fname = argv[i];
       fd = open(fname, O_RDONLY);
       if (fd == -1) {
-	error(":", fname);
+	error(0, ":", fname);
 	result = 3;
 	continue;
       }
     }
 
-    initialize(&audio, filter, output);
+    initialize(&audio, fd, verbose, quiet, filter, output);
 
-    if (decode(fd, &audio, verbose, quiet) == -1)
+    if (decode(&audio) == -1)
       result = 4;
     else if (!quiet) {
       char time_str[14];
 
-      mad_timer_str(&audio.timer, time_str, "%u:%02u.%1u", timer_minutes);
+      mad_timer_str(&audio.stats.timer, time_str,
+		    "%u:%02u.%1u", MAD_TIMER_MINUTES);
 
       message("%s: %lu frames decoded (%s)\n", fname,
-	      audio.framecount, time_str);
+	      audio.stats.framecount, time_str);
     }
+
+    finish(&audio);
 
     if (read_stdin)
       read_stdin = 0;
     else if (close(fd) == -1) {
-      error(":close");
+      error(0, ":", fname);
       result = 5;
     }
   }

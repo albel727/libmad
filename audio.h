@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.h,v 1.5 2000/03/06 15:20:43 rob Exp $
+ * $Id: audio.h,v 1.6 2000/03/19 06:43:38 rob Exp $
  */
 
 # ifndef AUDIO_H
@@ -35,20 +35,24 @@ enum {
 
 union audio_control {
   short command;
+
   struct audio_init {
     short command;
     char const *path;
   } init;
+
   struct audio_config {
     short command;
     unsigned short channels;
     unsigned int speed;
   } config;
+
   struct audio_play {
     short command;
     unsigned short nsamples;
     fixed_t const *samples[2];
   } play;
+
   struct audio_finish {
     short command;
   } finish;
@@ -58,13 +62,15 @@ extern char const *audio_error;
 
 typedef int (*audio_ctlfunc_t)(union audio_control *);
 
-audio_ctlfunc_t audio_output(char const *);
+audio_ctlfunc_t audio_output(char const **);
 
 int audio_oss(union audio_control *);
 int audio_sun(union audio_control *);
 
 int audio_wav(union audio_control *);
+int audio_raw(union audio_control *);
 int audio_hex(union audio_control *);
 int audio_null(union audio_control *);
 
 # endif
+

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_oss.c,v 1.4 2000/03/05 18:11:34 rob Exp $
+ * $Id: audio_oss.c,v 1.5 2000/03/13 01:22:03 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -45,14 +45,25 @@ static int stereo;
 static
 int init(struct audio_init *init)
 {
-  int format;
-
   if (init->path == 0)
     init->path = AUDIO_DEVICE;
 
   sfd = open(init->path, O_WRONLY);
   if (sfd == -1) {
     audio_error = ":";
+    return -1;
+  }
+
+  return 0;
+}
+
+static
+int config(struct audio_config *config)
+{
+  int format, speed;
+
+  if (ioctl(sfd, SNDCTL_DSP_SYNC, 0) == -1) {
+    audio_error = ":ioctl(SNDCTL_DSP_SYNC)";
     return -1;
   }
 
@@ -64,19 +75,6 @@ int init(struct audio_init *init)
 
   if (format != AFMT_S16_LE) {
     audio_error = "AFMT_S16_LE not available";
-    return -1;
-  }
-
-  return 0;
-}
-
-static
-int config(struct audio_config *config)
-{
-  int speed;
-
-  if (ioctl(sfd, SNDCTL_DSP_SYNC, 0) == -1) {
-    audio_error = ":ioctl(SNDCTL_DSP_SYNC)";
     return -1;
   }
 
