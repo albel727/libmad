@@ -107,6 +107,12 @@ Frequently Asked Questions
 Changes
 =======
 
+  Changes since 0.14.1b:
+    - fixed a possible crash due to bad Xing header information
+    - eliminated the error dialog when trying to open a (bad) file
+    - increased the size of the info dialog box in preparation for an ID3v2
+      tag editor
+
   Changes since 0.14.0b:
     - none visible; the plug-in is now linked with the new libid3tag
       library, which will eventually enable full ID3v2 support
@@ -177,6 +183,7 @@ Acknowledgments
 
   The following individuals have also made notable contributions:
 
+      Matt Parnell
       John Stewart
 
 Feedback

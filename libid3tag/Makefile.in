@@ -75,9 +75,9 @@ VERSION = @VERSION@
 lib_LTLIBRARIES = libid3tag.la
 include_HEADERS = id3tag.h
 
-version_current = 0
+version_current = 1
 version_revision = 0
-version_age = 0
+version_age = 1
 
 version_info = $(version_current):$(version_revision):$(version_age)
 

@@ -17,12 +17,12 @@ dnl You should have received a copy of the GNU General Public License
 dnl along with this program; if not, write to the Free Software
 dnl Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 dnl
-AC_REVISION([$Id: configure.in,v 1.55 2001/10/23 01:06:17 rob Exp $])dnl
+AC_REVISION([$Id: configure.in,v 1.68 2001/11/03 19:15:04 rob Exp $])dnl
 
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(libmad/decoder.h)
-AM_INIT_AUTOMAKE(mad, 0.14.1b)
+AM_INIT_AUTOMAKE(mad, 0.14.2b)
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SUBDIRS(libz libid3tag libmad)
@@ -44,12 +44,6 @@ AM_PROG_LIBTOOL
 
 AC_SUBST(LIBTOOL_DEPS)
 
-dnl Internationalization support.
-
-ALL_LINGUAS="en es fr hr no"
-
-AM_GNU_GETTEXT
-
 dnl Compiler options.
 
 AC_PROG_GCC_TRADITIONAL
@@ -62,6 +56,16 @@ profile=""
 set -- $CFLAGS
 CFLAGS="-Wall"
 
+if test "$GCC" = yes
+then
+    case "$host" in
+	*-pc-cygwin)
+	    CPPFLAGS="$CPPFLAGS -mno-cygwin"
+	    LDFLAGS="$LDFLAGS -mno-cygwin"
+	    ;;
+    esac
+fi
+
 while test $# -gt 0
 do
     case "$1" in
@@ -70,6 +74,9 @@ do
 	    ;;
 	-g)
 	    debug="-g"
+	    shift
+	    ;;
+	-mno-cygwin)
 	    shift
 	    ;;
 	-m*)
@@ -112,10 +119,18 @@ then
     fi
 fi
 
+dnl Internationalization support.
+
+ALL_LINGUAS="en es fr hr no"
+
+AM_GNU_GETTEXT
+
 dnl Checks for header files.
 
 AC_HEADER_STDC
-AC_CHECK_HEADERS(termios.h stropts.h sys/soundcard.h machine/soundcard.h)
+AC_CHECK_HEADERS(assert.h termios.h stropts.h  \
+		 sys/types.h fcntl.h errno.h  \
+		 sys/soundcard.h machine/soundcard.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 
@@ -126,12 +141,15 @@ AC_C_BIGENDIAN
 dnl Checks for library functions.
 
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS(madvise)
+AC_CHECK_FUNCS(madvise localeconv)
 AC_REPLACE_FUNCS(strcasecmp strncasecmp)
 AC_SEARCH_LIBS(pow, m)
 AC_SEARCH_LIBS(log10, m)
 
-AC_CHECK_LIB(z, compress2, use_libz=false, use_libz=true)
+case "$host" in
+    *-pc-cygwin) build_libz=yes ;;
+    *) AC_CHECK_LIB(z, compress2, build_libz=no, build_libz=yes) ;;
+esac
 
 case "$host" in
     *-linux*) AC_DEFINE(HAVE_MMAP) ;;
@@ -161,9 +179,26 @@ AC_MSG_CHECKING(for audio support)
 
 audio="unknown"
 
-case "$host" in
-    arm*-empeg-*) audio="empeg" ;;
-esac
+want_esd=yes
+AC_ARG_WITH(esd,
+  [  --with-esd              use Enlightened Sound Daemon (EsounD) as default],
+[
+    case "$withval" in
+	yes)
+	    audio="esd"
+	    ;;
+	no)
+	    want_esd=no
+	    ;;
+    esac
+])
+
+if test "$audio" = unknown
+then
+    case "$host" in
+	arm*-empeg-*) audio="empeg" ;;
+    esac
+fi
 
 if test "$audio" = unknown
 then
@@ -203,15 +238,39 @@ fi
 
 AC_MSG_RESULT($audio)
 
+if test "$want_esd" = yes
+then
+    AC_CHECK_LIB(esd, esd_open_sound)
+    if test $ac_cv_lib_esd_esd_open_sound = yes
+    then
+	have_libesd=yes
+    else
+	have_libesd=no
+    fi
+fi
+
+if test "$audio" = esd
+then
+    if test "$have_libesd" = no
+    then
+	AC_MSG_ERROR(cannot use --with-esd because libesd was not found)
+    fi
+else
+    if test "$want_esd" = yes && test "$have_libesd" = yes
+    then
+	AUDIO="$AUDIO audio_esd.o"
+    fi
+fi
+
 if test "$audio" = unknown
 then
     AC_MSG_WARN(audio support not available; using null module)
     AC_DEFINE(AUDIO_DEFAULT, audio_null)
 else
-    audio="audio_$audio"
-    AC_DEFINE_UNQUOTED(AUDIO_DEFAULT, $audio)
+    audio_module="audio_$audio"
+    AC_DEFINE_UNQUOTED(AUDIO_DEFAULT, $audio_module)
 
-    AUDIO="$audio.o"
+    AUDIO="$AUDIO $audio_module.o"
 fi
 
 dnl libmad options...
@@ -221,7 +280,7 @@ AC_ARG_ENABLE(speed,
 AC_ARG_ENABLE(accuracy,
     [  --enable-accuracy       optimize for accuracy over speed])
 AC_ARG_ENABLE(fpm,
-    [  --enable-fpm=<arch>     use <arch>-specific fixed-point math routines
+    [  --enable-fpm=ARCH       use ARCH-specific fixed-point math routines
                           (one of: intel, arm, mips, sparc, ppc,
                            64bit, default)])
 AC_ARG_ENABLE(sso,
@@ -284,23 +343,15 @@ AC_MSG_RESULT(${enable_experimental-no})
 
 dnl Winamp options...
 
-WINAMP_TARGET=""
-AC_SUBST(WINAMP_TARGET)
-
-build_winamp=false
 case "$host" in
-    *-pc-cygwin)
-	WINAMP_TARGET="in_mad.dll"
-	build_winamp=true
-	;;
+    *-pc-cygwin) build_winamp=yes ;;
+    *)           build_winamp=no  ;;
 esac
 
 dnl Create output files.
 
-AM_CONDITIONAL(BUILD_LIBZ,   [test $use_libz     = true ||  \
-			      test $build_winamp = true])
-AM_CONDITIONAL(USE_LIBZ,     [test $use_libz     = true])
-AM_CONDITIONAL(BUILD_WINAMP, [test $build_winamp = true])
+AM_CONDITIONAL(BUILD_LIBZ,   [test $build_libz   = yes])
+AM_CONDITIONAL(BUILD_WINAMP, [test $build_winamp = yes])
 
 test -n "$arch"     && CFLAGS="$CFLAGS $arch"
 test -n "$debug"    && CFLAGS="$CFLAGS $debug"
@@ -310,4 +361,4 @@ test -n "$profile"  && CFLAGS="$CFLAGS $profile" LDFLAGS="$LDFLAGS $profile"
 AC_OUTPUT(Makefile intl/Makefile po/Makefile.in  \
 	  winamp/Makefile winamp/in_mad.psc  \
 	  msvc++/Makefile msvc++/libmad/Makefile msvc++/libid3tag/Makefile  \
-	  msvc++/libz/Makefile msvc++/demo/Makefile)
+	  msvc++/libz/Makefile msvc++/madplay/Makefile)

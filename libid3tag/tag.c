@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: tag.c,v 1.8 2001/10/20 22:15:48 rob Exp $
+ * $Id: tag.c,v 1.10 2001/11/01 20:27:38 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -27,7 +27,10 @@
 
 # include <string.h>
 # include <stdlib.h>
-# include <assert.h>
+
+# ifdef HAVE_ASSERT_H
+#  include <assert.h>
+# endif
 
 # include "id3tag.h"
 # include "tag.h"
@@ -677,10 +680,7 @@ id3_length_t v1_render(struct id3_tag const *tag, id3_byte_t *buffer)
       break;
   }
 
-  if (i == 127 && buffer[127] == 0xff)
-    return 0;
-
-  return 128;
+  return (i == 127 && buffer[127] == 0xff) ? 0 : 128;
 }
 
 /*

@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Id: compat.gperf,v 1.6 2001/10/20 22:15:47 rob Exp 
+ * Id: compat.gperf,v 1.7 2001/11/09 04:55:21 rob Exp 
  */
 
 # ifdef HAVE_CONFIG_H
@@ -29,7 +29,10 @@
 
 # include <stdlib.h>
 # include <string.h>
-# include <assert.h>
+
+# ifdef HAVE_ASSERT_H
+#  include <assert.h>
+# endif
 
 # include "id3tag.h"
 # include "compat.h"

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madtime.c,v 1.17 2001/09/13 20:34:03 rob Exp $
+ * $Id: madtime.c,v 1.19 2001/11/02 09:50:35 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -31,9 +31,17 @@
 
 # include <stdio.h>
 # include <stdlib.h>
-# include <sys/types.h>
+
+# ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+# endif
+
 # include <sys/stat.h>
-# include <fcntl.h>
+
+# ifdef HAVE_FCNTL_H
+#  include <fcntl.h>
+# endif
+
 # include <unistd.h>
 # include <string.h>
 # include <sys/mman.h>
@@ -150,15 +158,21 @@ static
 void show(mad_timer_t duration, signed int kbps,
 	  unsigned long kbytes, char const *label)
 {
-  char duration_str[19], *point;
+  char duration_str[19];
 
   mad_timer_string(duration, duration_str,
 		   "%4lu:%02u:%02u.%1u", MAD_UNITS_HOURS,
 		   MAD_UNITS_DECISECONDS, 0);
 
-  point = strchr(duration_str, '.');
-  if (point)
-    *point = *localeconv()->decimal_point;
+# if defined(HAVE_LOCALECONV)
+  {
+    char *point;
+
+    point = strchr(duration_str, '.');
+    if (point)
+      *point = *localeconv()->decimal_point;
+  }
+# endif
 
   printf(_("%8.1f MB  %c%3u kbps  %s  %s\n"), kbytes / 1024.0,
 	 kbps < 0 ? '~' : ' ', abs(kbps), duration_str, label);

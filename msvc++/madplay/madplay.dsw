@@ -3,7 +3,7 @@ Microsoft Developer Studio Workspace File, Format Version 6.00
 
 ###############################################################################
 
-Project: "demo"=".\demo.dsp" - Package Owner=<4>
+Project: "madplay"=".\madplay.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{

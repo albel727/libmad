@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_snd.c,v 1.6 2001/04/14 04:46:51 rob Exp $
+ * $Id: audio_snd.c,v 1.9 2001/11/03 00:49:07 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -31,14 +31,17 @@
 # include "mad.h"
 # include "audio.h"
 
-# define AUDIO_FILE_MAGIC	0x2e736e64L	/* ".snd" */
+# define AUDIO_FILE_MAGIC	(('.' << 24) | ('s' << 16) | ('n' << 8) | 'd')
 # define AUDIO_UNKNOWN_SIZE	(~0)		/* (unsigned) -1 */
 # define AUDIO_ENCODING_MULAW_8	1		/* 8-bit ISDN mu-law */
 
 static FILE *outfile;
 
 static unsigned long data_len;
-static long prev_header;
+
+static unsigned int config_channels;
+static unsigned int config_speed;
+static unsigned int config_precision;
 
 /*
  * NAME:	int32()
@@ -66,39 +69,29 @@ int init(struct audio_init *init)
   else
     outfile = stdout;
 
-  data_len    = 0;
-  prev_header = 0;
+  data_len = 0;
+
+  config_channels  = 0;
+  config_speed     = 0;
+  config_precision = 0;
 
   return 0;
 }
-
-static
-int patch_length(long address, unsigned long length)
-{
-  unsigned char dword[4];
-
-  if (fseek(outfile, address, SEEK_SET) == -1)
-    return -1;
-
-  int32(dword, length);
-  if (fwrite(dword, sizeof(dword), 1, outfile) != 1)
-    return -1;
-
-  if (fseek(outfile, 0, SEEK_END) == -1)
-    return -1;
-
-  return 0;
-}
-
-# define close_data()	patch_length(prev_header - 16, data_len)
 
 static
 int config(struct audio_config *config)
 {
   unsigned char header[24];
 
-  if (prev_header)
-    close_data();
+  if (config_precision) {
+    /* it's not possible to change the format once set */
+
+    config->channels  = config_channels;
+    config->speed     = config_speed;
+    config->precision = config_precision;
+
+    return 0;
+  }
 
   /* Sun/NeXT audio file header */
 
@@ -114,11 +107,15 @@ int config(struct audio_config *config)
     return -1;
   }
 
-  prev_header = ftell(outfile);
-  if (prev_header == -1)
-    prev_header = 0;
-
   data_len = 0;
+
+  /* require 8-bit depth for now */
+
+  config->precision = 8;
+
+  config_channels  = config->channels;
+  config_speed     = config->speed;
+  config_precision = config->precision;
 
   return 0;
 }
@@ -126,12 +123,12 @@ int config(struct audio_config *config)
 static
 int play(struct audio_play *play)
 {
-  unsigned char data[MAX_NSAMPLES];
+  unsigned char data[MAX_NSAMPLES * 2];
   unsigned int len;
 
   len = audio_pcm_mulaw(data, play->nsamples,
-			play->samples[0], play->samples[1], play->mode,
-			play->stats);
+			play->samples[0], play->samples[1],
+			play->mode, play->stats);
 
   if (fwrite(data, play->samples[1] ? 2 : 1,
 	     play->nsamples, outfile) != play->nsamples) {
@@ -151,18 +148,59 @@ int stop(struct audio_stop *stop)
 }
 
 static
-int finish(struct audio_finish *finish)
+int patch_int32(long address, unsigned long num)
 {
-  if (prev_header)
-    close_data();
+  unsigned char dword[4];
 
-  if (outfile != stdout &&
-      fclose(outfile) == EOF) {
-    audio_error = ":fclose";
+  if (fseek(outfile, address, SEEK_SET) == -1) {
+    audio_error = ":fseek";
+    return -1;
+  }
+
+  int32(dword, num);
+
+  if (fwrite(dword, sizeof(dword), 1, outfile) != 1) {
+    audio_error = ":fwrite";
+    return -1;
+  }
+
+  if (fseek(outfile, 0, SEEK_END) == -1) {
+    audio_error = ":fseek";
     return -1;
   }
 
   return 0;
+}
+
+static
+int finish(struct audio_finish *finish)
+{
+  int result = 0;
+
+  if (config_precision == 0) {
+    struct audio_config dummy;
+
+    /* write empty chunks */
+
+    dummy.command   = AUDIO_COMMAND_CONFIG;
+    dummy.channels  = 2;
+    dummy.speed     = 44100;
+    dummy.precision = 16;
+
+    result = config(&dummy);
+  }
+
+  if (result == 0)
+    patch_int32(8, data_len);
+
+  if (outfile != stdout &&
+      fclose(outfile) == EOF &&
+      result == 0) {
+    audio_error = ":fclose";
+    result = -1;
+  }
+
+  return result;
 }
 
 int audio_snd(union audio_control *control)

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: config.h,v 1.3 2001/10/21 00:24:38 rob Exp $
+ * $Id: config.h,v 1.2 2001/11/09 02:35:53 rob Exp $
  */
 
 # ifndef CONFIG_H
@@ -37,7 +37,7 @@
 /* #undef CRAY_STACKSEG_END */
 
 /* Define if you have alloca, as a function or macro.  */
-/* #undef HAVE_ALLOCA */
+#define HAVE_ALLOCA 1
 
 /* Define if you have <alloca.h> and it should be used (not on Ultrix).  */
 /* #undef HAVE_ALLOCA_H */
@@ -83,7 +83,7 @@
 #define AUDIO_DEFAULT audio_win32
 
 /* Define if you have mmap() and you want to use it. */
-#define USE_MMAP 1
+/* #undef USE_MMAP */
 
 /* Define to 1 if NLS is requested.  */
 /* #undef ENABLE_NLS */
@@ -122,10 +122,13 @@
 /* #undef HAVE_DCGETTEXT */
 
 /* Define if you have the getcwd function.  */
-/* #undef HAVE_GETCWD */
+#define HAVE_GETCWD 1
 
 /* Define if you have the getpagesize function.  */
 /* #undef HAVE_GETPAGESIZE */
+
+/* Define if you have the localeconv function.  */
+#define HAVE_LOCALECONV 1
 
 /* Define if you have the madvise function.  */
 /* #undef HAVE_MADVISE */
@@ -137,7 +140,7 @@
 #define HAVE_PUTENV 1
 
 /* Define if you have the setenv function.  */
-#define HAVE_SETENV 1
+/* #undef HAVE_SETENV */
 
 /* Define if you have the setlocale function.  */
 #define HAVE_SETLOCALE 1
@@ -160,11 +163,23 @@
 /* Define if you have the <argz.h> header file.  */
 /* #undef HAVE_ARGZ_H */
 
+/* Define if you have the <assert.h> header file.  */
+#define HAVE_ASSERT_H 1
+
+/* Define if you have the <errno.h> header file.  */
+#define HAVE_ERRNO_H 1
+
+/* Define if you have the <fcntl.h> header file.  */
+#define HAVE_FCNTL_H 1
+
 /* Define if you have the <limits.h> header file.  */
 #define HAVE_LIMITS_H 1
 
 /* Define if you have the <locale.h> header file.  */
 #define HAVE_LOCALE_H 1
+
+/* Define if you have the <machine/soundcard.h> header file.  */
+/* #undef HAVE_MACHINE_SOUNDCARD_H */
 
 /* Define if you have the <malloc.h> header file.  */
 #define HAVE_MALLOC_H 1
@@ -175,8 +190,17 @@
 /* Define if you have the <string.h> header file.  */
 #define HAVE_STRING_H 1
 
+/* Define if you have the <stropts.h> header file.  */
+/* #undef HAVE_STROPTS_H */
+
 /* Define if you have the <sys/param.h> header file.  */
-#define HAVE_SYS_PARAM_H 1
+/* #undef HAVE_SYS_PARAM_H */
+
+/* Define if you have the <sys/soundcard.h> header file.  */
+/* #undef HAVE_SYS_SOUNDCARD_H */
+
+/* Define if you have the <sys/types.h> header file.  */
+#define HAVE_SYS_TYPES_H 1
 
 /* Define if you have the <termios.h> header file.  */
 /* #undef HAVE_TERMIOS_H */
@@ -187,6 +211,9 @@
 /* Define if you have the efence library (-lefence).  */
 /* #undef HAVE_LIBEFENCE */
 
+/* Define if you have the esd library (-lesd).  */
+/* #undef HAVE_LIBESD */
+
 /* Define if you have the i library (-li).  */
 /* #undef HAVE_LIBI */
 
@@ -194,7 +221,7 @@
 #define PACKAGE "mad"
 
 /* Version number of package */
-#define VERSION "0.14.1b"
+#define VERSION "0.14.2b"
 
 /*****************************************************************************
  * End of automatically configured definitions                               *

@@ -105,9 +105,9 @@ INCLUDES = $(FPM) $(ASO)
 BUILT_SOURCES = mad.h
 CLEANFILES = mad.h
 
-version_current = 0
+version_current = 1
 version_revision = 0
-version_age = 0
+version_age = 1
 
 version_info = $(version_current):$(version_revision):$(version_age)
 

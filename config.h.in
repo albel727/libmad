@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: config.h.in,v 1.60 2001/10/23 01:16:36 rob Exp $
+ * $Id: config.h.in,v 1.80 2001/11/03 21:07:47 rob Exp $
  */
 
 # ifndef CONFIG_H
@@ -128,6 +128,9 @@
 /* Define if you have the getpagesize function.  */
 #undef HAVE_GETPAGESIZE
 
+/* Define if you have the localeconv function.  */
+#undef HAVE_LOCALECONV
+
 /* Define if you have the madvise function.  */
 #undef HAVE_MADVISE
 
@@ -161,6 +164,15 @@
 /* Define if you have the <argz.h> header file.  */
 #undef HAVE_ARGZ_H
 
+/* Define if you have the <assert.h> header file.  */
+#undef HAVE_ASSERT_H
+
+/* Define if you have the <errno.h> header file.  */
+#undef HAVE_ERRNO_H
+
+/* Define if you have the <fcntl.h> header file.  */
+#undef HAVE_FCNTL_H
+
 /* Define if you have the <limits.h> header file.  */
 #undef HAVE_LIMITS_H
 
@@ -188,6 +200,9 @@
 /* Define if you have the <sys/soundcard.h> header file.  */
 #undef HAVE_SYS_SOUNDCARD_H
 
+/* Define if you have the <sys/types.h> header file.  */
+#undef HAVE_SYS_TYPES_H
+
 /* Define if you have the <termios.h> header file.  */
 #undef HAVE_TERMIOS_H
 
@@ -196,6 +211,9 @@
 
 /* Define if you have the efence library (-lefence).  */
 #undef HAVE_LIBEFENCE
+
+/* Define if you have the esd library (-lesd).  */
+#undef HAVE_LIBESD
 
 /* Define if you have the i library (-li).  */
 #undef HAVE_LIBI

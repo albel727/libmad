@@ -30,14 +30,14 @@ extern "C" {
 # define SIZEOF_LONG 4
 # define SIZEOF_LONG_LONG 8
 
-/* Id: version.h,v 1.18 2001/10/17 22:16:47 rob Exp */
+/* Id: version.h,v 1.20 2001/10/27 22:47:32 rob Exp */
 
 # ifndef LIBMAD_VERSION_H
 # define LIBMAD_VERSION_H
 
 # define MAD_VERSION_MAJOR	0
 # define MAD_VERSION_MINOR	14
-# define MAD_VERSION_PATCH	1
+# define MAD_VERSION_PATCH	2
 # define MAD_VERSION_EXTRA	" (beta)"
 
 # define MAD_VERSION_STRINGIZE(str)	#str
@@ -59,33 +59,33 @@ extern char const mad_build[];
 
 # endif
 
-/* Id: fixed.h,v 1.29 2001/10/18 08:11:43 rob Exp */
+/* Id: fixed.h,v 1.30 2001/11/02 09:51:06 rob Exp */
 
 # ifndef LIBMAD_FIXED_H
 # define LIBMAD_FIXED_H
 
-# if defined(FPM_FLOAT)
-typedef double mad_fixed_t;
-typedef double mad_fixed64hi_t;
-typedef double mad_fixed64lo_t;
-# else
-#  if SIZEOF_INT >= 4
+# if SIZEOF_INT >= 4
 typedef   signed int mad_fixed_t;
 
 typedef   signed int mad_fixed64hi_t;
 typedef unsigned int mad_fixed64lo_t;
-#  else
+# else
 typedef   signed long mad_fixed_t;
 
 typedef   signed long mad_fixed64hi_t;
 typedef unsigned long mad_fixed64lo_t;
-#  endif
 # endif
 
 # if defined(_MSC_VER)
 #  define mad_fixed64_t  signed __int64
 # elif 1 || defined(__GNUC__)
 #  define mad_fixed64_t  signed long long
+# endif
+
+# if defined(FPM_FLOAT)
+typedef double mad_sample_t;
+# else
+typedef mad_fixed_t mad_sample_t;
 # endif
 
 /*
@@ -546,7 +546,7 @@ unsigned short mad_bit_crc(struct mad_bitptr, unsigned int, unsigned short);
 
 # endif
 
-/* Id: timer.h,v 1.11 2001/10/17 19:12:21 rob Exp */
+/* Id: timer.h,v 1.12 2001/11/03 03:57:11 rob Exp */
 
 # ifndef LIBMAD_TIMER_H
 # define LIBMAD_TIMER_H
@@ -608,7 +608,7 @@ enum mad_units {
   MAD_UNITS_59_94_FPS	 =   -60
 };
 
-# define mad_timer_reset(timer)	(*(timer) = mad_timer_zero)
+# define mad_timer_reset(timer)	((void) (*(timer) = mad_timer_zero))
 
 int mad_timer_compare(mad_timer_t, mad_timer_t);
 
@@ -628,7 +628,7 @@ void mad_timer_string(mad_timer_t, char *, char const *,
 
 # endif
 
-/* Id: stream.h,v 1.13 2001/10/17 19:12:35 rob Exp */
+/* Id: stream.h,v 1.15 2001/11/08 23:28:03 rob Exp */
 
 # ifndef LIBMAD_STREAM_H
 # define LIBMAD_STREAM_H
@@ -637,6 +637,8 @@ void mad_timer_string(mad_timer_t, char *, char const *,
 # define MAD_BUFFER_MDLEN	(511 + 2048 + MAD_BUFFER_GUARD)
 
 enum mad_error {
+  MAD_ERROR_NONE	   = 0x0000,	/* no error */
+
   MAD_ERROR_BUFLEN	   = 0x0001,	/* input buffer too small (or EOF) */
   MAD_ERROR_BUFPTR	   = 0x0002,	/* invalid (null) buffer pointer */
 
@@ -689,24 +691,27 @@ struct mad_stream {
 
 enum {
   MAD_OPTION_IGNORECRC      = 0x0001,	/* ignore CRC errors */
-  MAD_OPTION_HALFSAMPLERATE = 0x0002,	/* generate PCM at 1/2 sample rate */
+  MAD_OPTION_HALFSAMPLERATE = 0x0002	/* generate PCM at 1/2 sample rate */
 # if 0  /* not yet implemented */
   MAD_OPTION_LEFTCHANNEL    = 0x0010,	/* decode left channel only */
   MAD_OPTION_RIGHTCHANNEL   = 0x0020,	/* decode right channel only */
-  MAD_OPTION_SINGLECHANNEL  = 0x0030,	/* combine channels */
+  MAD_OPTION_SINGLECHANNEL  = 0x0030	/* combine channels */
 # endif
 };
 
 void mad_stream_init(struct mad_stream *);
 void mad_stream_finish(struct mad_stream *);
 
-# define mad_stream_options(stream, opts)  ((stream)->options = (opts))
+# define mad_stream_options(stream, opts)  \
+    ((void) ((stream)->options = (opts)))
 
 void mad_stream_buffer(struct mad_stream *,
 		       unsigned char const *, unsigned long);
 void mad_stream_skip(struct mad_stream *, unsigned long);
 
 int mad_stream_sync(struct mad_stream *);
+
+char const *mad_stream_errorstr(struct mad_stream const *);
 
 # endif
 
@@ -805,7 +810,7 @@ void mad_frame_mute(struct mad_frame *);
 
 # endif
 
-/* Id: synth.h,v 1.10 2001/10/17 19:15:49 rob Exp */
+/* Id: synth.h,v 1.11 2001/11/08 23:28:03 rob Exp */
 
 # ifndef LIBMAD_SYNTH_H
 # define LIBMAD_SYNTH_H
@@ -814,7 +819,7 @@ struct mad_pcm {
   unsigned int samplerate;		/* sampling frequency (Hz) */
   unsigned short channels;		/* number of channels */
   unsigned short length;		/* number of samples per channel */
-  mad_fixed_t samples[2][1152];		/* PCM output samples */
+  mad_fixed_t samples[2][1152];		/* PCM output samples [ch][sample] */
 };
 
 struct mad_synth {
@@ -824,6 +829,23 @@ struct mad_synth {
   unsigned int phase;			/* current processing phase */
 
   struct mad_pcm pcm;			/* PCM output */
+};
+
+/* single channel PCM selector */
+enum {
+  MAD_PCM_CHANNEL_SINGLE = 0
+};
+
+/* dual channel PCM selector */
+enum {
+  MAD_PCM_CHANNEL_DUAL_1 = 0,
+  MAD_PCM_CHANNEL_DUAL_2 = 1
+};
+
+/* stereo PCM selector */
+enum {
+  MAD_PCM_CHANNEL_STEREO_LEFT  = 0,
+  MAD_PCM_CHANNEL_STEREO_RIGHT = 1
 };
 
 void mad_synth_init(struct mad_synth *);
@@ -836,7 +858,7 @@ void mad_synth_frame(struct mad_synth *, struct mad_frame const *);
 
 # endif
 
-/* Id: decoder.h,v 1.11 2001/10/17 19:14:32 rob Exp */
+/* Id: decoder.h,v 1.13 2001/11/03 03:57:11 rob Exp */
 
 # ifndef LIBMAD_DECODER_H
 # define LIBMAD_DECODER_H
@@ -847,10 +869,10 @@ enum mad_decoder_mode {
 };
 
 enum mad_flow {
-  MAD_FLOW_CONTINUE = 0x0000,
-  MAD_FLOW_STOP     = 0x0010,
-  MAD_FLOW_BREAK    = 0x0011,
-  MAD_FLOW_IGNORE   = 0x0020
+  MAD_FLOW_CONTINUE = 0x0000,	/* continue normally */
+  MAD_FLOW_STOP     = 0x0010,	/* stop decoding normally */
+  MAD_FLOW_BREAK    = 0x0011,	/* stop decoding and signal an error */
+  MAD_FLOW_IGNORE   = 0x0020	/* ignore the current frame */
 };
 
 struct mad_decoder {
@@ -897,7 +919,8 @@ void mad_decoder_init(struct mad_decoder *, void *,
 		      enum mad_flow (*)(void *, void *, unsigned int *));
 int mad_decoder_finish(struct mad_decoder *);
 
-# define mad_decoder_options(decoder, opts)  ((decoder)->options = (opts))
+# define mad_decoder_options(decoder, opts)  \
+    ((void) ((decoder)->options = (opts)))
 
 int mad_decoder_run(struct mad_decoder *, enum mad_decoder_mode);
 int mad_decoder_message(struct mad_decoder *, void *, unsigned int *);

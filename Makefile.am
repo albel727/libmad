@@ -19,7 +19,7 @@
 ## If you would like to negotiate alternate licensing terms, you may do
 ## so by contacting the author: Robert Leslie <rob@mars.org>
 ##
-## $Id: Makefile.am,v 1.16 2001/10/20 22:15:34 rob Exp $
+## $Id: Makefile.am,v 1.22 2001/11/09 00:40:38 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
@@ -32,13 +32,9 @@ endif
 
 if BUILD_LIBZ
 libz = libz
-else
-libz =
-endif
-
-if USE_LIBZ
 ldadd_libz = -Llibz -lz
 else
+libz =
 ldadd_libz = -lz
 endif
 
@@ -53,15 +49,16 @@ man_MANS =		madplay.1 abxtest.1
 
 EXTRA_DIST =  \
 	$(man_MANS) $(bin_SCRIPTS)  \
-	CHANGES COPYRIGHT CREDITS README TODO VERSION  \
-	id3genre.dat
-# id3genre.dat temporary until Winamp plug-in is revised
+	CHANGES COPYRIGHT CREDITS README TODO VERSION
 
 default_audio =  \
-	audio.c audio_raw.c audio_wave.c audio_snd.c audio_null.c audio.h
+	audio.c audio.h  \
+	audio_cdda.c audio_aiff.c audio_wave.c audio_snd.c audio_raw.c  \
+	audio_null.c
 
 extra_audio =  \
-	audio_empeg.c audio_hex.c audio_oss.c audio_sun.c audio_win32.c
+	audio_oss.c audio_empeg.c audio_sun.c audio_win32.c  \
+	audio_hex.c audio_esd.c
 
 common_sources =  \
 	version.c version.h global.h

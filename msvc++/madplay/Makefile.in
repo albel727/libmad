@@ -90,10 +90,9 @@ RANLIB = @RANLIB@
 USE_INCLUDED_LIBINTL = @USE_INCLUDED_LIBINTL@
 USE_NLS = @USE_NLS@
 VERSION = @VERSION@
-WINAMP_TARGET = @WINAMP_TARGET@
 l = @l@
 
-EXTRA_DIST = main.c config.h demo.dsp demo.dsw
+EXTRA_DIST = config.h madplay.dsp madplay.dsw
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../../config.h
 CONFIG_CLEAN_FILES = 
@@ -107,7 +106,7 @@ GZIP_ENV = --best
 all: all-redirect
 .SUFFIXES:
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --foreign --include-deps msvc++/demo/Makefile
+	cd $(top_srcdir) && $(AUTOMAKE) --foreign --include-deps msvc++/madplay/Makefile
 
 Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) \
@@ -119,7 +118,7 @@ TAGS:
 
 distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
 
-subdir = msvc++/demo
+subdir = msvc++/madplay
 
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.c,v 1.25 2001/09/25 08:49:10 rob Exp $
+ * $Id: audio.c,v 1.29 2001/11/09 00:40:38 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -53,31 +53,42 @@ audio_ctlfunc_t *audio_output(char const **path)
     audio_ctlfunc_t *module;
   };
 
-  struct map const types[] = {
-    { "raw",  audio_raw  },
-    { "pcm",  audio_raw  },
+  struct map const prefixes[] = {
+    { "cdda", audio_cdda },
+    { "aiff", audio_aiff },
     { "wave", audio_wave },
     { "wav",  audio_wave },
     { "snd",  audio_snd  },
     { "au",   audio_snd  },
+    { "raw",  audio_raw  },
+    { "pcm",  audio_raw  },
 # if defined(DEBUG)
     { "hex",  audio_hex  },
 # endif
-    { "null", audio_null }
+# if defined(HAVE_LIBESD)
+    { "esd",  audio_esd  },
+# endif
+    { "null", audio_null },
+    { "nul",  audio_null }
   };
 
-  struct map const exts[] = {
-    { "raw",  audio_raw  },
-    { "pcm",  audio_raw  },
-    { "out",  audio_raw  },
-    { "bin",  audio_raw  },
+  struct map const extensions[] = {
+    { "cdr",  audio_cdda },
+    { "cda",  audio_cdda },
+    { "cdda", audio_cdda },
+    { "aif",  audio_aiff },
+    { "aiff", audio_aiff },
     { "wav",  audio_wave },
     { "snd",  audio_snd  },
     { "au",   audio_snd  },
+    { "raw",  audio_raw  },
+    { "pcm",  audio_raw  },
+    { "out",  audio_raw  },
 # if defined(DEBUG)
     { "hex",  audio_hex  },
-    { "txt",  audio_hex  }
+    { "txt",  audio_hex  },
 # endif
+    { "bin",  audio_raw  }
   };
 
   if (path == 0)
@@ -92,10 +103,10 @@ audio_ctlfunc_t *audio_output(char const **path)
     type  = *path;
     *path = ext + 1;
 
-    for (i = 0; i < sizeof(types) / sizeof(types[0]); ++i) {
-      if (strncasecmp(type, types[i].name, ext - type) == 0 &&
-	  strlen(types[i].name) == ext - type)
-	return types[i].module;
+    for (i = 0; i < sizeof(prefixes) / sizeof(prefixes[0]); ++i) {
+      if (strncasecmp(type, prefixes[i].name, ext - type) == 0 &&
+	  strlen(prefixes[i].name) == ext - type)
+	return prefixes[i].module;
     }
 
     *path = type;
@@ -114,9 +125,9 @@ audio_ctlfunc_t *audio_output(char const **path)
   if (ext) {
     ++ext;
 
-    for (i = 0; i < sizeof(exts) / sizeof(exts[0]); ++i) {
-      if (strcasecmp(ext, exts[i].name) == 0)
-	return exts[i].module;
+    for (i = 0; i < sizeof(extensions) / sizeof(extensions[0]); ++i) {
+      if (strcasecmp(ext, extensions[i].name) == 0)
+	return extensions[i].module;
     }
   }
 
@@ -136,8 +147,9 @@ void audio_control_init(union audio_control *control,
     break;
 
   case AUDIO_COMMAND_CONFIG:
-    control->config.channels = 0;
-    control->config.speed    = 0;
+    control->config.channels  = 0;
+    control->config.speed     = 0;
+    control->config.precision = 0;
     break;
 
   case AUDIO_COMMAND_PLAY:
@@ -342,6 +354,66 @@ unsigned int audio_pcm_u8(unsigned char *data, unsigned int nsamples,
     case AUDIO_MODE_DITHER:
       while (len--)
 	*data++ = audio_linear_dither(8, *left++, &left_dither, stats) ^ 0x80;
+      break;
+
+    default:
+      return 0;
+    }
+
+    return nsamples;
+  }
+}
+
+/*
+ * NAME:	audio_pcm_s8()
+ * DESCRIPTION:	write a block of signed 8-bit PCM samples
+ */
+unsigned int audio_pcm_s8(unsigned char *data, unsigned int nsamples,
+			  mad_fixed_t const *left, mad_fixed_t const *right,
+			  enum audio_mode mode, struct audio_stats *stats)
+{
+  unsigned int len;
+
+  len = nsamples;
+
+  if (right) {  /* stereo */
+    switch (mode) {
+    case AUDIO_MODE_ROUND:
+      while (len--) {
+	data[0] = audio_linear_round(8, *left++,  stats);
+	data[1] = audio_linear_round(8, *right++, stats);
+
+	data += 2;
+      }
+      break;
+
+    case AUDIO_MODE_DITHER:
+      while (len--) {
+	data[0] = audio_linear_dither(8, *left++,
+				      &left_dither,  stats);
+	data[1] = audio_linear_dither(8, *right++,
+				      &right_dither, stats);
+
+	data += 2;
+      }
+      break;
+
+    default:
+      return 0;
+    }
+
+    return nsamples * 2;
+  }
+  else {  /* mono */
+    switch (mode) {
+    case AUDIO_MODE_ROUND:
+      while (len--)
+	*data++ = audio_linear_round(8, *left++, stats);
+      break;
+
+    case AUDIO_MODE_DITHER:
+      while (len--)
+	*data++ = audio_linear_dither(8, *left++, &left_dither, stats);
       break;
 
     default:
@@ -888,15 +960,15 @@ unsigned char linear2mulaw(mad_fixed_t sample)
   unsigned int sign, mulaw;
 
   enum {
-    bias = (mad_fixed_t) ((0x10 << 1) + 1) << (MAD_F_FRACBITS - 13)
+    BIAS = (mad_fixed_t) ((0x10 << 1) + 1) << (MAD_F_FRACBITS - 13)
   };
 
   if (sample < 0) {
-    sample = bias - sample;
+    sample = BIAS - sample;
     sign   = 0x7f;
   }
   else {
-    sample = bias + sample;
+    sample = BIAS + sample;
     sign   = 0xff;
   }
 
@@ -929,7 +1001,7 @@ mad_fixed_t mulaw2linear(unsigned char mulaw)
   int sign, segment, mantissa, value;
 
   enum {
-    bias = (0x10 << 1) + 1
+    BIAS = (0x10 << 1) + 1
   };
 
   mulaw    = ~mulaw;
@@ -937,7 +1009,7 @@ mad_fixed_t mulaw2linear(unsigned char mulaw)
   segment  = (mulaw >> 4) & 0x07;
   mantissa = (mulaw >> 0) & 0x0f;
 
-  value = ((0x21 | (mantissa << 1)) << segment) - bias;
+  value = ((0x21 | (mantissa << 1)) << segment) - BIAS;
   if (sign)
     value = -value;
 

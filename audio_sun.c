@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_sun.c,v 1.22 2001/10/20 22:15:34 rob Exp $
+ * $Id: audio_sun.c,v 1.25 2001/11/03 00:49:07 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -43,14 +43,19 @@
 # include "audio.h"
 
 # if defined(WORDS_BIGENDIAN)
+#  define audio_pcm_s32  audio_pcm_s32be
+#  define audio_pcm_s24  audio_pcm_s24be
 #  define audio_pcm_s16  audio_pcm_s16be
 # else
+#  define audio_pcm_s32  audio_pcm_s32le
+#  define audio_pcm_s24  audio_pcm_s24le
 #  define audio_pcm_s16  audio_pcm_s16le
 # endif
 
 # define AUDIO_DEVICE	"/dev/audio"
 
 static int sfd;
+static audio_pcmfunc_t *audio_pcm;
 
 static
 int init(struct audio_init *init)
@@ -93,7 +98,14 @@ int set_pause(int flag)
 static
 int config(struct audio_config *config)
 {
+  unsigned int bitdepth;
   audio_info_t info;
+
+  bitdepth = config->precision & ~7;
+  if (bitdepth == 0)
+    bitdepth = 16;
+  else if (bitdepth > 32)
+    bitdepth = 32;
 
   set_pause(0);
 
@@ -106,13 +118,48 @@ int config(struct audio_config *config)
 
   info.play.sample_rate = config->speed;
   info.play.channels    = config->channels;
-  info.play.precision   = 16;
+  info.play.precision   = bitdepth;
   info.play.encoding    = AUDIO_ENCODING_LINEAR;
 
   if (ioctl(sfd, AUDIO_SETINFO, &info) == -1) {
     audio_error = ":ioctl(AUDIO_SETINFO)";
     return -1;
   }
+
+  /* validate settings */
+
+  if (ioctl(sfd, AUDIO_GETINFO, &info) == -1) {
+    audio_error = ":ioctl(AUDIO_GETINFO)";
+    return -1;
+  }
+
+  config->channels  = info.play.channels;
+  config->speed     = info.play.sample_rate;
+  bitdepth          = info.play.precision;
+
+  switch (bitdepth) {
+  case 8:
+    audio_pcm = audio_pcm_u8;
+    break;
+
+  case 16:
+    audio_pcm = audio_pcm_s16;
+    break;
+
+  case 24:
+    audio_pcm = audio_pcm_s24;
+    break;
+
+  case 32:
+    audio_pcm = audio_pcm_s32;
+    break;
+
+  default:
+    audio_error = _("unsupported bit depth");
+    return -1;
+  }
+
+  config->precision = bitdepth;
 
   return 0;
 }
@@ -143,14 +190,13 @@ int output(unsigned char const *ptr, unsigned int len)
 static
 int play(struct audio_play *play)
 {
-  unsigned char data[MAX_NSAMPLES * 2 * 2];
+  unsigned char data[MAX_NSAMPLES * 4 * 2];
   unsigned int len;
 
   set_pause(0);
 
-  len = audio_pcm_s16(data, play->nsamples,
-		      play->samples[0], play->samples[1], play->mode,
-		      play->stats);
+  len = audio_pcm(data, play->nsamples, play->samples[0], play->samples[1],
+		  play->mode, play->stats);
 
   return output(data, len);
 }

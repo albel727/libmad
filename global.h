@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: global.h,v 1.5 2001/10/21 03:07:29 rob Exp $
+ * $Id: global.h,v 1.7 2001/11/01 20:27:32 rob Exp $
  */
 
 # ifndef GLOBAL_H
@@ -38,7 +38,7 @@
 #  undef HAVE_MMAP
 # endif
 
-# if defined(HAVE_TERMIOS_H)
+# if defined(HAVE_TERMIOS_H) || defined(_WIN32)
 #  define USE_TTY
 # endif
 
@@ -53,6 +53,14 @@ int close(int);
 
 #  define STDIN_FILENO	0
 #  define SEEK_CUR	1
+# endif
+
+# if !defined(HAVE_ASSERT_H)
+#  if defined(NDEBUG)
+#   define assert(x)	/* nothing */
+#  else
+#   define assert(x)	do { if (!(x)) abort(); } while (0)
+#  endif
 # endif
 
 /* conditional replacement function prototypes */

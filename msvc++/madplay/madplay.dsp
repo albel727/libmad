@@ -1,24 +1,24 @@
-# Microsoft Developer Studio Project File - Name="demo" - Package Owner=<4>
+# Microsoft Developer Studio Project File - Name="madplay" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) Console Application" 0x0103
 
-CFG=demo - Win32 Debug
+CFG=madplay - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "demo.mak".
+!MESSAGE NMAKE /f "madplay.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "demo.mak" CFG="demo - Win32 Debug"
+!MESSAGE NMAKE /f "madplay.mak" CFG="madplay - Win32 Debug"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "demo - Win32 Release" (based on "Win32 (x86) Console Application")
-!MESSAGE "demo - Win32 Debug" (based on "Win32 (x86) Console Application")
+!MESSAGE "madplay - Win32 Release" (based on "Win32 (x86) Console Application")
+!MESSAGE "madplay - Win32 Debug" (based on "Win32 (x86) Console Application")
 !MESSAGE 
 
 # Begin Project
@@ -28,7 +28,7 @@ CFG=demo - Win32 Debug
 CPP=cl.exe
 RSC=rc.exe
 
-!IF  "$(CFG)" == "demo - Win32 Release"
+!IF  "$(CFG)" == "madplay - Win32 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
@@ -42,7 +42,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /W2 /GX /O2 /Ob1 /I "." /I "..\.." /I "..\libmad" /I "..\..\libid3tag" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "HAVE_CONFIG_H" /YX /FD /c
+# ADD CPP /nologo /W2 /GX /O2 /I "." /I "..\.." /I "..\libmad" /I "..\..\libid3tag" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "HAVE_CONFIG_H" /YX /FD /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -52,7 +52,7 @@ LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib /nologo /subsystem:console /machine:I386
 
-!ELSEIF  "$(CFG)" == "demo - Win32 Debug"
+!ELSEIF  "$(CFG)" == "madplay - Win32 Debug"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
@@ -80,14 +80,22 @@ LINK32=link.exe
 
 # Begin Target
 
-# Name "demo - Win32 Release"
-# Name "demo - Win32 Debug"
+# Name "madplay - Win32 Release"
+# Name "madplay - Win32 Debug"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
 SOURCE=..\..\audio.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\audio_aiff.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\audio_cdda.c
 # End Source File
 # Begin Source File
 
@@ -123,7 +131,15 @@ SOURCE=..\..\filter.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\main.c
+SOURCE=..\..\getopt.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\getopt1.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\madplay.c
 # End Source File
 # Begin Source File
 
@@ -168,6 +184,10 @@ SOURCE=..\..\equalizer.h
 # Begin Source File
 
 SOURCE=..\..\filter.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\getopt.h
 # End Source File
 # Begin Source File
 

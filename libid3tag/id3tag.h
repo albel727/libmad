@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: id3tag.h,v 1.3 2001/10/22 19:52:59 rob Exp $
+ * $Id: id3tag.h,v 1.4 2001/10/27 22:47:20 rob Exp $
  */
 
 # ifndef LIBID3TAG_ID3TAG_H
@@ -260,6 +260,7 @@ enum id3_file_mode {
 };
 
 struct id3_file *id3_file_open(char const *, enum id3_file_mode);
+struct id3_file *id3_file_fdopen(int, enum id3_file_mode);
 void id3_file_close(struct id3_file *);
 
 struct id3_tag *id3_file_tag(struct id3_file const *);
@@ -307,7 +308,7 @@ id3_byte_t const *id3_field_getbinarydata(union id3_field const *,
 
 # define ID3_VERSION_MAJOR	0
 # define ID3_VERSION_MINOR	14
-# define ID3_VERSION_PATCH	1
+# define ID3_VERSION_PATCH	2
 # define ID3_VERSION_EXTRA	" (beta)"
 
 # define ID3_VERSION_STRINGIZE(str)	#str

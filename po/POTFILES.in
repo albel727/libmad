@@ -1,10 +1,11 @@
 # List of source files containing translatable strings.
 
-version.c
+audio_oss.c
+audio_sun.c
+audio_win32.c
 getopt.c
+madmix.c
 madplay.c
 madtime.c
-madmix.c
 player.c
-audio_oss.c
-audio_win32.c
+version.c

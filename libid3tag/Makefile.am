@@ -16,7 +16,7 @@
 ## along with this program; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
-## $Id: Makefile.am,v 1.12 2001/10/22 19:52:59 rob Exp $
+## $Id: Makefile.am,v 1.13 2001/11/09 04:55:21 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
@@ -24,9 +24,9 @@
 lib_LTLIBRARIES =	libid3tag.la
 include_HEADERS =	id3tag.h
 
-version_current =	0
+version_current =	1
 version_revision =	0
-version_age =		0
+version_age =		1
 
 version_info =		$(version_current):$(version_revision):$(version_age)
 

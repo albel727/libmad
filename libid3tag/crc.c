@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: crc.c,v 1.4 2001/10/20 22:15:47 rob Exp $
+ * $Id: crc.c,v 1.5 2001/10/27 22:47:20 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -102,39 +102,29 @@ unsigned long const crc_table[256] = {
  */
 unsigned long id3_crc_calculate(id3_byte_t const *data, id3_length_t length)
 {
-  register unsigned long crc = 0xffffffffL;
+  register unsigned long crc;
 
-  while (length >= 8) {
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-
+  for (crc = 0xffffffffL; length >= 8; length -= 8) {
     crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
     crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
     crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
     crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
 
-    length -= 8;
+    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
+    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
+    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
+    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
   }
 
   switch (length) {
-  case 7:
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-  case 6:
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-  case 5:
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-  case 4:
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-  case 3:
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-  case 2:
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-  case 1:
-    crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
-  case 0:
-    break;
+  case 7: crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
+  case 6: crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
+  case 5: crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
+  case 4: crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
+  case 3: crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
+  case 2: crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
+  case 1: crc = crc_table[(crc ^ *data++) & 0xff] ^ (crc >> 8);
+  case 0: break;
   }
 
   return crc ^ 0xffffffffL;

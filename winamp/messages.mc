@@ -40,3 +40,9 @@ SymbolicName=IDS_ERR_NOMEM
 Language=English
 There is not enough memory to proceed.
 .
+
+MessageId=
+SymbolicName=IDS_ERR_ID3FAIL
+Language=English
+The ID3 tag(s) could not be read.
+.

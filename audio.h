@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.h,v 1.24 2001/05/05 00:50:01 rob Exp $
+ * $Id: audio.h,v 1.28 2001/11/09 00:40:38 rob Exp $
  */
 
 # ifndef AUDIO_H
@@ -57,6 +57,7 @@ union audio_control {
     enum audio_command command;
     unsigned int channels;
     unsigned int speed;
+    unsigned int precision;
   } config;
 
   struct audio_play {
@@ -89,11 +90,14 @@ typedef int audio_ctlfunc_t(union audio_control *);
 audio_ctlfunc_t *audio_output(char const **);
 
 audio_ctlfunc_t audio_oss;
+audio_ctlfunc_t audio_esd;
 audio_ctlfunc_t audio_empeg;
 audio_ctlfunc_t audio_sun;
 audio_ctlfunc_t audio_win32;
 
 audio_ctlfunc_t audio_raw;
+audio_ctlfunc_t audio_cdda;
+audio_ctlfunc_t audio_aiff;
 audio_ctlfunc_t audio_wave;
 audio_ctlfunc_t audio_snd;
 audio_ctlfunc_t audio_hex;
@@ -106,34 +110,24 @@ signed long audio_linear_round(unsigned int, mad_fixed_t,
 signed long audio_linear_dither(unsigned int, mad_fixed_t,
 				struct audio_dither *, struct audio_stats *);
 
-unsigned int audio_pcm_u8(unsigned char *, unsigned int,
-			  mad_fixed_t const *, mad_fixed_t const *,
-			  enum audio_mode, struct audio_stats *);
-unsigned int audio_pcm_s16le(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *,
-			     enum audio_mode, struct audio_stats *);
-unsigned int audio_pcm_s16be(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *,
-			     enum audio_mode, struct audio_stats *);
-unsigned int audio_pcm_s24le(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *,
-			     enum audio_mode, struct audio_stats *);
-unsigned int audio_pcm_s24be(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *,
-			     enum audio_mode, struct audio_stats *);
-unsigned int audio_pcm_s32le(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *,
-			     enum audio_mode, struct audio_stats *);
-unsigned int audio_pcm_s32be(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *,
-			     enum audio_mode, struct audio_stats *);
-
 unsigned char audio_mulaw_round(mad_fixed_t, struct audio_stats *);
 unsigned char audio_mulaw_dither(mad_fixed_t, struct audio_dither *,
 				 struct audio_stats *);
 
-unsigned int audio_pcm_mulaw(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *,
-			     enum audio_mode, struct audio_stats *);
+typedef unsigned int audio_pcmfunc_t(unsigned char *, unsigned int,
+				     mad_fixed_t const *, mad_fixed_t const *,
+				     enum audio_mode, struct audio_stats *);
+
+audio_pcmfunc_t audio_pcm_u8;
+
+audio_pcmfunc_t audio_pcm_s8;
+audio_pcmfunc_t audio_pcm_s16le;
+audio_pcmfunc_t audio_pcm_s16be;
+audio_pcmfunc_t audio_pcm_s24le;
+audio_pcmfunc_t audio_pcm_s24be;
+audio_pcmfunc_t audio_pcm_s32le;
+audio_pcmfunc_t audio_pcm_s32be;
+
+audio_pcmfunc_t audio_pcm_mulaw;
 
 # endif

@@ -90,14 +90,13 @@ RANLIB = @RANLIB@
 USE_INCLUDED_LIBINTL = @USE_INCLUDED_LIBINTL@
 USE_NLS = @USE_NLS@
 VERSION = @VERSION@
-WINAMP_TARGET = @WINAMP_TARGET@
 l = @l@
 @BUILD_WINAMP_TRUE@winamp = winamp
 @BUILD_WINAMP_FALSE@winamp = 
 @BUILD_LIBZ_TRUE@libz = libz
 @BUILD_LIBZ_FALSE@libz = 
-@USE_LIBZ_TRUE@ldadd_libz = -Llibz -lz
-@USE_LIBZ_FALSE@ldadd_libz = -lz
+@BUILD_LIBZ_TRUE@ldadd_libz = -Llibz -lz
+@BUILD_LIBZ_FALSE@ldadd_libz = -lz
 
 SUBDIRS = intl po $(libz) libid3tag libmad $(winamp)
 DIST_SUBDIRS = intl po   libz  libid3tag libmad   winamp  msvc++
@@ -108,14 +107,13 @@ EXTRA_PROGRAMS = madtime minimad madmix mad123
 
 man_MANS = madplay.1 abxtest.1
 
-EXTRA_DIST =  	$(man_MANS) $(bin_SCRIPTS)  	CHANGES COPYRIGHT CREDITS README TODO VERSION  	id3genre.dat
-
-# id3genre.dat temporary until Winamp plug-in is revised
-
-default_audio =  	audio.c audio_raw.c audio_wave.c audio_snd.c audio_null.c audio.h
+EXTRA_DIST =  	$(man_MANS) $(bin_SCRIPTS)  	CHANGES COPYRIGHT CREDITS README TODO VERSION
 
 
-extra_audio =  	audio_empeg.c audio_hex.c audio_oss.c audio_sun.c audio_win32.c
+default_audio =  	audio.c audio.h  	audio_cdda.c audio_aiff.c audio_wave.c audio_snd.c audio_raw.c  	audio_null.c
+
+
+extra_audio =  	audio_oss.c audio_empeg.c audio_sun.c audio_win32.c  	audio_hex.c audio_esd.c
 
 
 common_sources =  	version.c version.h global.h
@@ -178,16 +176,16 @@ minimad_OBJECTS =  minimad.o
 minimad_LDADD = $(LDADD)
 minimad_DEPENDENCIES =  @LIBOBJS@ libmad/libmad.la
 minimad_LDFLAGS = 
-madmix_OBJECTS =  version.o madmix.o audio.o audio_raw.o audio_wave.o \
-audio_snd.o audio_null.o
+madmix_OBJECTS =  version.o madmix.o audio.o audio_cdda.o audio_aiff.o \
+audio_wave.o audio_snd.o audio_raw.o audio_null.o
 madmix_LDFLAGS = 
 mad123_OBJECTS =  mad123.o
 mad123_LDADD = $(LDADD)
 mad123_DEPENDENCIES =  @LIBOBJS@ libmad/libmad.la
 mad123_LDFLAGS = 
-madplay_OBJECTS =  version.o audio.o audio_raw.o audio_wave.o \
-audio_snd.o audio_null.o madplay.o resample.o filter.o equalizer.o \
-xing.o player.o getopt.o getopt1.o
+madplay_OBJECTS =  version.o audio.o audio_cdda.o audio_aiff.o \
+audio_wave.o audio_snd.o audio_raw.o audio_null.o madplay.o resample.o \
+filter.o equalizer.o xing.o player.o getopt.o getopt1.o
 madplay_LDFLAGS = 
 SCRIPTS =  $(bin_SCRIPTS)
 

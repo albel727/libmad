@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: player.c,v 1.40 2001/10/23 01:06:17 rob Exp $
+ * $Id: player.c,v 1.54 2001/11/09 04:54:34 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -28,16 +28,27 @@
 # include <stdio.h>
 # include <stdarg.h>
 # include <stdlib.h>
-# include <sys/types.h>
+
+# ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+# endif
+
 # include <sys/stat.h>
-# include <fcntl.h>
+
+# ifdef HAVE_FCNTL_H
+#  include <fcntl.h>
+# endif
 
 # ifdef HAVE_UNISTD_H
 #  include <unistd.h>
 # endif
 
 # include <string.h>
-# include <errno.h>
+
+# ifdef HAVE_ERRNO_H
+#  include <errno.h>
+# endif
+
 # include <time.h>
 # include <locale.h>
 # include <math.h>
@@ -46,8 +57,15 @@
 #  include <termios.h>
 # endif
 
+# ifdef _WIN32
+#  include <windows.h>
+# endif
+
 # include <signal.h>
-# include <assert.h>
+
+# ifdef HAVE_ASSERT_H
+#  include <assert.h>
+# endif
 
 # if defined(HAVE_MMAP)
 #  include <sys/mman.h>
@@ -76,7 +94,7 @@ enum {
   KEY_PAUSE    = 'p',
   KEY_STOP     = 's',
   KEY_FORWARD  = 'f',
-  KEY_BACKWARD = 'b',
+  KEY_BACK     = 'b',
   KEY_TIME     = 't',
   KEY_QUIT     = 'q',
   KEY_INFO     = 'i'
@@ -84,7 +102,7 @@ enum {
 
 static int on_same_line;
 
-# if defined(USE_TTY)
+# if defined(USE_TTY) && !defined(_WIN32)
 static int tty_fd = -1;
 static struct termios save_tty;
 static struct sigaction save_sigtstp, save_sigint;
@@ -125,18 +143,20 @@ void player_init(struct player *player)
 
   xing_init(&player->input.xing);
 
-  player->output.mode         = AUDIO_MODE_DITHER;
-  player->output.attenuate    = MAD_F_ONE;
-  player->output.filters      = 0;
-  player->output.channels_in  = 0;
-  player->output.channels_out = 0;
-  player->output.select       = PLAYER_CHANNEL_DEFAULT;
-  player->output.speed_in     = 0;
-  player->output.speed_out    = 0;
-  player->output.path         = 0;
-  player->output.command      = 0;
+  player->output.mode          = AUDIO_MODE_DITHER;
+  player->output.attenuation   = MAD_F_ONE;
+  player->output.filters       = 0;
+  player->output.channels_in   = 0;
+  player->output.channels_out  = 0;
+  player->output.select        = PLAYER_CHANNEL_DEFAULT;
+  player->output.speed_in      = 0;
+  player->output.speed_out     = 0;
+  player->output.precision_in  = 0;
+  player->output.precision_out = 0;
+  player->output.path          = 0;
+  player->output.command       = 0;
   /* player->output.resample */
-  player->output.resampled    = 0;
+  player->output.resampled     = 0;
 
   player->stats.show                  = STATS_SHOW_OVERALL;
   player->stats.label                 = 0;
@@ -189,7 +209,7 @@ int message(char const *format, ...)
   va_list args;
 
   len = strlen(format);
-  newline = (format[len - 1] == '\n');
+  newline = (len > 0 && format[len - 1] == '\n');
 
   if (on_same_line && newline && len > 1)
     fputc('\n', stderr);
@@ -808,8 +828,9 @@ enum mad_flow decode_output(void *data, struct mad_header const *header,
 
     audio_control_init(&control, AUDIO_COMMAND_CONFIG);
 
-    control.config.channels = nchannels;
-    control.config.speed    = pcm->samplerate;
+    control.config.channels  = nchannels;
+    control.config.speed     = pcm->samplerate;
+    control.config.precision = output->precision_in;
 
     if (output->command(&control) == -1) {
       error("output", audio_error);
@@ -817,9 +838,11 @@ enum mad_flow decode_output(void *data, struct mad_header const *header,
     }
 
     output->channels_in  = nchannels;
-    output->channels_out = control.config.channels;
     output->speed_in     = pcm->samplerate;
-    output->speed_out    = control.config.speed;
+
+    output->channels_out  = control.config.channels;
+    output->speed_out     = control.config.speed;
+    output->precision_out = control.config.precision;
 
     if (player->verbosity >= -1 &&
 	output->channels_in != output->channels_out) {
@@ -834,7 +857,14 @@ enum mad_flow decode_output(void *data, struct mad_header const *header,
     if (player->verbosity >= 0 &&
 	output->speed_in != output->speed_out) {
       error("output", _("sample frequency %u Hz not available; closest %u Hz"),
-	    pcm->samplerate, control.config.speed);
+	    output->speed_in, output->speed_out);
+    }
+
+    if (player->verbosity >= -1 &&
+	output->precision_in &&
+	output->precision_in != output->precision_out) {
+      error("output", _("bit depth %u not available; using %u"),
+	    output->precision_in, output->precision_out);
     }
 
     /* check whether resampling is necessary */
@@ -987,45 +1017,6 @@ struct id3_tag *get_id3(struct mad_stream *stream, id3_length_t tagsize,
 }
 
 /*
- * NAME:	error_str()
- * DESCRIPTION:	return a string describing a MAD error
- */
-static
-char const *error_str(enum mad_error error)
-{
-  static char str[17];
-
-  switch (error) {
-  case MAD_ERROR_BUFLEN:
-  case MAD_ERROR_BUFPTR:
-    /* these errors are handled specially and/or should not occur */
-    break;
-
-  case MAD_ERROR_NOMEM:		 return _("not enough memory");
-  case MAD_ERROR_LOSTSYNC:	 return _("lost synchronization");
-  case MAD_ERROR_BADLAYER:	 return _("reserved header layer value");
-  case MAD_ERROR_BADBITRATE:	 return _("forbidden bitrate value");
-  case MAD_ERROR_BADSAMPLERATE:	 return _("reserved sample frequency value");
-  case MAD_ERROR_BADEMPHASIS:	 return _("reserved emphasis value");
-  case MAD_ERROR_BADCRC:	 return _("CRC check failed");
-  case MAD_ERROR_BADBITALLOC:	 return _("forbidden bit allocation value");
-  case MAD_ERROR_BADSCALEFACTOR: return _("bad scalefactor index");
-  case MAD_ERROR_BADFRAMELEN:	 return _("bad frame length");
-  case MAD_ERROR_BADBIGVALUES:	 return _("bad big_values count");
-  case MAD_ERROR_BADBLOCKTYPE:	 return _("reserved block_type");
-  case MAD_ERROR_BADSCFSI:	 return _("bad scalefactor selection info");
-  case MAD_ERROR_BADDATAPTR:	 return _("bad main_data_begin pointer");
-  case MAD_ERROR_BADPART3LEN:	 return _("bad audio data length");
-  case MAD_ERROR_BADHUFFTABLE:	 return _("bad Huffman table select");
-  case MAD_ERROR_BADHUFFDATA:	 return _("Huffman data overrun");
-  case MAD_ERROR_BADSTEREO:	 return _("incompatible block_type for JS");
-  }
-
-  sprintf(str, "error 0x%04x", error);
-  return str;
-}
-
-/*
  * NAME:	decode->error()
  * DESCRIPTION:	handle a decoding error
  */
@@ -1071,7 +1062,7 @@ enum mad_flow decode_error(void *data, struct mad_stream *stream,
 	 || stream->sync) &&
 	player->stats.global_framecount != player->stats.error_frame) {
       error("error", _("frame %lu: %s"),
-	    player->stats.absolute_framecount, error_str(stream->error));
+	    player->stats.absolute_framecount, mad_stream_errorstr(stream));
       player->stats.error_frame = player->stats.global_framecount;
     }
   }
@@ -1093,12 +1084,18 @@ enum mad_flow decode_error(void *data, struct mad_stream *stream,
  * DESCRIPTION:	decode and output audio for an open file
  */
 static
-int decode(struct player *player, struct stat const *stat)
+int decode(struct player *player)
 {
+  struct stat stat;
   struct mad_decoder decoder;
-  int result;
+  int options, result;
 
-  player->stats.total_bytes = S_ISREG(stat->st_mode) ? stat->st_size : 0;
+  if (fstat(player->input.fd, &stat) == -1) {
+    error("decode", ":fstat");
+    return -1;
+  }
+
+  player->stats.total_bytes = S_ISREG(stat.st_mode) ? stat.st_size : 0;
   player->stats.total_time  = mad_timer_zero;
 
   xing_init(&player->input.xing);
@@ -1106,8 +1103,8 @@ int decode(struct player *player, struct stat const *stat)
   /* prepare input buffers */
 
 # if defined(HAVE_MMAP)
-  if (S_ISREG(stat->st_mode) && stat->st_size > 0) {
-    player->input.length = stat->st_size;
+  if (S_ISREG(stat.st_mode) && stat.st_size > 0) {
+    player->input.length = stat.st_size;
 
     player->input.fdm = map_file(player->input.fd, player->input.length);
     if (player->input.fdm == 0 && player->verbosity >= 0)
@@ -1152,8 +1149,13 @@ int decode(struct player *player, struct stat const *stat)
 		   player->output.command ? decode_output : 0,
 		   decode_error, 0);
 
+  options = 0;
   if (player->options & PLAYER_OPTION_DOWNSAMPLE)
-    mad_decoder_options(&decoder, MAD_OPTION_HALFSAMPLERATE);
+    options |= MAD_OPTION_HALFSAMPLERATE;
+  if (player->options & PLAYER_OPTION_IGNORECRC)
+    options |= MAD_OPTION_IGNORECRC;
+
+  mad_decoder_options(&decoder, options);
 
   result = mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
 
@@ -1191,7 +1193,6 @@ static
 int play_one(struct player *player)
 {
   char const *file = player->playlist.entries[player->playlist.current];
-  struct stat stat;
   int result;
 
   if (strcmp(file, "-") == 0) {
@@ -1212,59 +1213,63 @@ int play_one(struct player *player)
     }
   }
 
-  if (fstat(player->input.fd, &stat) == -1) {
-    error(0, ":", player->input.path);
-    goto fail;
-  }
-
-  if (S_ISREG(stat.st_mode))
-    player->options &= ~PLAYER_OPTION_STREAMID3;
-  else
-    player->options |= PLAYER_OPTION_STREAMID3;
+  player->options &= ~PLAYER_OPTION_STREAMID3;
 
   if (player->verbosity >= 0) {
+    int fd;
+    struct id3_file *file;
+
     if (player->playlist.length > 1)
       message(">> %s\n", player->input.path);
 
-    if (!(player->options & PLAYER_OPTION_STREAMID3)) {
-      struct id3_file *file;
-
-      file = id3_file_open(player->input.path, ID3_FILE_MODE_READONLY);
-      if (file) {
-	show_id3(id3_file_tag(file));
-	id3_file_close(file);
-      }
+    fd = dup(player->input.fd);
+    file = id3_file_fdopen(fd, ID3_FILE_MODE_READONLY);
+    if (file == 0) {
+      close(fd);
+      player->options |= PLAYER_OPTION_STREAMID3;
+    }
+    else {
+      show_id3(id3_file_tag(file));
+      id3_file_close(file);
     }
   }
 
-  result = decode(player, &stat);
+  result = decode(player);
 
   if (result == 0 && player->verbosity >= 0) {
-    char time_str[19], *point;
+    char time_str[19], db_str[7];
+    char const *peak_str;
     mad_fixed_t peak;
 
     mad_timer_string(player->stats.play_timer, time_str, "%lu:%02u:%02u.%1u",
 		     MAD_UNITS_HOURS, MAD_UNITS_DECISECONDS, 0);
 
-    point = strchr(time_str, '.');
-    if (point)
-      *point = *localeconv()->decimal_point;
+# if defined(HAVE_LOCALECONV)
+    {
+      char *point;
+
+      point = strchr(time_str, '.');
+      if (point)
+	*point = *localeconv()->decimal_point;
+    }
+# endif
 
     peak = MAD_F_ONE + player->stats.audio.peak_clipping;
     if (peak == MAD_F_ONE)
       peak = player->stats.audio.peak_sample;
 
-    message(_("%lu frames decoded (%s), "
-	      "%+.1f dB peak amplitude, "
-	      "%lu clipped samples\n"),
-	    player->stats.play_framecount, time_str,
-	    20 * (peak == 0 ? -HUGE_VAL : log10(mad_f_todouble(peak))),
-	    player->stats.audio.clipped_samples);
-  }
+    if (peak == 0)
+      peak_str = "-inf";
+    else {
+      sprintf(db_str, "%+.1f", 20 * log10(mad_f_todouble(peak)));
+      peak_str = db_str;
+    }
 
-  if (0) {
-  fail:
-    result = -1;
+    message(_("%lu frames decoded (%s), "
+	      "%s dB peak amplitude, "
+	      "%lu clipped samples\n"),
+	    player->stats.play_framecount, time_str, peak_str,
+	    player->stats.audio.clipped_samples);
   }
 
   if (player->input.fd != STDIN_FILENO &&
@@ -1333,10 +1338,8 @@ int play_all(struct player *player)
 
       switch (player->control) {
       case PLAYER_CONTROL_DEFAULT:
-	i = ++playlist->current;
-
-	if (i < playlist->length && player->repeat &&
-	    (player->options & PLAYER_OPTION_SHUFFLE)) {
+	if ((player->options & PLAYER_OPTION_SHUFFLE) && player->repeat &&
+	    ++i < playlist->length) {
 	  /* pick something from the next half only */
 	  j = (i + rand() % ((playlist->length + 1) / 2)) % playlist->length;
 
@@ -1344,7 +1347,7 @@ int play_all(struct player *player)
 	  playlist->entries[i] = playlist->entries[j];
 	  playlist->entries[j] = tmp;
 	}
-	break;
+	/* fall through */
 
       case PLAYER_CONTROL_NEXT:
 	++playlist->current;
@@ -1398,6 +1401,113 @@ int stop_audio(struct player *player, int flush)
 
 # if defined(USE_TTY)
 /*
+ * NAME:	readkey()
+ * DESCRIPTION:	read a keypress from the keyboard
+ */
+static
+int readkey(int blocking)
+{
+# if !defined(_WIN32)
+  unsigned char key;
+  ssize_t count;
+
+  if (!blocking) {
+    /* tty_fd should be a tty in noncanonical mode with VMIN = VTIME = 0 */
+
+    count = read(tty_fd, &key, 1);
+    if (count == -1 && errno != EINTR) {
+      error("tty", ":read");
+      return -1;
+    }
+
+    return (count == 1) ? key : 0;
+  }
+  else {
+    struct termios tty, save_tty;
+
+    if (tcgetattr(tty_fd, &tty) == -1) {
+      error("tty", ":tcgetattr");
+      return -1;
+    }
+
+    save_tty = tty;
+
+    /* change terminal temporarily to get a blocking read() */
+
+    tty.c_cc[VMIN] = 1;
+
+    if (tcsetattr(tty_fd, TCSANOW, &tty) == -1) {
+      error("tty", ":tcsetattr");
+      return -1;
+    }
+
+    do
+      count = read(tty_fd, &key, 1);
+    while (count == -1 && errno == EINTR);
+
+    if (count == -1)
+      error("tty", ":read");
+
+    if (tcsetattr(tty_fd, TCSANOW, &save_tty) == -1) {
+      error("tty", ":tcsetattr");
+      return -1;
+    }
+
+    if (count == -1)
+      return -1;
+
+    return (count == 1) ? key : 0;
+  }
+# elif defined(_WIN32)
+  HANDLE console;
+  INPUT_RECORD input;
+  DWORD count;
+
+  console = GetStdHandle(STD_INPUT_HANDLE);
+
+  do {
+    if (GetNumberOfConsoleInputEvents(console, &count) == 0) {
+      error("tty", "GetNumberOfConsoleInputEvents() failed");
+      return -1;
+    }
+
+    if (count == 0) {
+      if (!blocking)
+	return 0;
+      else {
+	/* this is necessary to keep Windows from hanging (!) */
+	Sleep(500);
+
+	switch (WaitForSingleObject(console, INFINITE)) {
+	case WAIT_ABANDONED:
+	case WAIT_OBJECT_0:
+	  continue;
+
+	case WAIT_TIMEOUT:
+	default:
+	  /* ? */
+	case WAIT_FAILED:
+	  error("tty", "WaitForSingleObject() failed");
+	  return -1;
+	}
+      }
+    }
+
+    if (ReadConsoleInput(console, &input, 1, &count) == 0 || count != 1) {
+      error("tty", "ReadConsoleInput() failed");
+      return -1;
+    }
+  }
+  while (input.EventType != KEY_EVENT || !input.Event.KeyEvent.bKeyDown ||
+	 input.Event.KeyEvent.uChar.AsciiChar == 0);
+
+  return (unsigned char) input.Event.KeyEvent.uChar.AsciiChar;
+# endif
+
+  return blocking ? -1 : 0;
+}
+
+/*
  * NAME:	tty_filter()
  * DESCRIPTION:	process TTY commands
  */
@@ -1405,122 +1515,97 @@ static
 enum mad_flow tty_filter(void *data, struct mad_frame *frame)
 {
   struct player *player = data;
-  char command;
   enum mad_flow flow = MAD_FLOW_CONTINUE;
-  int stopped = 0;
+  int command, stopped = 0;
 
-  /* tty_fd should be a tty in noncanonical mode with VMIN = VTIME = 0 */
+  command = readkey(0);
+  if (command == -1)
+    return MAD_FLOW_BREAK;
 
-  if (read(tty_fd, &command, 1) == 1) {
-  again:
-    switch (command) {
-    case KEY_PAUSE:
-    case KEY_STOP:
-      {
-	struct termios tty, save_tty;
-	ssize_t count;
+ again:
+  switch (command) {
+  case KEY_PAUSE:
+  case KEY_STOP:
+    stop_audio(player, stopped = (command == KEY_STOP));
+    message(" --%s--", stopped ? _("Stopped") : _("Paused"));
 
-	if (tcgetattr(tty_fd, &tty) == -1) {
-	  error("tty", ":tcgetattr");
-	  break;
-	}
-
-	save_tty = tty;
-
-	/* change terminal temporarily to get a blocking read() */
-
-	tty.c_cc[VMIN] = 1;
-
-	if (tcsetattr(tty_fd, TCSANOW, &tty) == -1) {
-	  error("tty", ":tcsetattr");
-	  break;
-	}
-
-	stop_audio(player, stopped = (command == KEY_STOP));
-	message(" --%s--", stopped ? _("Stopped") : _("Paused"));
-
-	if (stopped) {
-	  player->control = PLAYER_CONTROL_REPLAY;
-	  flow = MAD_FLOW_STOP;
-	}
-
-	do
-	  count = read(tty_fd, &command, 1);
-	while (count == -1 && errno == EINTR);
-
-	message("");
-
-	if (tcsetattr(tty_fd, TCSANOW, &save_tty) == -1) {
-	  error("tty", ":tcsetattr");
-	  flow = MAD_FLOW_BREAK;
-	  break;
-	}
-
-	if (count == 1 && command != KEY_PAUSE)
-	  goto again;
-      }
-      break;
-
-    case KEY_FORWARD:
-    case KEY_CTRL('n'):
-      player->control = PLAYER_CONTROL_NEXT;
-      goto stop;
-
-    case KEY_BACKWARD:
-    case KEY_CTRL('p'):
-      {
-	mad_timer_t threshold;
-
-	mad_timer_set(&threshold, 4, 0, 0);
-
-	player->control =
-	  (stopped ||
-	   mad_timer_compare(player->stats.play_timer, threshold) < 0) ?
-	  PLAYER_CONTROL_PREVIOUS : PLAYER_CONTROL_REPLAY;
-      }
-      goto stop;
-
-    case KEY_QUIT:
-    case 'Q':
-      player->control = PLAYER_CONTROL_STOP;
-      goto stop;
-
-    case KEY_INFO:
-    case '?':
-      if (player->verbosity <= 0) {
-	show_status(&player->stats, 0, player->input.path, 1);
-	message("\n");
-      }
-      break;
-
-    case KEY_TIME:
-      if (player->verbosity > 0) {
-	char const *label = 0;
-
-	switch (player->stats.show) {
-	case STATS_SHOW_CURRENT:
-	  if (player->playlist.length > 1) {
-	    player->stats.show = STATS_SHOW_OVERALL;
-	    label = N_("[Overall Time]");
-	    break;
-	  }
-	  /* else fall through */
-
-	case STATS_SHOW_OVERALL:
-	  player->stats.show = STATS_SHOW_REMAINING;
-	  label = N_("[Current Time Remaining]");
-	  break;
-
-	case STATS_SHOW_REMAINING:
-	  player->stats.show = STATS_SHOW_CURRENT;
-	  label = N_("[Current Time]");
-	  break;
-	}
-
-	show_status(&player->stats, 0, gettext(label), 1);
-      }
-      break;
+    if (stopped) {
+      player->control = PLAYER_CONTROL_REPLAY;
+      flow = MAD_FLOW_STOP;
     }
+
+    command = readkey(1);
+
+    message("");
+
+    if (command == -1)
+      return MAD_FLOW_BREAK;
+
+    if (command > 0 && command != KEY_PAUSE)
+      goto again;
+
+    break;
+
+  case KEY_FORWARD:
+  case KEY_CTRL('n'):
+    player->control = PLAYER_CONTROL_NEXT;
+    goto stop;
+
+  case KEY_BACK:
+  case KEY_CTRL('p'):
+    {
+      mad_timer_t threshold;
+
+      mad_timer_set(&threshold, 4, 0, 0);
+
+      player->control =
+	(stopped ||
+	 mad_timer_compare(player->stats.play_timer, threshold) < 0) ?
+	PLAYER_CONTROL_PREVIOUS : PLAYER_CONTROL_REPLAY;
+    }
+    goto stop;
+
+  case KEY_QUIT:
+  case KEY_CTRL('c'):
+  case 'Q':
+    player->control = PLAYER_CONTROL_STOP;
+    goto stop;
+
+  case KEY_INFO:
+  case '?':
+    if (player->verbosity <= 0) {
+      show_status(&player->stats, 0, player->input.path, 1);
+      message("\n");
+    }
+    break;
+
+  case KEY_TIME:
+    if (player->verbosity > 0) {
+      char const *label = 0;
+
+      switch (player->stats.show) {
+      case STATS_SHOW_CURRENT:
+	if (player->playlist.length > 1) {
+	  player->stats.show = STATS_SHOW_OVERALL;
+	  label = N_("[Overall Time]");
+	  break;
+	}
+	/* else fall through */
+
+      case STATS_SHOW_OVERALL:
+	player->stats.show = STATS_SHOW_REMAINING;
+	label = N_("[Current Time Remaining]");
+	break;
+
+      case STATS_SHOW_REMAINING:
+	player->stats.show = STATS_SHOW_CURRENT;
+	label = N_("[Current Time]");
+	break;
+      }
+
+      show_status(&player->stats, 0, gettext(label), 1);
+    }
+    break;
   }
 
   return flow;
@@ -1576,14 +1661,14 @@ int setup_filters(struct player *player)
       addfilter(player, fadein_filter, player) == -1)
     return -1;
 
-  if (player->output.attenuate != MAD_F_ONE) {
+  if (player->output.attenuation != MAD_F_ONE) {
     int sb;
 
     equalizer_init(&attenuation);
 
     for (sb = 0; sb < 32; ++sb) {
       attenuation.bandfactors[0][sb] =
-      attenuation.bandfactors[1][sb] = player->output.attenuate;
+      attenuation.bandfactors[1][sb] = player->output.attenuation;
     }
 
     if (addfilter(player, equalizer_filter, &attenuation) == -1)
@@ -1603,7 +1688,7 @@ int setup_filters(struct player *player)
   return 0;
 }
 
-# if defined(USE_TTY)
+# if defined(USE_TTY) && !defined(_WIN32)
 /*
  * NAME:	restore_tty()
  * DESCRIPTION:	revert to previous terminal settings
@@ -1871,7 +1956,7 @@ int player_run(struct player *player, int argc, char const *argv[])
 
   /* set up terminal settings */
 
-# if defined(USE_TTY)
+# if defined(USE_TTY) && !defined(_WIN32)
   if ((player->options & PLAYER_OPTION_TTYCONTROL) && setup_tty() == -1)
     player->options &= ~PLAYER_OPTION_TTYCONTROL;
 # endif
@@ -1926,7 +2011,7 @@ int player_run(struct player *player, int argc, char const *argv[])
 
   /* restore terminal settings */
 
-# if defined(USE_TTY)
+# if defined(USE_TTY) && !defined(_WIN32)
   if (player->options & PLAYER_OPTION_TTYCONTROL)
     restore_tty(0);
 # endif

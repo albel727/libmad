@@ -19,9 +19,9 @@
 ## If you would like to negotiate alternate licensing terms, you may do
 ## so by contacting the author: Robert Leslie <rob@mars.org>
 ##
-## $Id: Makefile.am,v 1.1 2001/09/25 09:03:47 rob Exp $
+## $Id: Makefile.am,v 1.1 2001/10/30 18:48:10 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
 
-EXTRA_DIST =		main.c config.h demo.dsp demo.dsw
+EXTRA_DIST =		config.h madplay.dsp madplay.dsw

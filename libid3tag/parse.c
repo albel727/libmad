@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: parse.c,v 1.2 2001/10/20 22:15:47 rob Exp $
+ * $Id: parse.c,v 1.3 2001/11/01 20:27:38 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -25,7 +25,10 @@
 
 # include "global.h"
 
-# include <assert.h>
+# ifdef HAVE_ASSERT_H
+#  include <assert.h>
+# endif
+
 # include <stdlib.h>
 # include <string.h>
 

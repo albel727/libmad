@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.54 2001/10/17 20:31:19 rob Exp $
+ * $Id: madplay.c,v 1.67 2001/11/09 00:58:45 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -25,17 +25,25 @@
 
 # include "global.h"
 
+/* include this first to avoid conflicts with MinGW __argc et al. */
+# include "getopt.h"
+
 # include <locale.h>
 # include <stdio.h>
 # include <stdarg.h>
 # include <stdlib.h>
 # include <string.h>
-# include <assert.h>
-# include <unistd.h>
+
+# ifdef HAVE_ASSERT_H
+#  include <assert.h>
+# endif
+
+# ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+# endif
+
 # include <ctype.h>
 # include <math.h>
-
-# include "getopt.h"
 
 # include "version.h"
 # include "mad.h"
@@ -54,14 +62,15 @@ struct option const options[] = {
   { "amplify",		required_argument, 0,		 'a' },
   { "attenuate",	required_argument, 0,		 'a' },
   { "author",		no_argument,	   0,		-'a' },
+  { "bit-depth",	required_argument, 0,		 'b' },
   { "downsample",	no_argument,	   0,		-'d' },
   { "fade-in",		optional_argument, 0,		-'i' },
   { "help",		no_argument,	   0,		 'h' },
+  { "ignore-crc",	no_argument,	   0,		 'i' },
   { "left",		no_argument,	   0,		 '1' },
   { "license",		no_argument,	   0,		-'l' },
   { "mono",		no_argument,	   0,		 'm' },
   { "no-dither",	no_argument,	   0,		 'd' },
-  { "no-tty-control",	no_argument,	   0,		-'C' },
   { "output",		required_argument, 0,		 'o' },
   { "quiet",		no_argument,	   0,		 'q' },
   { "repeat",		optional_argument, 0,		 'r' },
@@ -70,10 +79,13 @@ struct option const options[] = {
   { "start",		required_argument, 0,		 's' },
   { "stereo",		no_argument,	   0,		 'S' },
   { "time",		required_argument, 0,		 't' },
-  { "tty-control",	no_argument,	   0,		-'c' },
   { "verbose",		no_argument,	   0,		 'v' },
   { "version",		no_argument,	   0,		 'V' },
   { "very-quiet",	no_argument,	   0,		 'Q' },
+# if defined(USE_TTY)
+  { "tty-control",	no_argument,	   0,		-'c' },
+  { "no-tty-control",	no_argument,	   0,		-'C' },
+# endif
 # if 0
   { "cross-fade",	no_argument,	   0,		 'x' },
   { "fade-out",		optional_argument, 0,		-'o' },
@@ -86,7 +98,7 @@ struct option const options[] = {
   { 0 }
 };
 
-static char const *argv0;
+char const *argv0;
 
 # define EPUTS(str)	fputs((str), stderr)
 
@@ -113,11 +125,15 @@ void show_usage(int verbose)
   EPUTS(_("  -q, --quiet                be quiet but show warnings\n"));
   EPUTS(_("  -Q, --very-quiet           be quiet and do not show warnings\n"));
 
+  EPUTS(_("\nDecoding:\n"));
+  EPUTS(_("      --downsample           reduce output sample rate 2:1\n"));
+  EPUTS(_("  -i, --ignore-crc           ignore CRC errors\n"));
+
   EPUTS(_("\nAudio output:\n"));
   EPUTS(_("  -o, --output=[TYPE:]PATH   send output to PATH with format TYPE"
 	                              " (see below)\n"));
+  EPUTS(_("  -b, --bit-depth=DEPTH      request DEPTH bits per sample\n"));
   EPUTS(_("  -d, --no-dither            do not dither output PCM samples\n"));
-  EPUTS(_("      --downsample           reduce output sample rate 2:1\n"));
   fprintf(stderr,
 	_("      --fade-in[=DURATION]   fade-in songs over DURATION"
 	                              " (default %s)\n"), FADE_DEFAULT);
@@ -155,8 +171,10 @@ void show_usage(int verbose)
   EPUTS(_("  -z, --shuffle              randomize file list\n"));
   EPUTS(_("  -r, --repeat[=MAX]         play files MAX times,"
 	                              " or indefinitely\n"));
+# if defined(USE_TTY)
   EPUTS(_("      --tty-control          enable keyboard controls\n"));
-  EPUTS(_("      --no-tty-control       do not enable keyboard controls\n"));
+  EPUTS(_("      --no-tty-control       disable keyboard controls\n"));
+# endif
 
   EPUTS(_("\nMiscellaneous:\n"));
   EPUTS(_("  -V, --version              display version number and exit\n"));
@@ -164,12 +182,18 @@ void show_usage(int verbose)
 	                              " and exit\n"));
   EPUTS(_("  -h, --help                 display this help and exit\n"));
 
-  EPUTS(_("\nSupported output format types:\n"));
-  EPUTS(_("  raw     binary signed 16-bit host-endian linear PCM\n"));
-  EPUTS(_("  wave    Microsoft RIFF/WAVE, 16-bit PCM format (*.wav)\n"));
+  EPUTS(_("\nSupported output formats:\n"));
+  EPUTS(_("  cdda    CD audio, 16-bit 44100 Hz stereo PCM (*.cdr, *.cda)\n"));
+  EPUTS(_("  aiff    Audio IFF, [16-bit] PCM (*.aif, *.aiff)\n"));
+  EPUTS(_("  wave    Microsoft RIFF/WAVE, [16-bit] PCM (*.wav)\n"));
   EPUTS(_("  snd     Sun/NeXT audio, 8-bit ISDN mu-law (*.au, *.snd)\n"));
+  EPUTS(_("  raw     binary [16-bit] host-endian linear PCM\n"));
 # if defined(DEBUG)
-  EPUTS(_("  hex     hexadecimal signed 24-bit linear PCM\n"));
+  EPUTS(_("  hex     ASCII hexadecimal [24-bit] linear PCM\n"));
+# endif
+# if defined(HAVE_LIBESD)
+  EPUTS(_("  esd     Enlightened Sound Daemon [16-bit]"
+	  " (give speaker host as PATH)\n"));
 # endif
   EPUTS(_("  null    no output (decode only)\n"));
 }
@@ -262,7 +286,11 @@ int parse_time(mad_timer_t *timer, char const *str)
     }
     while (*str >= '0' && *str <= '9');
 
-    if (*str == '.' || *str == *localeconv()->decimal_point) {
+    if (*str == '.'
+# if defined(HAVE_LOCALECONV)
+	|| *str == *localeconv()->decimal_point
+# endif
+	) {
       char const *ptr;
 
       decimal = strtol(++str, (char **) &ptr, 10);
@@ -382,7 +410,8 @@ void get_options(int argc, char *argv[], struct player *player)
 
   while ((opt = getopt_long(argc, argv,
 			    "vqQ"	/* verbosity options */
-			    "o:da:"	/* audio output options */
+			    "i"		/* decoding options */
+			    "o:b:da:"	/* audio output options */
 # if 0
 			    "g:x"
 # endif
@@ -400,13 +429,22 @@ void get_options(int argc, char *argv[], struct player *player)
       break;
 
     case 'a':
-      player->output.attenuate = get_decibels(optarg);
+      player->output.attenuation = get_decibels(optarg);
       break;
 
     case -'a':
       printf("%s\n", mad_author);
       exit(0);
 
+    case 'b':
+      opt = atoi(optarg);
+      if (opt <= 0)
+	die(_("invalid bit depth \"%s\""), optarg);
+
+      player->output.precision_in = opt;
+      break;
+
+# if defined(USE_TTY)
     case -'c':
       player->options |= PLAYER_OPTION_TTYCONTROL;
       ttyset = 1;
@@ -416,6 +454,7 @@ void get_options(int argc, char *argv[], struct player *player)
       player->options &= ~PLAYER_OPTION_TTYCONTROL;
       ttyset = 1;
       break;
+# endif
 
     case 'd':
       player->output.mode = AUDIO_MODE_ROUND;
@@ -435,6 +474,10 @@ void get_options(int argc, char *argv[], struct player *player)
     case 'h':
       show_usage(1);
       exit(0);
+
+    case 'i':
+      player->options |= PLAYER_OPTION_IGNORECRC;
+      break;
 
     case -'i':
       player->fade_in = get_time(optarg ? optarg : FADE_DEFAULT, 1,

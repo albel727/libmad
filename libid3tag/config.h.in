@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: config.h.in,v 1.5 2001/10/20 22:33:25 rob Exp $
+ * $Id: config.h.in,v 1.17 2001/11/02 09:59:10 rob Exp $
  */
 
 # ifndef LIBID3TAG_CONFIG_H
@@ -41,6 +41,12 @@
 
 /* Define to disable debugging assertions. */
 #undef NDEBUG
+
+/* Define if you have the <assert.h> header file.  */
+#undef HAVE_ASSERT_H
+
+/* Define if you have the <unistd.h> header file.  */
+#undef HAVE_UNISTD_H
 
 /* Define if you have the <zlib.h> header file.  */
 #undef HAVE_ZLIB_H

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_raw.c,v 1.14 2001/04/14 04:46:51 rob Exp $
+ * $Id: audio_raw.c,v 1.17 2001/11/03 00:49:07 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -32,12 +32,17 @@
 # include "audio.h"
 
 # if defined(WORDS_BIGENDIAN)
+#  define audio_pcm_s32  audio_pcm_s32be
+#  define audio_pcm_s24  audio_pcm_s24be
 #  define audio_pcm_s16  audio_pcm_s16be
 # else
+#  define audio_pcm_s32  audio_pcm_s32le
+#  define audio_pcm_s24  audio_pcm_s24le
 #  define audio_pcm_s16  audio_pcm_s16le
 # endif
 
 static FILE *outfile;
+static audio_pcmfunc_t *audio_pcm;
 
 static
 int init(struct audio_init *init)
@@ -58,19 +63,45 @@ int init(struct audio_init *init)
 static
 int config(struct audio_config *config)
 {
+  unsigned int bitdepth;
+
+  bitdepth = config->precision & ~7;
+  if (bitdepth == 0)
+    bitdepth = 16;
+  else if (bitdepth > 32)
+    bitdepth = 32;
+
+  switch (config->precision = bitdepth) {
+  case 8:
+    audio_pcm = audio_pcm_u8;
+    break;
+
+  case 16:
+    audio_pcm = audio_pcm_s16;
+    break;
+
+  case 24:
+    audio_pcm = audio_pcm_s24;
+    break;
+
+  case 32:
+    audio_pcm = audio_pcm_s32;
+    break;
+  }
+
   return 0;
 }
 
 static
 int play(struct audio_play *play)
 {
-  unsigned char data[MAX_NSAMPLES * 2 * 2];
+  unsigned char data[MAX_NSAMPLES * 4 * 2];
+  unsigned int len;
 
-  audio_pcm_s16(data, play->nsamples,
-		play->samples[0], play->samples[1], play->mode, play->stats);
+  len = audio_pcm(data, play->nsamples, play->samples[0], play->samples[1],
+		  play->mode, play->stats);
 
-  if (fwrite(data, play->samples[1] ? 4 : 2,
-	     play->nsamples, outfile) != play->nsamples) {
+  if (fwrite(data, len, 1, outfile) != 1) {
     audio_error = ":fwrite";
     return -1;
   }
@@ -89,7 +120,7 @@ int finish(struct audio_finish *finish)
 {
   if (outfile != stdout &&
       fclose(outfile) == EOF) {
-    audio_error = ":close";
+    audio_error = ":fclose";
     return -1;
   }
 

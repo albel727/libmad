@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_hex.c,v 1.18 2001/10/31 00:42:42 rob Exp $
+ * $Id: audio_cdda.c,v 1.4 2001/11/09 00:40:38 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -28,20 +28,23 @@
 # include <stdio.h>
 # include <string.h>
 
+# ifdef HAVE_ASSERT_H
+#  include <assert.h>
+# endif
+
 # include "mad.h"
 # include "audio.h"
 
-# if defined(DEBUG)
-
 static FILE *outfile;
-static unsigned int bitdepth;
-static char format_str[7];
+unsigned int samplecount;
+
+# define CD_FRAMESZ  (44100 / 75)
 
 static
 int init(struct audio_init *init)
 {
   if (init->path && strcmp(init->path, "-") != 0) {
-    outfile = fopen(init->path, "w");
+    outfile = fopen(init->path, "wb");
     if (outfile == 0) {
       audio_error = ":";
       return -1;
@@ -50,73 +53,52 @@ int init(struct audio_init *init)
   else
     outfile = stdout;
 
+  samplecount = 0;
+
   return 0;
 }
 
 static
 int config(struct audio_config *config)
 {
-  bitdepth = config->precision & ~3;
-  if (bitdepth == 0 || bitdepth > 24)
-    bitdepth = 24;
+  /* force 16-bit 44100 Hz stereo */
 
-  config->precision = bitdepth;
-
-  sprintf(format_str, "%%0%1ulX\n", bitdepth / 4);
-
-  fprintf(outfile, "# %u channel%s, %u Hz, %u-bit samples\n",
-	  config->channels, config->channels == 1 ? "" : "s",
-	  config->speed, config->precision);
+  config->channels  = 2;
+  config->speed     = 44100;
+  config->precision = 16;
 
   return 0;
 }
 
 static
-int play(struct audio_play *play)
+int output(unsigned char const *data, unsigned int nsamples)
 {
-  unsigned int len;
-  mad_fixed_t const *left, *right;
-  unsigned long mask;
+  unsigned int count;
+  int result = 0;
 
-  len   = play->nsamples;
-  left  = play->samples[0];
-  right = play->samples[1];
+  count = fwrite(data, 2 * 2, nsamples, outfile);
 
-  mask = (1L << bitdepth) - 1;
-
-  switch (play->mode) {
-  case AUDIO_MODE_ROUND:
-    while (len--) {
-      fprintf(outfile, format_str,
-	      audio_linear_round(bitdepth, *left++, play->stats) & mask);
-
-      if (right) {
-	fprintf(outfile, format_str,
-		audio_linear_round(bitdepth, *right++, play->stats) & mask);
-      }
-    }
-    break;
-
-  case AUDIO_MODE_DITHER:
-    {
-      static struct audio_dither left_dither, right_dither;
-
-      while (len--) {
-	fprintf(outfile, format_str,
-		audio_linear_dither(bitdepth, *left++, &left_dither,
-				    play->stats) & mask);
-
-	if (right) {
-	  fprintf(outfile, format_str,
-		  audio_linear_dither(bitdepth, *right++, &right_dither,
-				      play->stats) & mask);
-	}
-      }
-    }
-    break;
+  if (count != nsamples) {
+    audio_error = ":fwrite";
+    result = -1;
   }
 
-  return 0;
+  samplecount = (samplecount + count) % CD_FRAMESZ;
+
+  return result;
+}
+
+static
+int play(struct audio_play *play)
+{
+  unsigned char data[MAX_NSAMPLES * 2 * 2];
+
+  assert(play->samples[1]);
+
+  audio_pcm_s16be(data, play->nsamples, play->samples[0], play->samples[1],
+		  play->mode, play->stats);
+
+  return output(data, play->nsamples);
 }
 
 static
@@ -128,16 +110,33 @@ int stop(struct audio_stop *stop)
 static
 int finish(struct audio_finish *finish)
 {
-  if (outfile != stdout &&
-      fclose(outfile) == EOF) {
-    audio_error = ":fclose";
-    return -1;
+  int result = 0;
+
+  /* pad audio to CD frame boundary */
+
+  if (samplecount) {
+    unsigned char padding[CD_FRAMESZ * 2 * 2];
+    unsigned int padsz;
+
+    assert(samplecount < CD_FRAMESZ);
+    padsz = CD_FRAMESZ - samplecount;
+
+    memset(padding, 0, padsz * 2 * 2);
+
+    result = output(padding, padsz);
   }
 
-  return 0;
+  if (outfile != stdout &&
+      fclose(outfile) == EOF &&
+      result == 0) {
+    audio_error = ":fclose";
+    result = -1;
+  }
+
+  return result;
 }
 
-int audio_hex(union audio_control *control)
+int audio_cdda(union audio_control *control)
 {
   audio_error = 0;
 
@@ -160,5 +159,3 @@ int audio_hex(union audio_control *control)
 
   return 0;
 }
-
-# endif

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: file.c,v 1.4 2001/10/22 19:52:59 rob Exp $
+ * $Id: file.c,v 1.8 2001/11/01 20:27:38 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -27,6 +27,15 @@
 
 # include <stdio.h>
 # include <stdlib.h>
+# include <string.h>
+
+# ifdef HAVE_ASSERT_H
+#  include <assert.h>
+# endif
+
+# ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+# endif
 
 # include "id3tag.h"
 # include "file.h"
@@ -35,17 +44,22 @@
 
 struct filetag {
   struct id3_tag *tag;
-  fpos_t location;
+  unsigned long location;
   id3_length_t length;
 };
 
 struct id3_file {
   FILE *iofile;
   enum id3_file_mode mode;
+  int flags;
   int options;
   struct id3_tag *primary;
   unsigned int ntags;
   struct filetag *tags;
+};
+
+enum {
+  ID3_FILE_FLAG_ID3V1 = 0x0001
 };
 
 /*
@@ -55,16 +69,16 @@ struct id3_file {
 static
 signed long query_tag(FILE *iofile)
 {
-  fpos_t position;
+  fpos_t save_position;
   id3_byte_t query[ID3_TAG_QUERYSIZE];
   signed long size;
 
-  if (fgetpos(iofile, &position) == -1)
+  if (fgetpos(iofile, &save_position) == -1)
     return 0;
 
   size = id3_tag_query(query, fread(query, 1, sizeof(query), iofile));
 
-  if (fsetpos(iofile, &position) == -1)
+  if (fsetpos(iofile, &save_position) == -1)
     return 0;
 
   return size;
@@ -81,13 +95,12 @@ struct id3_tag *read_tag(FILE *iofile, id3_length_t size)
   struct id3_tag *tag = 0;
 
   data = malloc(size);
-  if (data == 0)
-    return 0;
+  if (data) {
+    if (fread(data, size, 1, iofile) == 1)
+      tag = id3_tag_parse(data, size);
 
-  if (fread(data, size, 1, iofile) == 1)
-    tag = id3_tag_parse(data, size);
-
-  free(data);
+    free(data);
+  }
 
   return tag;
 }
@@ -119,12 +132,33 @@ int update_primary(struct id3_tag *tag, struct id3_tag const *new)
 static
 int add_tag(struct id3_file *file, id3_length_t length)
 {
-  fpos_t location;
+  long location;
+  unsigned int i;
   struct filetag filetag, *tags;
   struct id3_tag *tag;
 
-  if (fgetpos(file->iofile, &location) == -1)
+  location = ftell(file->iofile);
+  if (location == -1)
     return -1;
+
+  /* check for duplication/overlap */
+  {
+    unsigned long begin1, end1, begin2, end2;
+
+    begin1 = location;
+    end1   = begin1 + length;
+
+    for (i = 0; i < file->ntags; ++i) {
+      begin2 = file->tags[i].location;
+      end2   = begin2 + file->tags[i].length;
+
+      if (begin1 == begin2 && end1 == end2)
+	return 0;  /* duplicate */
+
+      if (begin1 < end2 && end1 > begin2)
+	return -1;  /* overlap */
+    }
+  }
 
   tags = realloc(file->tags, (file->ntags + 1) * sizeof(*tags));
   if (tags == 0)
@@ -159,7 +193,12 @@ int add_tag(struct id3_file *file, id3_length_t length)
 static
 int search_tags(struct id3_file *file)
 {
+  fpos_t save_position;
   signed long size;
+  int result = 0;
+
+  if (fgetpos(file->iofile, &save_position) == -1)
+    return -1;
 
   /* look for an ID3v1 tag */
 
@@ -167,13 +206,14 @@ int search_tags(struct id3_file *file)
     size = query_tag(file->iofile);
     if (size > 0) {
       if (add_tag(file, size) == -1)
-	return -1;
+	goto fail;
 
+      file->flags   |= ID3_FILE_FLAG_ID3V1;
       file->options |= ID3_FILE_OPTION_ID3V1;
     }
   }
 
-  /* look for a tag at the beginning of file */
+  /* look for a tag at the beginning of the file */
 
   rewind(file->iofile);
 
@@ -182,12 +222,12 @@ int search_tags(struct id3_file *file)
     struct id3_frame const *frame;
 
     if (add_tag(file, size) == -1)
-      return -1;
+      goto fail;
 
     /* locate tags indicated by SEEK frames */
 
-    while ((frame = id3_tag_findframe(file->tags[file->ntags - 1].tag,
-				      "SEEK", 0))) {
+    while ((frame =
+	    id3_tag_findframe(file->tags[file->ntags - 1].tag, "SEEK", 0))) {
       long seek;
 
       seek = id3_field_getint(&frame->fields[0]);
@@ -195,85 +235,51 @@ int search_tags(struct id3_file *file)
 	break;
 
       size = query_tag(file->iofile);
-      if (size > 0 && add_tag(file, size) == -1)
-	return -1;
+      if (size <= 0)
+	break;
+      else if (add_tag(file, size) == -1)
+	goto fail;
     }
   }
 
-  /* look for a tag before an ID3v1 tag */
+  /* look for a tag at the end of the file (before any ID3v1 tag) */
 
-  if (fseek(file->iofile, -128 - 10, SEEK_END) == 0) {
+  if (fseek(file->iofile, ((file->flags & ID3_FILE_FLAG_ID3V1) ? -128 : 0) +
+	    -10, SEEK_END) == 0) {
     size = query_tag(file->iofile);
     if (size < 0 && fseek(file->iofile, size, SEEK_CUR) == 0) {
       size = query_tag(file->iofile);
       if (size > 0 && add_tag(file, size) == -1)
-	return -1;
+	goto fail;
     }
-  }
-
-  return 0;
-}
-
-/*
- * NAME:	file->open()
- * DESCRIPTION:	open a file and read its associated tags
- */
-struct id3_file *id3_file_open(char const *path, enum id3_file_mode mode)
-{
-  struct id3_file *file;
-
-  file = malloc(sizeof(*file));
-  if (file == 0)
-    goto fail;
-
-  file->iofile = fopen(path, (mode == ID3_FILE_MODE_READWRITE) ? "r+b" : "rb");
-  if (file->iofile == 0)
-    goto fail;
-
-  file->mode    = mode;
-  file->options = 0;
-
-  file->primary = id3_tag_new();
-  if (file->primary == 0) {
-    fclose(file->iofile);
-    goto fail;
-  }
-
-  id3_tag_addref(file->primary);
-
-  file->ntags = 0;
-  file->tags  = 0;
-
-  /* load tags from file */
-
-  if (search_tags(file) == -1) {
-    id3_file_close(file);
-    file = 0;
   }
 
   if (0) {
   fail:
-    if (file) {
-      free(file);
-      file = 0;
-    }
+    result = -1;
   }
 
-  return file;
+  clearerr(file->iofile);
+
+  if (fsetpos(file->iofile, &save_position) == -1)
+    return -1;
+
+  return result;
 }
 
 /*
- * NAME:	file->close()
- * DESCRIPTION:	close a file and delete its associated tags
+ * NAME:	finish_file()
+ * DESCRIPTION:	release memory associated with a file
  */
-void id3_file_close(struct id3_file *file)
+static
+void finish_file(struct id3_file *file)
 {
   unsigned int i;
 
-  fclose(file->iofile);
-
-  id3_tag_delref(file->primary);
-  id3_tag_delete(file->primary);
+  if (file->primary) {
+    id3_tag_delref(file->primary);
+    id3_tag_delete(file->primary);
+  }
 
   for (i = 0; i < file->ntags; ++i) {
     id3_tag_delref(file->tags[i].tag);
@@ -284,6 +290,114 @@ void id3_file_close(struct id3_file *file)
     free(file->tags);
 
   free(file);
+}
+
+/*
+ * NAME:	new_file()
+ * DESCRIPTION:	create a new file structure and load tags
+ */
+static
+struct id3_file *new_file(FILE *iofile, enum id3_file_mode mode)
+{
+  struct id3_file *file;
+
+  file = malloc(sizeof(*file));
+  if (file == 0)
+    goto fail;
+
+  file->iofile  = iofile;
+  file->mode    = mode;
+  file->flags   = 0;
+  file->options = 0;
+
+  file->ntags   = 0;
+  file->tags    = 0;
+
+  file->primary = id3_tag_new();
+  if (file->primary == 0)
+    goto fail;
+
+  id3_tag_addref(file->primary);
+
+  /* load tags from the file */
+
+  if (search_tags(file) == -1)
+    goto fail;
+
+  if (0) {
+  fail:
+    if (file) {
+      finish_file(file);
+      file = 0;
+    }
+  }
+
+  return file;
+}
+
+/*
+ * NAME:	file->open()
+ * DESCRIPTION:	open a file given its pathname
+ */
+struct id3_file *id3_file_open(char const *path, enum id3_file_mode mode)
+{
+  FILE *iofile;
+  struct id3_file *file;
+
+  iofile = fopen(path, (mode == ID3_FILE_MODE_READWRITE) ? "r+b" : "rb");
+  if (iofile == 0)
+    return 0;
+
+  file = new_file(iofile, mode);
+  if (file == 0)
+    fclose(iofile);
+
+  return file;
+}
+
+/*
+ * NAME:	file->fdopen()
+ * DESCRIPTION:	open a file using an existing file descriptor
+ */
+struct id3_file *id3_file_fdopen(int fd, enum id3_file_mode mode)
+{
+# if 1 || defined(HAVE_UNISTD_H)
+  FILE *iofile;
+  struct id3_file *file;
+
+  iofile = fdopen(fd, (mode == ID3_FILE_MODE_READWRITE) ? "r+b" : "rb");
+  if (iofile == 0)
+    return 0;
+
+  file = new_file(iofile, mode);
+  if (file == 0) {
+    int save_fd;
+
+    /* close iofile without closing fd */
+
+    save_fd = dup(fd);
+
+    fclose(iofile);
+
+    dup2(save_fd, fd);
+    close(save_fd);
+  }
+
+  return file;
+# else
+  return 0;
+# endif
+}
+
+/*
+ * NAME:	file->close()
+ * DESCRIPTION:	close a file and delete its associated tags
+ */
+void id3_file_close(struct id3_file *file)
+{
+  fclose(file->iofile);
+
+  finish_file(file);
 }
 
 /*
@@ -301,10 +415,46 @@ struct id3_tag *id3_file_tag(struct id3_file const *file)
  */
 int id3_file_update(struct id3_file *file)
 {
+  id3_length_t size;
+  unsigned char id3v1_data[128], *id3v1 = 0, *id3v2 = 0;
+
   if (file->mode != ID3_FILE_MODE_READWRITE)
     return -1;
 
+  if (file->options & ID3_FILE_OPTION_ID3V1) {
+    file->primary->options |= ID3_TAG_OPTION_ID3V1;
+
+    size = id3_tag_render(file->primary, 0);
+    if (size) {
+      assert(size == sizeof(id3v1_data));
+
+      size = id3_tag_render(file->primary, id3v1_data);
+      if (size) {
+	assert(size == sizeof(id3v1_data));
+	id3v1 = id3v1_data;
+      }
+    }
+  }
+
+  file->primary->options &= ~ID3_TAG_OPTION_ID3V1;
+
+  size = id3_tag_render(file->primary, 0);
+  if (size) {
+    id3v2 = malloc(size);
+    if (id3v2 == 0)
+      return -1;
+
+    size = id3_tag_render(file->primary, id3v2);
+    if (size == 0) {
+      free(id3v2);
+      id3v2 = 0;
+    }
+  }
+
   /* ... */
+
+  if (id3v2)
+    free(id3v2);
 
   return 0;
 }

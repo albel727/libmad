@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_empeg.c,v 1.11 2001/11/02 09:47:27 rob Exp $
+ * $Id: audio_esd.c,v 1.2 2001/11/03 00:49:07 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -26,29 +26,34 @@
 # include "global.h"
 
 # include <unistd.h>
-# include <fcntl.h>
-# include <sys/ioctl.h>
-# include <sys/soundcard.h>
 # include <errno.h>
-# include <string.h>
+# include <esd.h>
 
 # include "mad.h"
 # include "audio.h"
 
-# define AUDIO_DEVICE	"/dev/dsp"
-# define AUDIO_FILLSZ	4608
+# if defined(WORDS_BIGENDIAN)
+#  define audio_pcm_s16  audio_pcm_s16be
+# else
+#  define audio_pcm_s16  audio_pcm_s16le
+# endif
 
-static int sfd;
+static char const *host;
+static int esd;
+static audio_pcmfunc_t *audio_pcm;
 
 static
 int init(struct audio_init *init)
 {
-  if (init->path == 0)
-    init->path = AUDIO_DEVICE;
+  host = init->path;
+  if (host && *host == 0)
+    host = 0;
 
-  sfd = open(init->path, O_WRONLY);
-  if (sfd == -1) {
-    audio_error = ":";
+  /* test opening a socket */
+
+  esd = esd_open_sound(host);
+  if (esd < 0) {
+    audio_error = ":esd_open_sound";
     return -1;
   }
 
@@ -58,17 +63,41 @@ int init(struct audio_init *init)
 static
 int config(struct audio_config *config)
 {
-  /*
-   * The empeg-car's audio device is locked at 44100 Hz stereo 16-bit
-   * signed little-endian; no configuration is necessary or possible,
-   * but we may need to resample the output and/or convert to stereo.
-   */
+  unsigned int bitdepth;
+  esd_format_t format = ESD_STREAM | ESD_PLAY;
+  extern char const *argv0;
+  int result = 0;
 
-  config->channels  = 2;
-  config->speed     = 44100;
-  config->precision = 16;
+  bitdepth = config->precision & ~7;
+  if (bitdepth == 0 || bitdepth > 16)
+    bitdepth = 16;
 
-  return 0;
+  switch (config->precision = bitdepth) {
+  case 8:
+    audio_pcm = audio_pcm_u8;
+    format |= ESD_BITS8;
+    break;
+
+  case 16:
+    audio_pcm = audio_pcm_s16;
+    format |= ESD_BITS16;
+    break;
+  }
+
+  format |= (config->channels == 2) ? ESD_STEREO : ESD_MONO;
+
+  if (esd_close(esd) < 0) {
+    audio_error = ":esd_close";
+    result = -1;
+  }
+
+  esd = esd_play_stream_fallback(format, config->speed, host, argv0);
+  if (esd < 0 && result == 0) {
+    audio_error = ":esd_play_stream_fallback";
+    result = -1;
+  }
+
+  return result;
 }
 
 static
@@ -77,7 +106,7 @@ int output(unsigned char const *ptr, unsigned int len)
   while (len) {
     int wrote;
 
-    wrote = write(sfd, ptr, len);
+    wrote = write(esd, ptr, len);
     if (wrote == -1) {
       if (errno == EINTR)
 	continue;
@@ -95,63 +124,15 @@ int output(unsigned char const *ptr, unsigned int len)
 }
 
 static
-int buffer(unsigned char const *ptr, unsigned int len)
-{
-  static unsigned char hold[AUDIO_FILLSZ];
-  static unsigned int held;
-  unsigned int left, grab;
-
-  if (len == 0) {
-    if (held) {
-      memset(&hold[held], 0, sizeof(hold) - held);
-      held = 0;
-
-      return output(hold, sizeof(hold));
-    }
-
-    return 0;
-  }
-
-  if (held == 0 && len == sizeof(hold))
-    return output(ptr, len);
-
-  left = sizeof(hold) - held;
-
-  while (len) {
-    grab = len < left ? len : left;
-
-    memcpy(&hold[held], ptr, grab);
-    held += grab;
-    left -= grab;
-
-    ptr  += grab;
-    len  -= grab;
-
-    if (left == 0) {
-      if (output(hold, sizeof(hold)) == -1)
-	return -1;
-
-      held = 0;
-      left = sizeof(hold);
-    }
-  }
-
-  return 0;
-}
-
-# define drain()  buffer(0, 0)
-
-static
 int play(struct audio_play *play)
 {
   unsigned char data[MAX_NSAMPLES * 2 * 2];
   unsigned int len;
 
-  len = audio_pcm_s16le(data, play->nsamples,
-			play->samples[0], play->samples[1],
-			play->mode, play->stats);
+  len = audio_pcm(data, play->nsamples, play->samples[0], play->samples[1],
+		  play->mode, play->stats);
 
-  return buffer(data, len);
+  return output(data, len);
 }
 
 static
@@ -163,20 +144,15 @@ int stop(struct audio_stop *stop)
 static
 int finish(struct audio_finish *finish)
 {
-  int result = 0;
-
-  if (drain() == -1)
-    result = -1;
-
-  if (close(sfd) == -1 && result == 0) {
-    audio_error = ":close";
-    result = -1;
+  if (esd_close(esd) < 0) {
+    audio_error = ":esd_close";
+    return -1;
   }
 
-  return result;
+  return 0;
 }
 
-int audio_empeg(union audio_control *control)
+int audio_esd(union audio_control *control)
 {
   audio_error = 0;
 

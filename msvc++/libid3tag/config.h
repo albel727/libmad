@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: config.h,v 1.4 2001/10/21 00:24:40 rob Exp $
+ * $Id: config.h,v 1.6 2001/11/09 02:35:31 rob Exp $
  */
 
 # ifndef LIBID3TAG_CONFIG_H
@@ -41,6 +41,12 @@
 /* Define to disable debugging assertions. */
 /* #undef NDEBUG */
 
+/* Define if you have the <assert.h> header file.  */
+#define HAVE_ASSERT_H 1
+
+/* Define if you have the <unistd.h> header file.  */
+/* #undef HAVE_UNISTD_H */
+
 /* Define if you have the <zlib.h> header file.  */
 /* #undef HAVE_ZLIB_H */
 
@@ -48,7 +54,7 @@
 #define PACKAGE "libid3tag"
 
 /* Version number of package */
-#define VERSION "0.14.1b"
+#define VERSION "0.14.2b"
 
 /*****************************************************************************
  * End of automatically configured definitions                               *

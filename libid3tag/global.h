@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: global.h,v 1.4 2001/10/20 22:15:47 rob Exp $
+ * $Id: global.h,v 1.5 2001/11/01 20:27:38 rob Exp $
  */
 
 # ifndef LIBID3TAG_GLOBAL_H
@@ -38,6 +38,16 @@
 #  define release(ptr)      id3_debug_release(ptr,     __FILE__, __LINE__)
 # else
 #  define release(ptr)  (ptr)
+# endif
+
+/* conditional features */
+
+# if !defined(HAVE_ASSERT_H)
+#  if defined(NDEBUG)
+#   define assert(x)	/* nothing */
+#  else
+#   define assert(x)	do { if (!(x)) abort(); } while (0)
+#  endif
 # endif
 
 # endif

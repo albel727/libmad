@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: player.h,v 1.12 2001/10/19 23:20:28 rob Exp $
+ * $Id: player.h,v 1.15 2001/11/01 20:27:32 rob Exp $
  */
 
 # ifndef PLAYER_H
@@ -35,6 +35,7 @@
 enum {
   PLAYER_OPTION_SHUFFLE      = 0x0001,
   PLAYER_OPTION_DOWNSAMPLE   = 0x0002,
+  PLAYER_OPTION_IGNORECRC    = 0x0004,
 
   PLAYER_OPTION_SKIP         = 0x0010,
   PLAYER_OPTION_TIMED        = 0x0020,
@@ -114,7 +115,7 @@ struct player {
   struct output {
     enum audio_mode mode;
 
-    mad_fixed_t attenuate;
+    mad_fixed_t attenuation;
     struct filter *filters;
 
     unsigned int channels_in;
@@ -123,6 +124,9 @@ struct player {
 
     unsigned int speed_in;
     unsigned int speed_out;
+
+    unsigned int precision_in;
+    unsigned int precision_out;
 
     char const *path;
     audio_ctlfunc_t *command;

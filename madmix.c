@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madmix.c,v 1.16 2001/05/05 00:50:01 rob Exp $
+ * $Id: madmix.c,v 1.18 2001/11/08 23:27:39 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -30,7 +30,10 @@
 # include <stdlib.h>
 # include <string.h>
 # include <unistd.h>
-# include <errno.h>
+
+# ifdef HAVE_ERRNO_H
+#  include <errno.h>
+# endif
 
 # include "getopt.h"
 
@@ -45,6 +48,8 @@ struct audio {
 
   struct mad_frame frame;
 };
+
+char const *argv0;
 
 /*
  * NAME:	error()
@@ -258,6 +263,8 @@ int main(int argc, char *argv[])
   char const *fname, *opath = 0;
   FILE *file;
   struct audio *mix;
+
+  argv0 = argv[0];
 
   if (argc > 1) {
     if (strcmp(argv[1], "--version") == 0) {

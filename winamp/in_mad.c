@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: in_mad.c,v 1.32 2001/10/22 20:18:04 rob Exp $
+ * $Id: in_mad.c,v 1.35 2001/11/09 03:46:13 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -30,10 +30,16 @@
 # include <prsht.h>
 # include <wininet.h>
 # include <stdio.h>
+# include <io.h>
+# include <fcntl.h>
 # include <stdarg.h>
 # include <string.h>
 # include <locale.h>
 # include <math.h>
+
+# ifndef M_PI
+#  define M_PI  3.14159265358979323846264338328
+# endif
 
 # include "resource.h"
 # include "messages.h"
@@ -117,7 +123,6 @@ static struct state {
 # define REGISTRY_KEY		"Software\\Winamp\\MAD Plug-in"
 
 static DWORD conf_enabled;		/* plug-in enabled? */
-static DWORD conf_streaming;		/* use plug-in for streaming? */
 static char  conf_titlefmt[96];		/* title format */
 static DWORD conf_channel;		/* channel selection */
 static DWORD conf_priority;		/* decoder thread priority -2..+2 */
@@ -393,9 +398,14 @@ static
 void apply_config(void)
 {
   module.FileExtensions = conf_enabled ?
+# if 1
+    "MP3;MP2;MP1\0" "MPEG Audio Files (*.MP3;*.MP2;*.MP1)\0"
+# else
     "MP3\0" "MPEG Audio Layer III files (*.MP3)\0"
     "MP2\0" "MPEG Audio Layer II files (*.MP2)\0"
-    "MP1\0" "MPEG Audio Layer I files (*.MP1)\0" : "";
+    "MP1\0" "MPEG Audio Layer I files (*.MP1)\0"
+# endif
+    : "";
 }
 
 static
@@ -454,7 +464,6 @@ void do_init(void)
     registry = INVALID_HANDLE_VALUE;
 
   LOAD_CONF_DWORD(enabled, 1);
-  LOAD_CONF_DWORD(streaming, 0);
   LOAD_CONF_DWORD(channel, CHANNEL_STEREO);
   LOAD_CONF_DWORD(priority, 0);
   LOAD_CONF_DWORD(resolution, 16);
@@ -496,8 +505,6 @@ BOOL config_dialog(HWND dialog, UINT message,
   case WM_INITDIALOG:
     if (conf_enabled)
       CheckDlgButton(dialog, IDC_CONF_ENABLED, BST_CHECKED);
-    if (conf_streaming)
-      CheckDlgButton(dialog, IDC_CONF_STREAMING, BST_CHECKED);
 
     PostMessage(dialog, WM_COMMAND,
 		MAKELONG(IDC_CONF_ENABLED, BN_CLICKED),
@@ -569,18 +576,6 @@ BOOL config_dialog(HWND dialog, UINT message,
 
   case WM_COMMAND:
     switch (LOWORD(wparam)) {
-    case IDC_CONF_ENABLED:
-      {
-	BOOL state;
-
-	state =
-	  IsDlgButtonChecked(dialog, IDC_CONF_ENABLED) == BST_CHECKED ?
-	  TRUE : FALSE;
-
-	EnableWindow(GetDlgItem(dialog, IDC_CONF_STREAMING), state);
-      }
-      break;
-
     case IDC_OUT_AUTOATTENUATION:
       {
 	BOOL state;
@@ -599,8 +594,6 @@ BOOL config_dialog(HWND dialog, UINT message,
     case IDOK:
       conf_enabled =
 	(IsDlgButtonChecked(dialog, IDC_CONF_ENABLED) == BST_CHECKED);
-      conf_streaming =
-	(IsDlgButtonChecked(dialog, IDC_CONF_STREAMING) == BST_CHECKED);
 
       /* Title Format */
 
@@ -674,7 +667,6 @@ void show_config(HWND parent)
   if (DialogBox(module.hDllInstance, MAKEINTRESOURCE(IDD_CONFIG),
 		parent, config_dialog) == IDOK) {
     SAVE_CONF_DWORD(enabled);
-    SAVE_CONF_DWORD(streaming);
     SAVE_CONF_DWORD(channel);
     SAVE_CONF_DWORD(priority);
     SAVE_CONF_DWORD(resolution);
@@ -694,7 +686,7 @@ void show_about(HWND parent)
 {
   char const about[] =
     "MPEG Audio Decoder version " MAD_VERSION "\n"
-    "ID3 Tag Library version " ID3_VERSION "\n"
+    "ID3 Tag version " ID3_VERSION "\n"
     "Winamp plug-in version " PLUGIN_VERSION "\n\n"
 
     "Copyright \xa9 " MAD_PUBLISHYEAR " " MAD_AUTHOR "\n\n"
@@ -723,7 +715,7 @@ int is_stream(char *path)
 static
 int is_ourfile(char *path)
 {
-  return conf_enabled && conf_streaming && is_stream(path);
+  return conf_enabled && is_stream(path);
 }
 
 static
@@ -1110,7 +1102,7 @@ int vbr_update(struct stats *stats, unsigned long bitrate)
 
   stats->bitrate = bitrate;
 
-  return stats->vbr ?
+  return (stats->vbr && stats->frames > 0) ?
     ((stats->vbr_rate * 2) / stats->frames + 1) / 2 : stats->bitrate;
 }
 
@@ -1273,7 +1265,7 @@ DWORD WINAPI run_decode_thread(void *param)
       int nch, bytes;
       mad_fixed_t const *ch1, *ch2;
 
-      if (state->seek != -1 && state->length >= 0) {
+      if (state->seek != -1 && state->length > 0) {
 	int new_position;
 
 	if (state->seek < 0)
@@ -1722,8 +1714,11 @@ int play_stream(struct state *state)
   if (scan_header(&state->input, &header, &state->xing) == -1) {
     input_close(&state->input);
 
+# if 0
     show_error(0, "Error Reading Stream", IDS_WARN_NOHEADER);
-    return 2;
+# endif
+
+    return -1;
   }
 
   state->size    = 0;
@@ -1753,7 +1748,7 @@ int play_file(struct state *state)
     show_error(0, "Error Opening File", error);
 # endif
 
-    return (error == ERROR_FILE_NOT_FOUND) ? -1 : 1;
+    return -1;
   }
 
   input_init(&state->input, INPUT_FILE, file);
@@ -1761,8 +1756,11 @@ int play_file(struct state *state)
   if (scan_header(&state->input, &header, &state->xing) == -1) {
     input_close(&state->input);
 
+# if 0
     show_error(0, "Error Reading File", IDS_WARN_NOHEADER);
-    return 2;
+# endif
+
+    return -1;
   }
 
   input_seek(&state->input, 0, FILE_BEGIN);
@@ -1778,7 +1776,7 @@ int play_file(struct state *state)
 
     state->length = mad_timer_count(timer, MAD_UNITS_MILLISECONDS);
 
-    if (state->xing.flags & XING_BYTES)
+    if ((state->xing.flags & XING_BYTES) && state->length > 0)
       state->bitrate = state->xing.bytes * 8 / state->length;
   }
   else
@@ -2007,6 +2005,8 @@ struct fileinfo {
     struct mad_header header;
   } mpeg;
 
+  struct id3_file *id3file;
+
   struct {
     int has;
     struct id3v1 tag;
@@ -2209,10 +2209,8 @@ BOOL mpeg_dialog(HWND dialog, UINT message,
 	SetDlgItemText(dialog, IDC_MPEG_LAYER, ptr);
 
 	sprintf(str, "%lu kbps", header->bitrate / 1000);
-# if 0  /* not enough room for this in the dialog field */
 	if (header->flags & MAD_FLAG_FREEFORMAT)
 	  strcat(str, " (free format)");
-# endif
 	SetDlgItemText(dialog, IDC_MPEG_BITRATE, str);
 
 	sprintf(str, "%u Hz", header->samplerate);
@@ -2238,19 +2236,19 @@ BOOL mpeg_dialog(HWND dialog, UINT message,
 
 	switch (header->mode) {
 	case MAD_MODE_SINGLE_CHANNEL:
-	  CheckDlgButton(dialog, IDC_MPEG_SINGLECH, BST_CHECKED);
+	  SetDlgItemText(dialog, IDC_MPEG_MODE, "Single Channel");
 	  break;
 
 	case MAD_MODE_DUAL_CHANNEL:
-	  CheckDlgButton(dialog, IDC_MPEG_DUALCH, BST_CHECKED);
+	  SetDlgItemText(dialog, IDC_MPEG_MODE, "Dual Channel");
 	  break;
 
 	case MAD_MODE_JOINT_STEREO:
-	  CheckDlgButton(dialog, IDC_MPEG_JOINTST, BST_CHECKED);
+	  SetDlgItemText(dialog, IDC_MPEG_MODE, "Joint Stereo");
 	  break;
 
 	case MAD_MODE_STEREO:
-	  CheckDlgButton(dialog, IDC_MPEG_STEREO, BST_CHECKED);
+	  SetDlgItemText(dialog, IDC_MPEG_MODE, "Stereo");
 	  break;
 	}
 
@@ -2272,8 +2270,7 @@ BOOL mpeg_dialog(HWND dialog, UINT message,
 	SetDlgItemText(dialog, IDC_MPEG_LENGTH, str);
 
 	if (info->mpeg.bitrate != header->bitrate / 1000) {
-	  sprintf(str, "%d kbps", info->mpeg.bitrate);
-	  SetDlgItemText(dialog, IDC_MPEG_BITRATELABEL, "Avg. Bit Rate:");
+	  sprintf(str, "%d kbps (average)", info->mpeg.bitrate);
 	  SetDlgItemText(dialog, IDC_MPEG_BITRATE, str);
 	}
       }
@@ -2588,8 +2585,12 @@ BOOL stats_dialog(HWND dialog, UINT message,
 
 	/* Output */
 
-	db = 20 * log10(mad_f_todouble(state.attenuation));
-	sprintf(str, "%.1f dB", db);
+	if (state.attenuation == 0)
+	  strcpy(str, "-inf dB");
+	else {
+	  db = 20 * log10(mad_f_todouble(state.attenuation));
+	  sprintf(str, "%.1f dB", db);
+	}
 	SetDlgItemText(dialog, IDC_STATS_ATTENUATION, str);
 
 	SetDlgItemInt(dialog, IDC_STATS_CLIPPED, stats->clipped, FALSE);
@@ -2704,9 +2705,10 @@ void proppage_init(PROPSHEETPAGE *page, int proppage_id,
 static
 int show_infobox(char *path, HWND parent)
 {
+  struct fileinfo info;
+  int fd;
   PROPSHEETPAGE psp[4];
   PROPSHEETHEADER psh;
-  struct fileinfo info;
   DWORD bytes;
 
   if (is_stream(path)) {
@@ -2718,7 +2720,9 @@ int show_infobox(char *path, HWND parent)
   info.file = CreateFile(path, GENERIC_READ | GENERIC_WRITE,
 			 FILE_SHARE_READ, 0,
 			 OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, 0);
-  if (info.file == INVALID_HANDLE_VALUE) {
+  if (info.file != INVALID_HANDLE_VALUE)
+    info.attributes = 0;
+  else {
     info.file = CreateFile(path, GENERIC_READ,
 			   FILE_SHARE_READ | FILE_SHARE_WRITE, 0,
 			   OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, 0);
@@ -2729,8 +2733,6 @@ int show_infobox(char *path, HWND parent)
 
     info.attributes = FILE_ATTRIBUTE_READONLY;
   }
-  else
-    info.attributes = 0;
 
   info.size = GetFileSize(info.file, 0);
 
@@ -2747,6 +2749,24 @@ int show_infobox(char *path, HWND parent)
   info.mpeg.length  = 0;
   info.mpeg.bitrate = 0;
   mad_header_init(&info.mpeg.header);
+
+  fd = _open_osfhandle((long) info.file,
+		       ((info.attributes & FILE_ATTRIBUTE_READONLY) ?
+			_O_RDONLY : _O_RDWR) | _O_BINARY);
+  if (fd == -1) {
+    show_error(parent, "Error Converting File Handle", GetLastError());
+    CloseHandle(info.file);
+    return 1;
+  }
+
+  info.id3file =
+    id3_file_fdopen(fd, (info.attributes & FILE_ATTRIBUTE_READONLY) ?
+		    ID3_FILE_MODE_READONLY : ID3_FILE_MODE_READWRITE);
+  if (info.id3file == 0) {
+    _close(fd);
+    show_error(parent, "ID3 Error", IDS_ERR_ID3FAIL);
+    return 1;
+  }
 
   SetFilePointer(info.file, -sizeof(info.id3v1.tag.data), 0, FILE_END);
   if (ReadFile(info.file, info.id3v1.tag.data,
@@ -2779,7 +2799,7 @@ int show_infobox(char *path, HWND parent)
 
   PropertySheet(&psh);
 
-  CloseHandle(info.file);
+  id3_file_close(info.id3file);
 
   return 0;
 }

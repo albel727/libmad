@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_win32.c,v 1.44 2001/04/14 04:46:51 rob Exp $
+ * $Id: audio_win32.c,v 1.51 2001/11/03 21:06:52 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -34,16 +34,17 @@
 static int opened;
 
 static HWAVEOUT wave_handle;
+static audio_pcmfunc_t *audio_pcm;
+static unsigned int samplerate, samplesize;
 
-# define NSLOTS		25	/* about 2 seconds of audio data (44.1 kHz) */
-# define NBUFFERS	 3	/* triple buffer */
+# define NBUFFERS  2
 
 static struct buffer {
   WAVEHDR wave_header;
   HANDLE event_handle;
   int playing;
   unsigned int pcm_length;
-  unsigned char pcm_data[NSLOTS * MAX_NSAMPLES * 2 * 2];
+  unsigned char pcm_data[48000 * 4 * 2];
 } output[NBUFFERS];
 
 static int bindex;
@@ -134,12 +135,13 @@ void set_format(WAVEFORMATEX *format, unsigned int channels,
 }
 
 static
-int open_dev(HWAVEOUT *handle, unsigned int channels, unsigned int speed)
+int open_dev(HWAVEOUT *handle, unsigned int channels, unsigned int speed,
+	     unsigned int depth)
 {
   WAVEFORMATEX format;
   MMRESULT error;
 
-  set_format(&format, channels, speed, 16);
+  set_format(&format, channels, speed, depth);
 
   error = waveOutOpen(handle, WAVE_MAPPER, &format,
 		      (DWORD) callback, 0, CALLBACK_FUNCTION);
@@ -158,13 +160,39 @@ int close_dev(HWAVEOUT handle)
 {
   MMRESULT error;
 
+  opened = 0;
+
   error = waveOutClose(handle);
   if (error != MMSYSERR_NOERROR) {
     audio_error = error_text(error);
     return -1;
   }
 
-  opened = 0;
+  return 0;
+}
+
+static
+int set_pause(int flag)
+{
+  static int paused;
+  MMRESULT error;
+
+  if (flag && !paused) {
+    error = waveOutPause(wave_handle);
+    if (error != MMSYSERR_NOERROR) {
+      audio_error = error_text(error);
+      return -1;
+    }
+  }
+  else if (!flag && paused) {
+    error = waveOutRestart(wave_handle);
+    if (error != MMSYSERR_NOERROR) {
+      audio_error = error_text(error);
+      return -1;
+    }
+  }
+
+  paused = flag;
 
   return 0;
 }
@@ -241,6 +269,9 @@ int drain(void)
 {
   int i, result = 0;
 
+  if (set_pause(0) == -1)
+    result = -1;
+
   if (output[bindex].pcm_length &&
       write_dev(wave_handle, &output[bindex]) == -1)
     result = -1;
@@ -258,15 +289,44 @@ int drain(void)
 static
 int config(struct audio_config *config)
 {
-  if (opened) {
-    drain();
+  unsigned int bitdepth;
 
-    if (close_dev(wave_handle) == -1)
+  bitdepth = config->precision & ~7;
+  if (bitdepth == 0)
+    bitdepth = 16;
+  else if (bitdepth > 32)
+    bitdepth = 32;
+
+  if (opened) {
+    if (drain() == -1)
       return -1;
+
+    close_dev(wave_handle);
   }
 
-  if (open_dev(&wave_handle, config->channels, config->speed) == -1)
+  if (open_dev(&wave_handle, config->channels, config->speed, bitdepth) == -1)
     return -1;
+
+  switch (config->precision = bitdepth) {
+  case 8:
+    audio_pcm = audio_pcm_u8;
+    break;
+
+  case 16:
+    audio_pcm = audio_pcm_s16le;
+    break;
+
+  case 24:
+    audio_pcm = audio_pcm_s24le;
+    break;
+
+  case 32:
+    audio_pcm = audio_pcm_s32le;
+    break;
+  }
+
+  samplerate = config->speed;
+  samplesize = bitdepth / 8;
 
   return 0;
 }
@@ -277,6 +337,9 @@ int play(struct audio_play *play)
   struct buffer *buffer;
   unsigned int len;
 
+  if (set_pause(0) == -1)
+    return -1;
+
   buffer = &output[bindex];
 
   /* wait for block to finish playing */
@@ -286,13 +349,13 @@ int play(struct audio_play *play)
 
   /* prepare block */
 
-  len = audio_pcm_s16le(&buffer->pcm_data[buffer->pcm_length], play->nsamples,
-			play->samples[0], play->samples[1], play->mode,
-			play->stats);
+  len = audio_pcm(&buffer->pcm_data[buffer->pcm_length], play->nsamples,
+		  play->samples[0], play->samples[1], play->mode, play->stats);
 
   buffer->pcm_length += len;
 
-  if (buffer->pcm_length + MAX_NSAMPLES * 2 * 2 > sizeof(buffer->pcm_data)) {
+  if (buffer->pcm_length + MAX_NSAMPLES * samplesize * 2 >
+      samplerate * samplesize * 2) {
     write_dev(wave_handle, buffer);
 
     bindex = (bindex + 1) % NBUFFERS;
@@ -305,7 +368,22 @@ int play(struct audio_play *play)
 static
 int stop(struct audio_stop *stop)
 {
-  return 0;
+  int result = 0;
+  MMRESULT error;
+
+  if (stop->flush) {
+    error = waveOutReset(wave_handle);
+    if (error != MMSYSERR_NOERROR) {
+      audio_error = error_text(error);
+      result = -1;
+    }
+
+    output[bindex].pcm_length = 0;
+
+    return result;
+  }
+
+  return set_pause(1);
 }
 
 static

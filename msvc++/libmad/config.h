@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: config.h,v 1.3 2001/10/21 00:24:44 rob Exp $
+ * $Id: config.h,v 1.5 2001/11/09 02:35:37 rob Exp $
  */
 
 # ifndef LIBMAD_CONFIG_H
@@ -78,8 +78,32 @@
 /* The number of bytes in a long long.  */
 #define SIZEOF_LONG_LONG 8
 
+/* Define if you have the fcntl function.  */
+/* #undef HAVE_FCNTL */
+
+/* Define if you have the fork function.  */
+/* #undef HAVE_FORK */
+
+/* Define if you have the pipe function.  */
+/* #undef HAVE_PIPE */
+
+/* Define if you have the waitpid function.  */
+/* #undef HAVE_WAITPID */
+
+/* Define if you have the <assert.h> header file.  */
+#define HAVE_ASSERT_H 1
+
+/* Define if you have the <errno.h> header file.  */
+#define HAVE_ERRNO_H 1
+
+/* Define if you have the <fcntl.h> header file.  */
+#define HAVE_FCNTL_H 1
+
 /* Define if you have the <limits.h> header file.  */
 #define HAVE_LIMITS_H 1
+
+/* Define if you have the <sys/types.h> header file.  */
+#define HAVE_SYS_TYPES_H 1
 
 /* Define if you have the <unistd.h> header file.  */
 /* #undef HAVE_UNISTD_H */
@@ -88,7 +112,7 @@
 #define PACKAGE "libmad"
 
 /* Version number of package */
-#define VERSION "0.14.1b"
+#define VERSION "0.14.2b"
 
 /*****************************************************************************
  * End of automatically configured definitions                               *

@@ -86,3 +86,12 @@
 //
 #define IDS_ERR_NOMEM                    0xE0000005L
 
+//
+// MessageId: IDS_ERR_ID3FAIL
+//
+// MessageText:
+//
+//  The ID3 tag(s) could not be read.
+//
+#define IDS_ERR_ID3FAIL                  0xE0000006L
+

@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: Makefile.in,v 1.17 2001/10/21 00:25:05 rob Exp $
+# $Id: Makefile.in,v 1.19 2001/11/09 02:38:25 rob Exp $
 #
 
 SHELL =		@SHELL@
@@ -33,16 +33,18 @@ CC =		gcc
 DEBUG =		-Wall -O2 #-g
 CFLAGS =	$(DEBUG) -m486
 CPPFLAGS =	-DHAVE_CONFIG_H  \
-		-I.. -I$(top_srcdir)  \
-		-I../libmad -I$(top_srcdir)/libid3tag
+		-I. -I.. -I$(top_srcdir)  \
+		-I../libmad -I$(top_srcdir)/libid3tag -I../intl
 
 DLL_EXP_DEF =	$(srcdir)/in_mad.def
-DLL_CFLAGS =	
-DLL_LDFLAGS =	-L../libid3tag/.libs -L../libz
-DLL_LDLIBS =	-lid3tag -lz -lcomctl32 -lgdi32 -lwininet #-lcomdlg32
-DLL_OBJS =	in_mad.o xing.o compat.o resource.o libmad.a
+DLL_CFLAGS =	-mno-cygwin
+DLL_LDFLAGS =	-mwindows -L../libmad/.libs -L../libid3tag/.libs -L../libz
+DLL_LDLIBS =	-lmad -lid3tag -lz -lwininet -lcomctl32
+DLL_OBJS =	in_mad.o xing.o resource.o
+DLL_LIBOBJS =	../libmad/.libs/libmad.a ../libid3tag/.libs/libid3tag.a  \
+		../libz/libz.a
 
-all: @WINAMP_TARGET@
+all: in_mad.dll
 
 pimp: MAD\ plug-in\ $(VERSION).exe
 
@@ -51,37 +53,34 @@ MAD\ plug-in\ $(VERSION).exe: in_mad.dll in_mad.txt in_mad.psc
 	test $(srcdir) = . || cp $(srcdir)/in_mad.txt .
 	makepimp in_mad.psc
 
-in_mad.dll: $(DLL_OBJS)
-	dllwrap --target=i386-mingw32 --driver-name=$(CC) -mno-cygwin  \
+in_mad.dll: $(DLL_OBJS) $(DLL_LIBOBJS)
+	dllwrap --target=i386-mingw32 --driver-name=$(CC) $(DLL_CFLAGS)  \
 		--def $(DLL_EXP_DEF) -o $@  \
 		$(DLL_OBJS)  \
-		$(DLL_LDFLAGS) $(DLL_LDLIBS)
+		$(DLL_LDFLAGS)  \
+		$(DLL_LDLIBS)
 
 in_mad.o: in_mad.c ../config.h ../global.h  \
-	resource.h messages.h in2.h out.h $(top_srcdir)/xing.h
+	resource.h messages.h in2.h out.h  \
+	../libmad/mad.h $(top_srcdir)/libid3tag/id3tag.h $(top_srcdir)/xing.h
 
-xing.o: $(top_srcdir)/xing.c ../config.h ../global.h
-	$(CC) -c $(DLL_CFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ $(top_srcdir)/xing.c
+xing.o: $(top_srcdir)/xing.c $(top_srcdir)/xing.h ../config.h ../global.h
+	$(CC) -c $(DLL_CFLAGS) $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
-compat.o: compat.c ../config.h ../global.h
+.c.o:
+	$(CC) -c $(DLL_CFLAGS) $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
-resource.o: resource.rc messages.rc
-	windres --include-dir $(srcdir) -o $@ $(srcdir)/resource.rc
+resource.o: $(srcdir)/resource.rc $(srcdir)/messages.rc
+	windres --include-dir $(srcdir) -o $@ $<
 
 $(srcdir)/messages.rc $(srcdir)/messages.h: $(srcdir)/messages.mc
 	cd $(srcdir) && mc -v -c messages.mc
 
-libmad.a: ../libmad/.libs/libmad.a
-	cp $< .
-	ar d libmad.a decoder.o
-
-.c.o:
-	$(CC) -c $(DLL_CFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ $<
-.c.s:
-	$(CC) -S $(DLL_CFLAGS) $(CPPFLAGS) $(CFLAGS) $<
-
 Makefile: Makefile.in ../config.status
 	cd .. && CONFIG_FILES=winamp/Makefile CONFIG_HEADERS= ./config.status
+
+in_mad.psc: in_mad.psc.in ../config.status
+	cd .. && CONFIG_FILES=winamp/in_mad.psc CONFIG_HEADERS= ./config.status
 
 clean:
 	rm -f *.dll *.o *.exe *.a
@@ -101,7 +100,7 @@ DISTFILES =  \
 	in_mad.c in_mad.def in_mad.psc.in in_mad.txt  \
 	resource.h resource.rc  \
 	messages.mc messages.h messages.rc MSG00001.bin  \
-	compat.c
+	id3genre.dat
 
 distdir: $(DISTFILES)
 	-rm -rf $(distdir)
