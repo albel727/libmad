@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: acconfig.h,v 1.8 2000/09/08 00:47:25 rob Exp $
+ * $Id: acconfig.h,v 1.9 2000/09/17 18:49:32 rob Exp $
  */
 
 /*****************************************************************************
@@ -30,6 +30,9 @@
 /* Define to enable diagnostic debugging support. */
 #undef DEBUG
 
+/* Define to disable debugging assertions. */
+#undef NDEBUG
+
 /* Define to enable experimental code. */
 #undef EXPERIMENTAL
 
@@ -38,4 +41,8 @@
 /*****************************************************************************
  * End of automatically configured definitions                               *
  *****************************************************************************/
+
+# if defined(DEBUG) && defined(NDEBUG)
+#  error "cannot define both DEBUG and NDEBUG"
+# endif
 

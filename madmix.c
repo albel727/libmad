@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madmix.c,v 1.5 2000/09/11 03:52:08 rob Exp $
+ * $Id: madmix.c,v 1.6 2000/09/17 18:49:32 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -244,7 +244,6 @@ static
 void usage(char const *argv0)
 {
   error("Usage", "%s input1 [input2 ...]", argv0);
-  exit(1);
 }
 
 /*
@@ -260,10 +259,10 @@ int main(int argc, char *argv[])
   struct audio *mix;
 
   if (argc > 1) {
-    if (strcmp(argv[1], "--version") == 0 ||
-	strcmp(argv[1], "--copyright") == 0) {
+    if (strcmp(argv[1], "--version") == 0) {
       printf("%s - %s\n", mad_version, mad_copyright);
-      printf("`%s --license' for licensing information.\n", argv[0]);
+      printf("Build options: %s\n", mad_build);
+      fprintf(stderr, "`%s --license' for licensing information.\n", argv[0]);
       return 0;
     }
     if (strcmp(argv[1], "--license") == 0) {
@@ -274,6 +273,10 @@ int main(int argc, char *argv[])
       printf("%s\n", mad_author);
       return 0;
     }
+    if (strcmp(argv[1], "--help") == 0) {
+      usage(argv[0]);
+      return 0;
+    }
   }
 
   while ((opt = getopt(argc, argv, "o:")) != -1) {
@@ -282,17 +285,22 @@ int main(int argc, char *argv[])
       opath = optarg;
 
       output = audio_output(&opath);
-      if (output == 0)
-	error(0, "%s: undecided output module; using default", opath);
+      if (output == 0) {
+	error(0, "%s: unknown output format type", opath);
+	return 2;
+      }
       break;
 
     default:
       usage(argv[0]);
+      return 1;
     }
   }
 
-  if (optind == argc)
+  if (optind == argc) {
     usage(argv[0]);
+    return 1;
+  }
 
   if (output == 0)
     output = audio_output(0);

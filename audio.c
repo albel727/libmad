@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.c,v 1.11 2000/09/14 19:40:37 rob Exp $
+ * $Id: audio.c,v 1.12 2000/09/17 18:49:32 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -53,32 +53,27 @@ audio_ctlfunc_t *audio_output(char const **path)
     if (strncmp(type, "raw", ext - type) == 0 ||
 	strncmp(type, "RAW", ext - type) == 0 ||
 	strncmp(type, "pcm", ext - type) == 0 ||
-	strncmp(type, "PCM", ext - type) == 0) {
-      *path = ext + 1;
+	strncmp(type, "PCM", ext - type) == 0)
       return audio_raw;
-    }
 
     if (strncmp(type, "wave", ext - type) == 0 ||
 	strncmp(type, "WAVE", ext - type) == 0 ||
 	strncmp(type, "wav",  ext - type) == 0 ||
-	strncmp(type, "WAV",  ext - type) == 0) {
-      *path = ext + 1;
+	strncmp(type, "WAV",  ext - type) == 0)
       return audio_wave;
-    }
 
 # ifdef DEBUG
     if (strncmp(type, "hex", ext - type) == 0 ||
-	strncmp(type, "HEX", ext - type) == 0) {
-      *path = ext + 1;
+	strncmp(type, "HEX", ext - type) == 0)
       return audio_hex;
-    }
 # endif
 
     if (strncmp(type, "null", ext - type) == 0 ||
-	strncmp(type, "NULL", ext - type) == 0) {
-      *path = ext + 1;
+	strncmp(type, "NULL", ext - type) == 0)
       return audio_null;
-    }
+
+    *path = type;
+    return 0;
   }
 
   if (strcmp(*path, "/dev/null") == 0)
@@ -114,7 +109,7 @@ audio_ctlfunc_t *audio_output(char const **path)
 # endif
   }
 
-  return 0;
+  return AUDIO_DEFAULT;
 }
 
 /*

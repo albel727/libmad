@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.36 2000/09/12 01:09:59 rob Exp $
+ * $Id: madplay.c,v 1.38 2000/09/17 18:49:32 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -212,6 +212,9 @@ void gen_stats(struct mad_frame const *frame, struct stats *stats)
 
     if (frame->mode == MAD_MODE_JOINT_STEREO) {
       switch (frame->flags & (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO)) {
+      case 0:
+	joint_str = " (LR)";
+	break;
       case MAD_FLAG_MS_STEREO:
 	joint_str = " (MS)";
 	break;
@@ -868,17 +871,15 @@ void usage(char const *argv0)
 # endif
 	  "\t-d\tdo not dither output samples\n"
 	  "\n"
-	  "\t-o\tselect output format and destination\n");
-
-  fprintf(stderr, "\nSupported output format types:\n"
+	  "\t-o\tselect output format and destination\n"
+	  "\n"
+	  "Supported output format types:\n"
 	  "\tRAW\tbinary signed 16-bit little-endian linear PCM\n"
 	  "\tWAVE\tMicrosoft RIFF/WAVE, 16-bit PCM format\n"
 # ifdef DEBUG
 	  "\tHEX\thexadecimal signed 24-bit linear PCM\n"
 # endif
 	  "\tNULL\tno output (decode only)\n");
-
-  exit(1);
 }
 
 /*
@@ -894,9 +895,9 @@ int main(int argc, char *argv[])
   struct audio audio;
 
   if (argc > 1) {
-    if (strcmp(argv[1], "--version") == 0 ||
-	strcmp(argv[1], "--copyright") == 0) {
+    if (strcmp(argv[1], "--version") == 0) {
       printf("%s - %s\n", mad_version, mad_copyright);
+      printf("Build options: %s\n", mad_build);
       fprintf(stderr, "`%s --license' for licensing information.\n", argv[0]);
       return 0;
     }
@@ -906,6 +907,10 @@ int main(int argc, char *argv[])
     }
     if (strcmp(argv[1], "--author") == 0) {
       printf("%s\n", mad_author);
+      return 0;
+    }
+    if (strcmp(argv[1], "--help") == 0) {
+      usage(argv[0]);
       return 0;
     }
   }
@@ -968,17 +973,22 @@ int main(int argc, char *argv[])
       opath = optarg;
 
       output = audio_output(&opath);
-      if (output == 0)
-	error(0, "%s: undecided output module; using default", opath);
+      if (output == 0) {
+	error(0, "%s: unknown output format type", opath);
+	return 2;
+      }
       break;
 
     default:
       usage(argv[0]);
+      return 1;
     }
   }
 
-  if (optind == argc)
+  if (optind == argc) {
     usage(argv[0]);
+    return 1;
+  }
 
 # ifdef EXPERIMENTAL
   if (filter == filter_mixer)
