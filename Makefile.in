@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: Makefile.in,v 1.28 2000/08/02 05:48:45 rob Exp $
+# $Id: Makefile.in,v 1.30 2000/09/10 22:04:17 rob Exp $
 #
 
 ## ENVIRONMENT ################################################################
@@ -66,8 +66,9 @@ LDFLAGS =	$(LDOPTS)
 ## OBJECTS ####################################################################
 
 TARGETS =	madplay
-AUDIO =		audio.o audio_null.o audio_wav.o audio_raw.o @AUDIO@
-OBJS =		id3.o id3v2.o $(AUDIO)
+AUDIO =		resample.o audio.o  \
+		audio_raw.o audio_wave.o audio_null.o @AUDIO@
+OBJS =		$(AUDIO) id3.o id3v2.o
 
 LIBMAD =	libmad/libmad.a
 INCMAD =	libmad/mad.h
@@ -187,23 +188,25 @@ gmon.out: madplay
 	./madplay -vo pcm:/dev/null teststream.mpg
 
 .c.s:
-	$(CC) $(ARCH) $(OPTIMIZER) $(DEFINES) -S $<
+	$(CC) $(ARCH) $(OPTIMIZER) $(INCLUDES) $(DEFINES) -S $<
 
 *.o *.s: Makefile
 
 ## DEPENDENCIES ###############################################################
 
 audio.o: audio.c config.h audio.h libmad/mad.h
+audio_empeg.o: audio_empeg.c config.h libmad/mad.h audio.h
 audio_hex.o: audio_hex.c config.h libmad/mad.h audio.h
 audio_null.o: audio_null.c config.h libmad/mad.h audio.h
 audio_oss.o: audio_oss.c config.h libmad/mad.h audio.h
 audio_raw.o: audio_raw.c config.h libmad/mad.h audio.h
 audio_sun.o: audio_sun.c config.h libmad/mad.h audio.h
-audio_wav.o: audio_wav.c config.h libmad/mad.h audio.h
+audio_wave.o: audio_wave.c config.h libmad/mad.h audio.h
 audio_win32.o: audio_win32.c config.h libmad/mad.h audio.h
 id3.o: id3.c config.h id3v2.h id3.h
 id3v2.o: id3v2.c config.h id3.h id3v2.h
 madmix.o: madmix.c config.h libmad/mad.h audio.h
-madplay.o: madplay.c config.h libmad/mad.h audio.h id3.h
+madplay.o: madplay.c config.h libmad/mad.h audio.h resample.h id3.h
 madtime.o: madtime.c config.h libmad/mad.h
 minimad.o: minimad.c libmad/mad.h
+resample.o: resample.c config.h resample.h libmad/mad.h

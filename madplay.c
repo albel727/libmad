@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.29 2000/07/08 18:34:06 rob Exp $
+ * $Id: madplay.c,v 1.36 2000/09/12 01:09:59 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -47,6 +47,7 @@
 
 # include "mad.h"
 # include "audio.h"
+# include "resample.h"
 # include "id3.h"
 
 # define MPEG_BUFSZ	32000
@@ -63,6 +64,8 @@ struct audio {
   int verbose;
   int quiet;
 
+  unsigned long bad_frame;
+
   struct mad_decoder decoder;
 
   struct stats {
@@ -76,9 +79,15 @@ struct audio {
   } stats;
 
   unsigned int channels;
-  unsigned int speed;
+  unsigned int speed_in, speed_out;
+
+  int select;
+  int mode;
 
   int (*command)(union audio_control *);
+
+  struct resample_state resample[2];
+  mad_fixed_t (*resampled)[2][MAX_NSAMPLES];
 };
 
 static
@@ -122,8 +131,6 @@ int message(char const *format, ...)
   return result;
 }
 
-# define newline()  (on_same_line ? message("\n") : 0)
-
 /*
  * NAME:	error()
  * DESCRIPTION:	show an error using proper interaction with message()
@@ -136,7 +143,8 @@ void error(char const *id, char const *format, ...)
 
   err = errno;
 
-  newline();
+  if (on_same_line)
+    message("\n");
 
   if (id)
     fprintf(stderr, "%s: ", id);
@@ -178,45 +186,45 @@ static
 void gen_stats(struct mad_frame const *frame, struct stats *stats)
 {
   unsigned int bitrate;
+  unsigned long seconds;
 
   bitrate = frame->bitrate / 1000;
 
   stats->vbr_rate += bitrate;
   stats->vbr_frames++;
 
-  stats->vbr += ((stats->bitrate && stats->bitrate != bitrate) ||
-		 (stats->vbr_frames &&
-		  stats->vbr_rate / stats->vbr_frames != bitrate)) ? 64 : -1;
+  stats->vbr += (stats->bitrate && stats->bitrate != bitrate) ? 128 : -1;
   if (stats->vbr < 0)
     stats->vbr = 0;
-  else if (stats->vbr > 256)
-    stats->vbr = 256;
+  else if (stats->vbr > 512)
+    stats->vbr = 512;
 
   stats->bitrate = bitrate;
 
-  if (mad_timer_seconds(&stats->timer) >= stats->nsecs) {
-    char time_str[6];
+  seconds = mad_timer_count(&stats->timer, MAD_TIMER_SECONDS);
+  if (seconds >= stats->nsecs) {
+    char time_str[14];
     char const *joint_str = "";
 
-    stats->nsecs = mad_timer_seconds(&stats->timer) + 1;
+    stats->nsecs = seconds + 1;
 
     mad_timer_str(&stats->timer, time_str, "%02u:%02u", MAD_TIMER_MINUTES);
 
     if (frame->mode == MAD_MODE_JOINT_STEREO) {
       switch (frame->flags & (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO)) {
       case MAD_FLAG_MS_STEREO:
-	joint_str = " (M/S)";
+	joint_str = " (MS)";
 	break;
       case MAD_FLAG_I_STEREO:
 	joint_str = " (I)";
 	break;
       case (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO):
-	joint_str = " (M/S+I)";
+	joint_str = " (MS+I)";
 	break;
       }
     }
 
-    message(" %s Layer %s, %s%u Kbps%s, %u Hz, %s%s, %sCRC",
+    message(" %s Layer %s, %s%u kbps%s, %u Hz, %s%s, %sCRC",
 	    time_str, layer_str[frame->layer - 1],
 	    stats->vbr ? "VBR (avg " : "",
 	    stats->vbr ? ((stats->vbr_rate * 2) / stats->vbr_frames + 1) / 2 :
@@ -253,7 +261,7 @@ char const *error_str(int error)
   case MAD_ERR_BADDATALEN:	return "bad main data length";
   case MAD_ERR_BADPART3LEN:	return "bad audio data length";
   case MAD_ERR_BADHUFFTABLE:	return "bad Huffman table select";
-  case MAD_ERR_BADSTEREO:	return "incompatible block_type for M/S";
+  case MAD_ERR_BADSTEREO:	return "incompatible block_type for MS";
 
   default:
     sprintf(str, "error 0x%04x", error);
@@ -341,13 +349,41 @@ int decode_output(void *data,
 		  struct mad_frame const *frame, struct mad_synth const *synth)
 {
   struct audio *audio = data;
+  mad_fixed_t const *ch1, *ch2;
+  unsigned int nchannels;
   union audio_control control;
 
-  if (audio->channels != MAD_NUMCHANNELS(frame) ||
-      audio->speed    != frame->sfreq) {
+  if (frame->mode == MAD_MODE_SINGLE_CHANNEL) {
+    nchannels = 1;
+
+    ch1 = synth->pcmout[0];
+    ch2 = 0;
+  }
+  else if (frame->mode == MAD_MODE_DUAL_CHANNEL || audio->select) {
+    nchannels = 1;
+
+    if (audio->select == 0) {
+      if (audio->quiet < 2)
+	error("output", "no channel selected for dual channel; using first");
+
+      audio->select = 1;
+    }
+
+    ch1 = synth->pcmout[audio->select - 1];
+    ch2 = 0;
+  }
+  else {
+    nchannels = 2;
+
+    ch1 = synth->pcmout[0];
+    ch2 = synth->pcmout[1];
+  }
+
+  if (audio->channels != nchannels ||
+      audio->speed_in != frame->sfreq) {
     control.command = audio_cmd_config;
 
-    control.config.channels = MAD_NUMCHANNELS(frame);
+    control.config.channels = nchannels;
     control.config.speed    = frame->sfreq;
 
     if (audio->command(&control) == -1) {
@@ -355,20 +391,79 @@ int decode_output(void *data,
       return MAD_DECODER_BREAK;
     }
 
-    if (audio->quiet < 2 && control.config.speed != frame->sfreq) {
-      error("output", "sample frequency %u not available (closest %u)",
-	    frame->sfreq, control.config.speed);
-    }
+    audio->channels  = nchannels;
+    audio->speed_in  = frame->sfreq;
+    audio->speed_out = control.config.speed;
 
-    audio->channels = MAD_NUMCHANNELS(frame);
-    audio->speed    = frame->sfreq;
+    /* check whether resampling is necessary */
+    if (audio->speed_out == audio->speed_in) {
+      if (audio->resampled) {
+	resample_finish(&audio->resample[0]);
+	resample_finish(&audio->resample[1]);
+
+	free(audio->resampled);
+	audio->resampled = 0;
+      }
+    }
+    else {
+      if (audio->quiet < 1) {
+	error("output", "sample frequency %u Hz not available; closest %u Hz",
+	      frame->sfreq, control.config.speed);
+      }
+
+      if (audio->resampled) {
+	resample_finish(&audio->resample[0]);
+	resample_finish(&audio->resample[1]);
+      }
+      else {
+	audio->resampled = malloc(sizeof(*audio->resampled));
+	if (audio->resampled == 0) {
+	  error("output", "not enough memory to allocate resampling buffer");
+	  return MAD_DECODER_BREAK;
+	}
+      }
+
+      if (resample_init(&audio->resample[0],
+			audio->speed_in, audio->speed_out) == -1 ||
+	  resample_init(&audio->resample[1],
+			audio->speed_in, audio->speed_out) == -1) {
+	error("output", "cannot resample %u Hz to %u Hz",
+	      audio->speed_in, audio->speed_out);
+
+	free(audio->resampled);
+	audio->resampled = 0;
+
+	return MAD_DECODER_BREAK;
+      }
+      else if (audio->quiet < 2) {
+	error("output", "resampling %u Hz to %u Hz",
+	      audio->speed_in, audio->speed_out);
+      }
+    }
   }
 
   control.command = audio_cmd_play;
 
-  control.play.nsamples   = synth->pcmlen;
-  control.play.samples[0] = synth->pcmout[0];
-  control.play.samples[1] = synth->pcmout[1];
+  if (audio->resampled) {
+    control.play.nsamples = resample_block(&audio->resample[0], synth->pcmlen,
+					   ch1, (*audio->resampled)[0]);
+    control.play.samples[0] = (*audio->resampled)[0];
+
+    if (ch2) {
+      resample_block(&audio->resample[1], synth->pcmlen,
+		     ch2, (*audio->resampled)[1]);
+      control.play.samples[1] = (*audio->resampled)[1];
+    }
+    else
+      control.play.samples[1] = 0;
+  }
+  else {
+    control.play.nsamples   = synth->pcmlen;
+    control.play.samples[0] = ch1;
+    control.play.samples[1] = ch2;
+  }
+
+  control.play.mode = audio->mode;
 
   if (audio->command(&control) == -1) {
     error("output", audio_error);
@@ -427,8 +522,17 @@ int decode_error(void *data, struct mad_stream *stream,
   }
   else if (audio->quiet < 2 &&
 	   (stream->error == MAD_ERR_LOSTSYNC || stream->sync)) {
-    error("error", "frame %lu: %s", audio->stats.framecount,
-	  error_str(stream->error));
+    error("error", "frame %lu: %s",
+	  audio->stats.framecount, error_str(stream->error));
+  }
+
+  if (stream->error == MAD_ERR_BADCRC) {
+    if (audio->bad_frame == audio->stats.framecount)
+      mad_frame_mute(frame);
+
+    audio->bad_frame = audio->stats.framecount + 1;
+
+    return MAD_DECODER_IGNORE;
   }
 
   return MAD_DECODER_CONTINUE;
@@ -440,6 +544,7 @@ int decode_error(void *data, struct mad_stream *stream,
  */
 static
 void initialize(struct audio *audio, int fd, int verbose, int quiet,
+		int select, int mode,
 		int (*filter)(void *, struct mad_frame *),
 		int (*command)(union audio_control *))
 {
@@ -454,9 +559,10 @@ void initialize(struct audio *audio, int fd, int verbose, int quiet,
   audio->verbose = verbose;
   audio->quiet   = quiet;
 
-  mad_decoder_init(&audio->decoder);
-  mad_decoder_funcs(&audio->decoder, audio,
-		    decode_input, filter, decode_output, decode_error);
+  audio->bad_frame = 0;
+
+  mad_decoder_init(&audio->decoder, audio,
+		   decode_input, filter, decode_output, decode_error);
 
   audio->stats.framecount = 0;
   mad_timer_init(&audio->stats.timer);
@@ -467,10 +573,17 @@ void initialize(struct audio *audio, int fd, int verbose, int quiet,
   audio->stats.vbr_rate   = 0;
   audio->stats.nsecs      = 0;
 
-  audio->channels = 0;
-  audio->speed    = 0;
+  audio->channels  = 0;
+  audio->speed_in  = 0;
+  audio->speed_out = 0;
+
+  audio->select = select;
+  audio->mode   = mode;
 
   audio->command = command;
+
+  /* audio->resample */
+  audio->resampled = 0;
 }
 
 /*
@@ -482,6 +595,14 @@ void finish(struct audio *audio)
 {
   mad_timer_finish(&audio->stats.timer);
   mad_decoder_finish(&audio->decoder);
+
+  if (audio->resampled) {
+    resample_finish(&audio->resample[0]);
+    resample_finish(&audio->resample[1]);
+
+    free(audio->resampled);
+    audio->resampled = 0;
+  }
 }
 
 /*
@@ -497,7 +618,7 @@ int filter_mono(void *data, struct mad_frame *frame)
   if (frame->mode == MAD_MODE_SINGLE_CHANNEL)
     return MAD_DECODER_CONTINUE;
 
-  ns = MAD_NUMSBSAMPLES(frame);
+  ns = MAD_NSBSAMPLES(frame);
 
   for (s = 0; s < ns; ++s) {
     for (sb = 0; sb < 32; ++sb) {
@@ -548,7 +669,7 @@ int filter_experiment(void *data, struct mad_frame *frame)
   static mad_fixed_t this, last;
   static signed long trend;
 
-  ns = MAD_NUMSBSAMPLES(frame);
+  ns = MAD_NSBSAMPLES(frame);
 
   for (s = 0; s < ns; ++s) {
     this = frame->sbsample[0][s][0];
@@ -728,7 +849,35 @@ static
 void usage(char const *argv0)
 {
   fprintf(stderr, "Usage: "
-	  "%s [-m] [-v|-q|-Q] [-o [type:]file.out] file.mpg [...]\n", argv0);
+	  "%s [options] [-o [type:]file.out] "
+	  "file.mpg [...]\n", argv0);
+
+  fprintf(stderr,
+	  "\t-v\tshow status while decoding\n"
+	  "\t-q\tbe quiet but show warnings\n"
+	  "\t-Q\tbe quiet and do not show warnings\n"
+	  "\n"
+	  "\t-m\tmix channels to produce monaural output\n"
+	  "\t-1\tselect first (left) channel output only\n"
+	  "\t-2\tselect second (right) channel output only\n"
+	  "\n"
+# ifdef EXPERIMENTAL
+	  "\t-x\toutput pre-synthesis samples for external mixer\n"
+	  "\t-e\tenable experimental filter\n"
+	  "\n"
+# endif
+	  "\t-d\tdo not dither output samples\n"
+	  "\n"
+	  "\t-o\tselect output format and destination\n");
+
+  fprintf(stderr, "\nSupported output format types:\n"
+	  "\tRAW\tbinary signed 16-bit little-endian linear PCM\n"
+	  "\tWAVE\tMicrosoft RIFF/WAVE, 16-bit PCM format\n"
+# ifdef DEBUG
+	  "\tHEX\thexadecimal signed 24-bit linear PCM\n"
+# endif
+	  "\tNULL\tno output (decode only)\n");
+
   exit(1);
 }
 
@@ -738,7 +887,7 @@ void usage(char const *argv0)
  */
 int main(int argc, char *argv[])
 {
-  int opt, i, fd, verbose = 0, quiet = 0, result = 0;
+  int opt, i, fd, verbose = 0, quiet = 0, result = 0, select, mode;
   int (*filter)(void *, struct mad_frame *) = 0;
   int (*output)(union audio_control *) = 0;
   char const *fname, *opath = 0;
@@ -761,12 +910,19 @@ int main(int argc, char *argv[])
     }
   }
 
-  while ((opt = getopt(argc, argv, "mvqQo:" "xe")) != -1) {
-    switch (opt) {
-    case 'm':
-      filter = filter_mono;
-      break;
+  /* select all channels by default */
+  select = 0;
 
+  /* dither output by default */
+  mode = AUDIO_MODE_DITHER;
+
+  while ((opt = getopt(argc, argv, "vqQ"
+		       "m12d"
+# ifdef EXPERIMENTAL
+		       "xe"
+# endif
+		       "o:")) != -1) {
+    switch (opt) {
     case 'v':
       verbose = 1;
       quiet   = 0;
@@ -782,12 +938,20 @@ int main(int argc, char *argv[])
       verbose = 0;
       break;
 
-    case 'o':
-      opath = optarg;
+    case 'm':
+      filter = filter_mono;
+      select = 0;
+      break;
 
-      output = audio_output(&opath);
-      if (output == 0)
-	error(0, "%s: undecided output module; using default", opath);
+    case '1':
+    case '2':
+      select = opt - '1' + 1;
+      if (filter == filter_mono)
+	filter = 0;
+      break;
+
+    case 'd':
+      mode = AUDIO_MODE_ROUND;
       break;
 
 # ifdef EXPERIMENTAL
@@ -799,6 +963,14 @@ int main(int argc, char *argv[])
       filter = filter_experiment;
       break;
 # endif
+
+    case 'o':
+      opath = optarg;
+
+      output = audio_output(&opath);
+      if (output == 0)
+	error(0, "%s: undecided output module; using default", opath);
+      break;
 
     default:
       usage(argv[0]);
@@ -837,15 +1009,15 @@ int main(int argc, char *argv[])
       }
     }
 
-    initialize(&audio, fd, verbose, quiet, filter, output);
+    initialize(&audio, fd, verbose, quiet, select, mode, filter, output);
 
     if (decode(&audio) == -1)
       result = 4;
     else if (!quiet) {
-      char time_str[14];
+      char time_str[19];
 
       mad_timer_str(&audio.stats.timer, time_str,
-		    "%u:%02u.%1u", MAD_TIMER_MINUTES);
+		    "%u:%02u:%02u.%1u", MAD_TIMER_HOURS);
 
       message("%s: %lu frames decoded (%s)\n", fname,
 	      audio.stats.framecount, time_str);

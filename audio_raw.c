@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_raw.c,v 1.5 2000/07/08 18:34:06 rob Exp $
+ * $Id: audio_raw.c,v 1.8 2000/09/11 00:55:54 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -30,7 +30,6 @@
 # include "audio.h"
 
 static FILE *outfile;
-static int stereo;
 
 static
 int init(struct audio_init *init)
@@ -51,55 +50,18 @@ int init(struct audio_init *init)
 static
 int config(struct audio_config *config)
 {
-  stereo = (config->channels == 2);
-
   return 0;
-}
-
-static inline
-signed short scale(mad_fixed_t sample)
-{
-  /* round */
-  sample += 0x00001000L;
-
-  /* scale to signed 16-bit integer value */
-  if (sample >= 0x10000000L)		/* +1.0 */
-    return 0x7fff;
-  else if (sample <= -0x10000000L)	/* -1.0 */
-    return -0x8000;
-  else
-    return sample >> 13;
 }
 
 static
 int play(struct audio_play *play)
 {
-  unsigned char data[MAX_NSAMPLES * 2 * 2], *ptr;
-  mad_fixed_t const *left, *right;
-  unsigned int len;
+  unsigned char data[MAX_NSAMPLES * 2 * 2];
 
-  ptr   = data;
-  len   = play->nsamples;
-  left  = play->samples[0];
-  right = play->samples[1];
+  audio_pcm_s16le(data, play->nsamples,
+		  play->samples[0], play->samples[1], play->mode);
 
-  while (len--) {
-    signed short sample;
-
-    /* little-endian */
-
-    sample = scale(*left++);
-    *ptr++ = (sample >> 0) & 0xff;
-    *ptr++ = (sample >> 8) & 0xff;
-
-    if (stereo) {
-      sample = scale(*right++);
-      *ptr++ = (sample >> 0) & 0xff;
-      *ptr++ = (sample >> 8) & 0xff;
-    }
-  }
-
-  if (fwrite(data, stereo ? 4 : 2,
+  if (fwrite(data, play->samples[1] ? 4 : 2,
 	     play->nsamples, outfile) != play->nsamples) {
     audio_error = ":fwrite";
     return -1;

@@ -1,10 +1,11 @@
-.TH MADPLAY 1 26-Jul-2000 MAD
+.TH MADPLAY 1 11-Sep-2000 MAD
 .SH NAME
 madplay \- decode and play MPEG audio stream(s)
 .SH SYNOPSIS
 madplay
-.RB [ -m ]
 .RB [ -v | -q | -Q ]
+.RB [ -m | -1 | -2 ]
+.RB [ -d ]
 .RB [ -o
 .RI [ type :] file.out ]
 .I file.mpg
@@ -33,18 +34,27 @@ plays them on the native audio device. If the input file is a single dash
 (\-), data is read from stdin.
 .SH OPTIONS
 .TP
--m
-Produce single-channel (mono) output.
-.TP
 -v
 Show information about the stream during decoding, including playing time,
 audio layer, bitrate, sampling frequency, and stereo mode.
 .TP
 -q
-Do not show any information during decoding, except errors.
+Do not show any information during decoding, except warnings.
 .TP
 -Q
-Do not show any information during decoding, including errors.
+Do not show any information during decoding, including warnings.
+.TP
+-m
+Mix the left and right channels to produce monaural output.
+.TP
+-1
+Output the first (left) channel only.
+.TP
+-2
+Output the second (right) channel only.
+.TP
+-d
+Do not dither the output PCM samples.
 .TP
 -o
 Direct the output to the specified location, rather than playing the audio on
@@ -57,21 +67,31 @@ filename. If the filename is a single dash (\-), the output will be written to
 stdout.
 .SH OUTPUT FORMATS
 Other than playing on the native audio device, the following output formats
-are supported:
+are also supported:
 .TP
-PCM
-raw 16-bit little-endian signed linear samples
+RAW
+binary signed 16-bit little-endian linear PCM, stereo interleaved
 .TP
-WAV
-Microsoft RIFF/WAVE, PCM format
+WAVE
+Microsoft RIFF/WAVE, 16-bit PCM format
 .TP
 HEX
-24-bit signed linear hexadecimal text, one sample per output line (debug
-builds only)
+hexadecimal signed 24-bit linear PCM, stereo interleaved, one sample per
+output line (debug builds only)
 .TP
 NULL
 no output (usually for testing or timing the decoder)
 .SH NOTES
+Because
+.I MAD
+produces output samples with a precision greater than 24 bits, by default
+.B madplay
+will dither the output to the necessary number of bits, usually 16. This
+produces high quality audio that generally sounds superior to using a simple
+rounding approach. However, dithering may unfavorably affect an analytic
+examination of the output, and therefore it may be disabled by using the \-d
+option.
+.PP
 .I MAD
 is implemented entirely without the use of floating point arithmetic and
 should therefore perform well on all architectures, especially those without

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: minimad.c,v 1.5 2000/07/08 18:34:06 rob Exp $
+ * $Id: minimad.c,v 1.9 2000/09/14 19:40:37 rob Exp $
  */
 
 # include <stdio.h>
@@ -78,21 +78,22 @@ int input(void *data, struct mad_stream *stream)
   return MAD_DECODER_CONTINUE;
 }
 
-/* utility to scale samples */
+/* utility to scale and round samples to 16 bits */
 
 static inline
-signed short scale(mad_fixed_t sample)
+signed int scale(mad_fixed_t sample)
 {
   /* round */
-  sample += 0x00001000L;
+  sample += (1L << (MAD_F_FRACBITS - 16));
 
-  /* scale to signed 16-bit integer value */
-  if (sample >= 0x10000000L)		/* +1.0 */
-    return 0x7fff;
-  else if (sample <= -0x10000000L)	/* -1.0 */
-    return -0x8000;
-  else
-    return sample >> 13;
+  /* clip */
+  if (sample >= MAD_F_ONE)
+    sample = MAD_F_ONE - 1;
+  else if (sample < -MAD_F_ONE)
+    sample = -MAD_F_ONE;
+
+  /* quantize */
+  return sample >> (MAD_F_FRACBITS + 1 - 16);
 }
 
 /* 3. called to process output */
@@ -106,23 +107,23 @@ int output(void *data, struct mad_frame const *frame,
 
   /* frame->sfreq contains the sampling frequency */
 
-  nchannels = MAD_NUMCHANNELS(frame);
+  nchannels = MAD_NCHANNELS(frame);
   nsamples  = synth->pcmlen;
   left_ch   = synth->pcmout[0];
   right_ch  = synth->pcmout[1];
 
   while (nsamples--) {
-    signed short sample;
+    signed int sample;
 
     /* output sample(s) in 16-bit signed little-endian PCM */
 
     sample = scale(*left_ch++);
-    putchar(sample & 0xff);
+    putchar((sample >> 0) & 0xff);
     putchar((sample >> 8) & 0xff);
 
     if (nchannels == 2) {
       sample = scale(*right_ch++);
-      putchar(sample & 0xff);
+      putchar((sample >> 0) & 0xff);
       putchar((sample >> 8) & 0xff);
     }
   }
@@ -155,11 +156,9 @@ void decode(unsigned char const *start, unsigned long length)
   buffer.start  = start;
   buffer.length = length;
 
-  mad_decoder_init(&decoder);
-
   /* configure input, output, and error functions */
 
-  mad_decoder_funcs(&decoder, &buffer, input, 0 /* filter */, output, error);
+  mad_decoder_init(&decoder, &buffer, input, 0 /* filter */, output, error);
 
   /* start the decoder */
 

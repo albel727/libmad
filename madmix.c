@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madmix.c,v 1.4 2000/07/08 18:34:06 rob Exp $
+ * $Id: madmix.c,v 1.5 2000/09/11 03:52:08 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -94,11 +94,11 @@ int do_output(int (*audio)(union audio_control *),
   static unsigned int channels;
   static unsigned long speed;
 
-  if (channels != MAD_NUMCHANNELS(frame) ||
+  if (channels != MAD_NCHANNELS(frame) ||
       speed    != frame->sfreq) {
     control.command = audio_cmd_config;
 
-    control.config.channels = MAD_NUMCHANNELS(frame);
+    control.config.channels = MAD_NCHANNELS(frame);
     control.config.speed    = frame->sfreq;
 
     if (audio(&control) == -1) {
@@ -106,7 +106,7 @@ int do_output(int (*audio)(union audio_control *),
       return -1;
     }
 
-    channels = MAD_NUMCHANNELS(frame);
+    channels = MAD_NCHANNELS(frame);
     speed    = frame->sfreq;
   }
 

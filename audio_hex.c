@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_hex.c,v 1.7 2000/07/08 18:34:06 rob Exp $
+ * $Id: audio_hex.c,v 1.10 2000/09/11 00:55:54 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -30,7 +30,6 @@
 # include "audio.h"
 
 static FILE *outfile;
-static int stereo;
 
 static
 int init(struct audio_init *init)
@@ -54,24 +53,7 @@ int config(struct audio_config *config)
   fprintf(outfile, "# %u channel%s, %u Hz\n",
 	  config->channels, config->channels == 1 ? "" : "s", config->speed);
 
-  stereo = (config->channels == 2);
-
   return 0;
-}
-
-static inline
-signed long scale(mad_fixed_t sample)
-{
-  /* round */
-  sample += 0x00000010L;
-
-  /* scale to signed 24-bit integer value */
-  if (sample >= 0x10000000L)		/* +1.0 */
-    return 0x7fffffL;
-  else if (sample < -0x10000000L)	/* -1.0 */
-    return -0x800000L;
-  else
-    return sample >> 5;
 }
 
 static
@@ -84,22 +66,30 @@ int play(struct audio_play *play)
   left  = play->samples[0];
   right = play->samples[1];
 
-  while (len--) {
-    signed long sample;
+  switch (play->mode) {
+  case AUDIO_MODE_ROUND:
+    while (len--) {
+      fprintf(outfile, "%06lX\n", audio_round(24, *left++) & 0x00ffffffL);
 
-    sample = scale(*left++);
-    fprintf(outfile, "%02X%02X%02X\n",
-	    (unsigned int) ((sample & 0xff0000L) >> 16),
-	    (unsigned int) ((sample & 0x00ff00L) >>  8),
-	    (unsigned int) ((sample & 0x0000ffL) >>  0));
-
-    if (stereo) {
-      sample = scale(*right++);
-      fprintf(outfile, "%02X%02X%02X\n",
-	      (unsigned int) ((sample & 0xff0000L) >> 16),
-	      (unsigned int) ((sample & 0x00ff00L) >>  8),
-	      (unsigned int) ((sample & 0x0000ffL) >>  0));
+      if (right)
+	fprintf(outfile, "%06lX\n", audio_round(24, *right++) & 0x00ffffffL);
     }
+    break;
+
+  case AUDIO_MODE_DITHER:
+    {
+      static mad_fixed_t left_err, right_err;
+
+      while (len--) {
+	fprintf(outfile, "%06lX\n",
+		audio_dither(24, *left++, &left_err) & 0x00ffffffL);
+
+	if (right)
+	  fprintf(outfile, "%06lX\n",
+		  audio_dither(24, *right++, &right_err) & 0x00ffffffL);
+      }
+    }
+    break;
   }
 
   return 0;

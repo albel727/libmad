@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_oss.c,v 1.13 2000/09/11 00:55:54 rob Exp $
+ * $Id: audio_empeg.c,v 1.3 2000/09/11 00:55:54 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -28,20 +28,15 @@
 # include <sys/ioctl.h>
 # include <sys/soundcard.h>
 # include <errno.h>
+# include <string.h>
 
 # include "mad.h"
 # include "audio.h"
 
-# ifndef AFMT_S16_NE
-#  define AFMT_S16_NE  AFMT_S16_LE
-# endif
-
 # define AUDIO_DEVICE	"/dev/dsp"
+# define AUDIO_FILLSZ	4608
 
 static int sfd;
-static unsigned int (*audio_pcm)(unsigned char *, unsigned int,
-				 mad_fixed_t const *, mad_fixed_t const *,
-				 int);
 
 static
 int init(struct audio_init *init)
@@ -61,69 +56,13 @@ int init(struct audio_init *init)
 static
 int config(struct audio_config *config)
 {
-  int format, channels, speed;
+  /*
+   * The empeg-car's audio device is locked at 44100 Hz stereo 16-bit
+   * signed little-endian; no configuration is necessary or possible,
+   * but we may need to resample the output and/or convert to stereo.
+   */
 
-  if (ioctl(sfd, SNDCTL_DSP_SYNC, 0) == -1) {
-    audio_error = ":ioctl(SNDCTL_DSP_SYNC)";
-    return -1;
-  }
-
-  format = AFMT_S16_NE;
-  if (ioctl(sfd, SNDCTL_DSP_SETFMT, &format) == -1) {
-    audio_error = ":ioctl(SNDCTL_DSP_SETFMT)";
-    return -1;
-  }
-
-  if (format != AFMT_S16_NE) {
-    /* 16-bit sample format not available; try 8-bit */
-
-    format = AFMT_U8;
-    if (ioctl(sfd, SNDCTL_DSP_SETFMT, &format) == -1) {
-      audio_error = ":ioctl(SNDCTL_DSP_SETFMT)";
-      return -1;
-    }
-
-    if (format != AFMT_U8) {
-      audio_error = "no supported audio format available";
-      return -1;
-    }
-  }
-
-  switch (format) {
-  case AFMT_U8:
-    audio_pcm = audio_pcm_u8;
-    break;
-
-  case AFMT_S16_LE:
-    audio_pcm = audio_pcm_s16le;
-    break;
-
-  case AFMT_S16_BE:
-    audio_pcm = audio_pcm_s16be;
-    break;
-  }
-
-  channels = config->channels;
-  if (ioctl(sfd, SNDCTL_DSP_CHANNELS, &channels) == -1) {
-    audio_error = ":ioctl(SNDCTL_DSP_CHANNELS)";
-    return -1;
-  }
-
-  if (channels != config->channels) {
-    audio_error = "required number of channels not available";
-    return -1;
-  }
-
-  speed = config->speed;
-  if (ioctl(sfd, SNDCTL_DSP_SPEED, &speed) == -1) {
-    audio_error = ":ioctl(SNDCTL_DSP_SPEED)";
-    return -1;
-  }
-
-  if (speed != config->speed) {
-    audio_error = "sample speed not available";
-    config->speed = speed;
-  }
+  config->speed = 44100;
 
   return 0;
 }
@@ -152,21 +91,77 @@ int output(unsigned char const *ptr, unsigned int len)
 }
 
 static
+int buffer(unsigned char const *ptr, unsigned int len)
+{
+  static unsigned char hold[AUDIO_FILLSZ];
+  static unsigned int held;
+  unsigned int left, grab;
+
+  if (len == 0) {
+    if (held) {
+      memset(&hold[held], 0, AUDIO_FILLSZ - held);
+      held = 0;
+
+      return output(hold, AUDIO_FILLSZ);
+    }
+
+    return 0;
+  }
+
+  if (held == 0 && len == AUDIO_FILLSZ)
+    return output(ptr, len);
+
+  left = AUDIO_FILLSZ - held;
+
+  while (len) {
+    grab = len < left ? len : left;
+
+    memcpy(&hold[held], ptr, grab);
+    held += grab;
+    left -= grab;
+
+    ptr  += grab;
+    len  -= grab;
+
+    if (left == 0) {
+      if (output(hold, AUDIO_FILLSZ) == -1)
+	return -1;
+
+      held = 0;
+      left = AUDIO_FILLSZ;
+    }
+  }
+
+  return 0;
+}
+
+# define flush()  buffer(0, 0)
+
+static
 int play(struct audio_play *play)
 {
   unsigned char data[MAX_NSAMPLES * 2 * 2];
+  mad_fixed_t const *left, *right;
   unsigned int len;
 
-  len = audio_pcm(data, play->nsamples,
-		  play->samples[0], play->samples[1], play->mode);
+  left  = play->samples[0];
+  right = play->samples[1];
 
-  return output(data, len);
+  if (!right)
+    right = left;  /* always stereo */
+
+  len = audio_pcm_s16le(data, play->nsamples, left, right, play->mode);
+
+  return buffer(data, len);
 }
 
 static
 int finish(struct audio_finish *finish)
 {
   int result = 0;
+
+  if (flush() == -1)
+    result = -1;
 
   if (close(sfd) == -1 && result == 0) {
     audio_error = ":close";
@@ -176,7 +171,7 @@ int finish(struct audio_finish *finish)
   return result;
 }
 
-int audio_oss(union audio_control *control)
+int audio_empeg(union audio_control *control)
 {
   audio_error = 0;
 

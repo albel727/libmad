@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_wav.c,v 1.11 2000/07/08 18:34:06 rob Exp $
+ * $Id: audio_wave.c,v 1.1 2000/09/11 01:06:08 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -30,9 +30,11 @@
 # include "audio.h"
 
 static FILE *outfile;
+
 static unsigned long riff_len, chunk_len;
 static long prev_chunk;
-static int stereo;
+
+# define WAVE_FORMAT_PCM	0x0001
 
 static
 int init(struct audio_init *init)
@@ -114,7 +116,7 @@ int config(struct audio_config *config)
   memcpy(&chunk[0], "fmt ", 4);
   int4(&chunk[4], 16);
 
-  int2(&chunk[8],  0x0001);		/* wFormatTag (WAVE_FORMAT_PCM) */
+  int2(&chunk[8],  WAVE_FORMAT_PCM);	/* wFormatTag */
   int2(&chunk[10], config->channels);	/* wChannels */
   int4(&chunk[12], config->speed);	/* dwSamplesPerSec */
   int4(&chunk[16], bytes_ps);		/* dwAvgBytesPerSec */
@@ -145,63 +147,23 @@ int config(struct audio_config *config)
   chunk_len = 0;
   riff_len += 24 + 8;
 
-  stereo = (config->channels == 2);
-
   return 0;
-}
-
-static inline
-signed short scale(mad_fixed_t sample)
-{
-  /* round */
-  sample += 0x00001000L;
-
-  /* scale to signed 16-bit integer value */
-  if (sample >= 0x10000000L)		/* +1.0 */
-    return 0x7fff;
-  else if (sample <= -0x10000000L)	/* -1.0 */
-    return -0x8000;
-  else
-    return sample >> 13;
 }
 
 static
 int play(struct audio_play *play)
 {
-  unsigned char data[MAX_NSAMPLES * 2 * 2], *ptr;
-  mad_fixed_t const *left, *right;
+  unsigned char data[MAX_NSAMPLES * 2 * 2];
   unsigned int len;
 
-  ptr   = data;
-  len   = play->nsamples;
-  left  = play->samples[0];
-  right = play->samples[1];
+  len = audio_pcm_s16le(data, play->nsamples,
+			play->samples[0], play->samples[1], play->mode);
 
-  while (len--) {
-    signed short sample;
-
-    /* little-endian */
-
-    sample = scale(*left++);
-    *ptr++ = (sample >> 0) & 0xff;
-    *ptr++ = (sample >> 8) & 0xff;
-
-    if (stereo) {
-      sample = scale(*right++);
-      *ptr++ = (sample >> 0) & 0xff;
-      *ptr++ = (sample >> 8) & 0xff;
-    }
-  }
-
-  if (fwrite(data, stereo ? 4 : 2,
+  if (fwrite(data, play->samples[1] ? 4 : 2,
 	     play->nsamples, outfile) != play->nsamples) {
     audio_error = ":fwrite";
     return -1;
   }
-
-  len = play->nsamples * 2;
-  if (stereo)
-    len *= 2;
 
   chunk_len += len;
   riff_len  += len;
@@ -226,7 +188,7 @@ int finish(struct audio_finish *finish)
   return 0;
 }
 
-int audio_wav(union audio_control *control)
+int audio_wave(union audio_control *control)
 {
   audio_error = 0;
 

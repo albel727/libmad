@@ -16,39 +16,27 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: fixed.c,v 1.2 2000/09/12 06:19:59 rob Exp $
+ * $Id: resample.h,v 1.1 2000/09/08 00:47:25 rob Exp $
  */
 
-# ifdef HAVE_CONFIG_H
-#  include "config.h"
+# ifndef RESAMPLE_H
+# define RESAMPLE_H
+
+# include "mad.h"
+
+struct resample_state {
+  mad_fixed_t ratio;
+
+  mad_fixed_t step;
+  mad_fixed_t last;
+};
+
+int resample_init(struct resample_state *, unsigned int, unsigned int);
+
+# define resample_finish(state)  /* nothing */
+
+unsigned int resample_block(struct resample_state *, unsigned int nsamples,
+			    mad_fixed_t const *, mad_fixed_t *);
+
 # endif
 
-# include "fixed.h"
-
-# if !defined(mad_f_mul)
-mad_fixed_t mad_f_mul(mad_fixed_t x, mad_fixed_t y)
-{
-  int neg;
-  unsigned long A, B, C, D;
-  mad_fixed_t prod;
-
-  /* this is accurate but extremely slow */
-
-  neg = (x < 0 && y > 0) ||
-        (x > 0 && y < 0);
-
-  if (x < 0)
-    x = -x;
-  if (y < 0)
-    y = -y;
-
-  A = (x >> 16) & 0xffff;
-  B = (x >>  0) & 0xffff;
-  C = (y >> 16) & 0xffff;
-  D = (y >>  0) & 0xffff;
-
-  prod = ((A * C) << 4) + ((A * D + B * C + ((B * D) >> 16)) >> 12);
-
-  return neg ? -prod : prod;
-}
-# endif

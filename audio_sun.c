@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_sun.c,v 1.8 2000/07/08 18:34:06 rob Exp $
+ * $Id: audio_sun.c,v 1.11 2000/09/11 00:55:54 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -35,7 +35,6 @@
 # define AUDIO_DEVICE	"/dev/audio"
 
 static int sfd;
-static int stereo;
 
 static
 int init(struct audio_init *init)
@@ -74,8 +73,6 @@ int config(struct audio_config *config)
     return -1;
   }
 
-  stereo = (config->channels == 2);
-
   return 0;
 }
 
@@ -102,53 +99,14 @@ int output(unsigned char const *ptr, unsigned int len)
   return 0;
 }
 
-static inline
-signed short scale(mad_fixed_t sample)
-{
-  /* round */
-  sample += 0x00001000L;
-
-  /* scale to signed 16-bit integer value */
-  if (sample >= 0x10000000L)		/* +1.0 */
-    return 0x7fff;
-  else if (sample <= -0x10000000L)	/* -1.0 */
-    return -0x8000;
-  else
-    return sample >> 13;
-}
-
 static
 int play(struct audio_play *play)
 {
   unsigned char data[MAX_NSAMPLES * 2 * 2];
-  unsigned char *ptr;
-  mad_fixed_t const *left, *right;
   unsigned int len;
 
-  ptr   = data;
-  len   = play->nsamples;
-  left  = play->samples[0];
-  right = play->samples[1];
-
-  while (len--) {
-    signed short sample;
-
-    /* big-endian */
-
-    sample = scale(*left++);
-    *ptr++ = (sample >> 8) & 0xff;
-    *ptr++ = (sample >> 0) & 0xff;
-
-    if (stereo) {
-      sample = scale(*right++);
-      *ptr++ = (sample >> 8) & 0xff;
-      *ptr++ = (sample >> 0) & 0xff;
-    }
-  }
-
-  len = play->nsamples * 2;
-  if (stereo)
-    len *= 2;
+  len = audio_pcm_s16be(data, play->nsamples,
+			play->samples[0], play->samples[1], play->mode);
 
   return output(data, len);
 }

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: id3.c,v 1.4 2000/04/22 04:36:50 rob Exp $
+ * $Id: id3.c,v 1.6 2000/09/10 22:04:18 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -35,7 +35,7 @@
 char const *id3_error;
 
 static
-char const *const genre_str[256] = {
+char const *const genre_str[] = {
   "Blues",		"Classic Rock",		"Country",
   "Dance",		"Disco",		"Funk",
   "Grunge",		"Hip-Hop",		"Jazz",
@@ -84,6 +84,8 @@ char const *const genre_str[256] = {
   "Dance Hall"
 };
 
+# define NGENRES	(sizeof(genre_str) / sizeof(genre_str[0]))
+
 /*
  * NAME:	v1->show()
  * DESCRIPTION:	decode and display ID3v1 (or ID3v1.1) tag
@@ -92,6 +94,7 @@ void id3_v1_show(int (*message)(char const *, ...),
 		 unsigned char const tag[128])
 {
   char title[31], artist[31], album[31], year[5], comment[31];
+  int index;
   char const *genre;
 
   /* ID3v1 */
@@ -104,9 +107,8 @@ void id3_v1_show(int (*message)(char const *, ...),
   memcpy(year,    &tag[93],  4);
   memcpy(comment, &tag[97], 30);
 
-  genre = genre_str[tag[127]];
-  if (genre == 0)
-    genre = "";
+  index = tag[127];
+  genre = (index < NGENRES) ? genre_str[index] : "";
 
   message(" Title: %-30s  Artist: %s\n"
 	  " Album: %-30s   Genre: %s\n",
@@ -207,11 +209,11 @@ int id3_v2_read(int (*message)(char const *, ...),
   int result = 0;
 
   enum {
-    flag_unsync       = 0x80,
-    flag_extended     = 0x40,
-    flag_experimental = 0x20,
+    flag_unsync       = 0x0080,
+    flag_extended     = 0x0040,
+    flag_experimental = 0x0020,
 
-    flag_unknown      = 0x1f
+    flag_unknown      = 0x001f
   };
 
   if (buflen < 10) {
@@ -521,7 +523,7 @@ unsigned long content_type(unsigned char const *ptr, unsigned long size,
       ++ptr;
     }
 
-    if (ptr == end || *ptr != ')' || genre > 255 || genre_str[genre] == 0) {
+    if (ptr == end || *ptr != ')' || genre >= NGENRES) {
       ptr = start;
       break;
     }
@@ -573,10 +575,7 @@ void id3_text(int (*message)(char const *, ...),
   content = (size > 1 && data[1] == '(' &&
 	     (strcmp(id, "TCON") == 0 || strcmp(id, "TCO") == 0));
 
-  if (content)
-    count = content_type(data + 1, size - 1, 0);
-  else
-    count = size - 1;
+  count = content ? content_type(data + 1, size - 1, 0) : size - 1;
 
   text = malloc(count + 1);
   if (text == 0) {

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_win32.c,v 1.28 2000/07/27 04:34:16 rob Exp $
+ * $Id: audio_win32.c,v 1.34 2000/09/12 06:18:59 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -29,10 +29,11 @@
 # include "mad.h"
 # include "audio.h"
 
-static HWAVEOUT wave_handle;
 static int opened;
 
-# define NSLOTS		38	/* about one second of audio data */
+static HWAVEOUT wave_handle;
+
+# define NSLOTS		38	/* about one second of audio data (44.1 kHz) */
 # define NBUFFERS	 3	/* triple buffer */
 
 static struct buffer {
@@ -44,7 +45,6 @@ static struct buffer {
 } output[NBUFFERS];
 
 static int bindex;
-static int stereo;
 
 static
 char const *error_text(MMRESULT result)
@@ -80,7 +80,6 @@ int init(struct audio_init *init)
   }
 
   bindex = 0;
-  stereo = 0;
 
   /* try to obtain high priority status */
 
@@ -149,7 +148,6 @@ int close_dev(HWAVEOUT handle)
   MMRESULT error;
 
   error = waveOutClose(handle);
-
   if (error != MMSYSERR_NOERROR) {
     audio_error = error_text(error);
     return -1;
@@ -256,34 +254,15 @@ int config(struct audio_config *config)
       return -1;
   }
 
-  stereo = (config->channels == 2);
-
   if (open_dev(&wave_handle, config->channels, config->speed) == -1)
     return -1;
 
   return 0;
 }
 
-static inline
-signed short scale(mad_fixed_t sample)
-{
-  /* round */
-  sample += 0x00001000L;
-
-  /* scale to signed 16-bit integer value */
-  if (sample >= 0x10000000L)		/* +1.0 */
-    return 0x7fff;
-  else if (sample <= -0x10000000L)	/* -1.0 */
-    return -0x8000;
-  else
-    return sample >> 13;
-}
-
 static
 int play(struct audio_play *play)
 {
-  unsigned char *ptr;
-  mad_fixed_t const *left, *right;
   struct buffer *buffer;
   unsigned int len;
 
@@ -296,30 +275,8 @@ int play(struct audio_play *play)
 
   /* prepare block */
 
-  ptr   = &buffer->pcm_data[buffer->pcm_length];
-  len   = play->nsamples;
-  left  = play->samples[0];
-  right = play->samples[1];
-
-  while (len--) {
-    signed short sample;
-
-    /* little-endian */
-
-    sample = scale(*left++);
-    *ptr++ = (sample >> 0) & 0xff;
-    *ptr++ = (sample >> 8) & 0xff;
-
-    if (stereo) {
-      sample = scale(*right++);
-      *ptr++ = (sample >> 0) & 0xff;
-      *ptr++ = (sample >> 8) & 0xff;
-    }
-  }
-
-  len = play->nsamples * 2;
-  if (stereo)
-    len *= 2;
+  len = audio_pcm_s16le(&buffer->pcm_data[buffer->pcm_length], play->nsamples,
+			play->samples[0], play->samples[1], play->mode);
 
   buffer->pcm_length += len;
 

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madtime.c,v 1.6 2000/07/08 18:34:06 rob Exp $
+ * $Id: madtime.c,v 1.8 2000/09/08 00:47:25 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -24,6 +24,7 @@
 # endif
 
 # include <stdio.h>
+# include <stdlib.h>
 # include <sys/types.h>
 # include <sys/stat.h>
 # include <fcntl.h>
@@ -42,19 +43,20 @@
 # include "mad.h"
 
 static
-unsigned int scan(unsigned char const *ptr, unsigned long len,
-		  struct mad_timer *duration)
+signed int scan(unsigned char const *ptr, unsigned long len,
+		struct mad_timer *duration)
 {
   struct mad_stream stream;
   struct mad_frame frame;
-  unsigned long kbps, count;
+  unsigned long bitrate, kbps, count;
+  int vbr;
 
   mad_stream_init(&stream);
   mad_frame_init(&frame);
 
   mad_stream_buffer(&stream, ptr, len);
 
-  kbps = count = 0;
+  bitrate = kbps = count = vbr = 0;
 
   while (1) {
     if (mad_frame_header(&frame, &stream, 0) == -1) {
@@ -64,7 +66,12 @@ unsigned int scan(unsigned char const *ptr, unsigned long len,
 	break;
     }
 
-    kbps += frame.bitrate / 1000;
+    if (bitrate && frame.bitrate != bitrate)
+      vbr = 1;
+
+    bitrate = frame.bitrate;
+
+    kbps += bitrate / 1000;
     ++count;
 
     mad_timer_add(duration, &frame.duration);
@@ -76,12 +83,12 @@ unsigned int scan(unsigned char const *ptr, unsigned long len,
   if (count == 0)
     count = 1;
 
-  return ((kbps * 2) / count + 1) / 2;
+  return ((kbps * 2) / count + 1) / 2 * (vbr ? -1 : 1);
 }
 
 static
 int calc(char const *path, struct mad_timer *duration,
-	 unsigned int *kbps, unsigned long *kbytes)
+	 signed int *kbps, unsigned long *kbytes)
 {
   int fd;
   struct stat stat;
@@ -135,15 +142,15 @@ int calc(char const *path, struct mad_timer *duration,
 }
 
 static
-void show(struct mad_timer const *duration, unsigned int kbps,
+void show(struct mad_timer const *duration, signed int kbps,
 	  unsigned long kbytes, char const *label)
 {
   char duration_str[13];
 
   mad_timer_str(duration, duration_str, "%4u:%02u:%02u.%1u", MAD_TIMER_HOURS);
 
-  printf("%8.1f MB  %3u Kbps  %s  %s\n", kbytes / 1024.0, kbps,
-	 duration_str, label);
+  printf("%8.1f MB  %c%3u kbps  %s  %s\n", kbytes / 1024.0,
+	 kbps < 0 ? '~' : ' ', abs(kbps), duration_str, label);
 }
 
 static
@@ -159,8 +166,9 @@ void usage(char const *argv0)
 int main(int argc, char *argv[])
 {
   struct mad_timer total;
-  unsigned long count, total_kbps, total_kbytes;
-  int opt, i, sum_only = 0;
+  unsigned long total_kbps, total_kbytes, count;
+  signed int bitrate;
+  int vbr, opt, i, sum_only = 0;
 
   while ((opt = getopt(argc, argv, "s")) != -1) {
     switch (opt) {
@@ -181,11 +189,11 @@ int main(int argc, char *argv[])
 
   mad_timer_init(&total);
 
-  count = total_kbps = total_kbytes = 0;
+  total_kbps = total_kbytes = count = bitrate = vbr = 0;
 
   for (i = optind; i < argc; ++i) {
     struct mad_timer duration;
-    unsigned int kbps;
+    signed int kbps;
     unsigned long kbytes;
 
     mad_timer_init(&duration);
@@ -201,9 +209,14 @@ int main(int argc, char *argv[])
     total_kbytes += kbytes;
 
     if (kbps) {
-      total_kbps += kbps;
+      total_kbps += abs(kbps);
       ++count;
     }
+
+    if (kbps < 0 || (bitrate && kbps != bitrate))
+      vbr = 1;
+
+    bitrate = kbps;
 
     mad_timer_finish(&duration);
   }
@@ -211,8 +224,10 @@ int main(int argc, char *argv[])
   if (count == 0)
     count = 1;
 
-  if (argc > 2 || sum_only)
-    show(&total, ((total_kbps * 2) / count + 1) / 2, total_kbytes, "TOTAL");
+  if (argc > 2 || sum_only) {
+    show(&total, ((total_kbps * 2) / count + 1) / 2 * (vbr ? -1 : 1),
+	 total_kbytes, "TOTAL");
+  }
 
   mad_timer_finish(&total);
 
