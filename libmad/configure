@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# From configure.in Id: configure.in,v 1.26 2001/10/18 08:11:43 rob Exp 
+# From configure.in Id: configure.in,v 1.27 2001/10/19 23:20:56 rob Exp 
 
 
 
@@ -826,7 +826,7 @@ fi
 
 PACKAGE=libmad
 
-VERSION=0.14.0b
+VERSION=0.14.1b
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }

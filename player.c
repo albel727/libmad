@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: player.c,v 1.34 2001/10/18 05:12:25 rob Exp $
+ * $Id: player.c,v 1.40 2001/10/23 01:06:17 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -61,7 +61,7 @@
 # include "mad.h"
 # include "audio.h"
 # include "resample.h"
-# include "id3.h"
+# include "id3tag.h"
 # include "filter.h"
 # include "equalizer.h"
 
@@ -77,9 +77,9 @@ enum {
   KEY_STOP     = 's',
   KEY_FORWARD  = 'f',
   KEY_BACKWARD = 'b',
+  KEY_TIME     = 't',
   KEY_QUIT     = 'q',
-  KEY_INFO     = 'i',
-  KEY_TIME     = 't'
+  KEY_INFO     = 'i'
 };
 
 static int on_same_line;
@@ -139,6 +139,7 @@ void player_init(struct player *player)
   player->output.resampled    = 0;
 
   player->stats.show                  = STATS_SHOW_OVERALL;
+  player->stats.label                 = 0;
   player->stats.total_bytes           = 0;
   player->stats.total_time            = mad_timer_zero;
   player->stats.global_timer          = mad_timer_zero;
@@ -487,6 +488,7 @@ void show_id3(struct id3_tag const *tag)
   struct id3_frame const *frame;
   id3_ucs4_t const *ucs4;
   id3_latin1_t *latin1;
+  char const spaces[] = "          ";
 
   struct {
     char const *id;
@@ -504,7 +506,9 @@ void show_id3(struct id3_tag const *tag)
     { ID3_FRAME_ALBUM,  N_("Album")     },
     { ID3_FRAME_YEAR,   N_("Year")      },
     { ID3_FRAME_TRACK,  N_("Track")     },
+    { "TPUB",           N_("Publisher") },
     { ID3_FRAME_GENRE,  N_("Genre")     },
+    { "TRSN",           N_("Station")   },
     { "TENC",           N_("Encoder")   }
   };
 
@@ -513,7 +517,7 @@ void show_id3(struct id3_tag const *tag)
   for (i = 0; i < sizeof(info) / sizeof(info[0]); ++i) {
     union id3_field const *field;
     unsigned int nstrings, namelen, j;
-    char const *name, *spaces;
+    char const *name;
 
     frame = id3_tag_findframe(tag, info[i].id, 0);
     if (frame == 0)
@@ -527,23 +531,21 @@ void show_id3(struct id3_tag const *tag)
       name = gettext(name);
 
     namelen = name ? strlen(name) : 0;
-    assert(namelen < 10);
-
-    spaces = &"          "[namelen];
+    assert(namelen < sizeof(spaces));
 
     for (j = 0; j < nstrings; ++j) {
       ucs4 = id3_field_getstrings(field, j);
       assert(ucs4);
 
       if (strcmp(info[i].id, ID3_FRAME_GENRE) == 0)
-	ucs4 = id3_ucs4_getgenre(ucs4);
+	ucs4 = id3_genre_name(ucs4);
 
       latin1 = id3_ucs4_latin1duplicate(ucs4);
       if (latin1 == 0)
 	goto fail;
 
       if (j == 0 && name)
-	message("%s%s: %s\n", spaces, name, latin1);
+	message("%s%s: %s\n", &spaces[namelen], name, latin1);
       else {
 	if (strcmp(info[i].id, "TCOP") == 0 ||
 	    strcmp(info[i].id, "TPRO") == 0) {
@@ -602,11 +604,18 @@ void show_id3(struct id3_tag const *tag)
       }
 
       if (first) {
-	message("   Comment: %s\n", ptr);
+	char const *name;
+	unsigned int namelen;
+
+	name    = _("Comment");
+	namelen = strlen(name);
+	assert(namelen < sizeof(spaces));
+
+	message("%s%s: %s\n", &spaces[namelen], name, ptr);
 	first = 0;
       }
       else 
-	message("            %s\n", ptr);
+	message("%s  %s\n", spaces, ptr);
 
       ptr += strlen(ptr) + (newline ? 1 : 0);
     }
@@ -693,8 +702,10 @@ void show_status(struct stats *stats,
     if (mad_timer_sign(timer) < 0)
       time_str[0] = '-';
 
-    if (label)
-      message("%s %s", time_str, label);
+    if (label || stats->label) {
+      message("%s %s", time_str, label ? label : stats->label);
+      stats->label = now ? label : 0;
+    }
     else if (header) {
       if (header->mode == MAD_MODE_JOINT_STEREO) {
 	switch (header->flags & (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO)) {
@@ -934,8 +945,6 @@ struct id3_tag *get_id3(struct mad_stream *stream, id3_length_t tagsize,
     mad_stream_skip(stream, tagsize);
   }
   else {
-    int len;
-
     allocated = malloc(tagsize);
     if (allocated == 0) {
       error("id3", _("not enough memory to allocate tag data buffer"));
@@ -946,6 +955,8 @@ struct id3_tag *get_id3(struct mad_stream *stream, id3_length_t tagsize,
     mad_stream_skip(stream, count);
 
     while (count < tagsize) {
+      int len;
+
       do
 	len = read(input->fd, allocated + count, tagsize - count);
       while (len == -1 && errno == EINTR);
@@ -1082,18 +1093,12 @@ enum mad_flow decode_error(void *data, struct mad_stream *stream,
  * DESCRIPTION:	decode and output audio for an open file
  */
 static
-int decode(struct player *player)
+int decode(struct player *player, struct stat const *stat)
 {
   struct mad_decoder decoder;
-  struct stat stat;
   int result;
 
-  if (fstat(player->input.fd, &stat) == -1) {
-    error("decode", ":fstat");
-    return -1;
-  }
-
-  player->stats.total_bytes = S_ISREG(stat.st_mode) ? stat.st_size : 0;
+  player->stats.total_bytes = S_ISREG(stat->st_mode) ? stat->st_size : 0;
   player->stats.total_time  = mad_timer_zero;
 
   xing_init(&player->input.xing);
@@ -1101,8 +1106,8 @@ int decode(struct player *player)
   /* prepare input buffers */
 
 # if defined(HAVE_MMAP)
-  if (S_ISREG(stat.st_mode) && stat.st_size > 0) {
-    player->input.length = stat.st_size;
+  if (S_ISREG(stat->st_mode) && stat->st_size > 0) {
+    player->input.length = stat->st_size;
 
     player->input.fdm = map_file(player->input.fd, player->input.length);
     if (player->input.fdm == 0 && player->verbosity >= 0)
@@ -1186,6 +1191,7 @@ static
 int play_one(struct player *player)
 {
   char const *file = player->playlist.entries[player->playlist.current];
+  struct stat stat;
   int result;
 
   if (strcmp(file, "-") == 0) {
@@ -1196,8 +1202,6 @@ int play_one(struct player *player)
 
     player->input.path = _("stdin");
     player->input.fd   = STDIN_FILENO;
-
-    player->options |= PLAYER_OPTION_STREAMID3;
   }
   else {
     player->input.path = file;
@@ -1206,9 +1210,17 @@ int play_one(struct player *player)
       error(0, ":", player->input.path);
       return -1;
     }
-
-    player->options &= ~PLAYER_OPTION_STREAMID3;
   }
+
+  if (fstat(player->input.fd, &stat) == -1) {
+    error(0, ":", player->input.path);
+    goto fail;
+  }
+
+  if (S_ISREG(stat.st_mode))
+    player->options &= ~PLAYER_OPTION_STREAMID3;
+  else
+    player->options |= PLAYER_OPTION_STREAMID3;
 
   if (player->verbosity >= 0) {
     if (player->playlist.length > 1)
@@ -1225,7 +1237,7 @@ int play_one(struct player *player)
     }
   }
 
-  result = decode(player);
+  result = decode(player, &stat);
 
   if (result == 0 && player->verbosity >= 0) {
     char time_str[19], *point;
@@ -1246,11 +1258,17 @@ int play_one(struct player *player)
 	      "%+.1f dB peak amplitude, "
 	      "%lu clipped samples\n"),
 	    player->stats.play_framecount, time_str,
-	    20 * log10(mad_f_todouble(peak)),
+	    20 * (peak == 0 ? -HUGE_VAL : log10(mad_f_todouble(peak))),
 	    player->stats.audio.clipped_samples);
   }
 
-  if (player->input.fd != STDIN_FILENO && close(player->input.fd) == -1) {
+  if (0) {
+  fail:
+    result = -1;
+  }
+
+  if (player->input.fd != STDIN_FILENO &&
+      close(player->input.fd) == -1 && result == 0) {
     error(0, ":", player->input.path);
     result = -1;
   }
@@ -1389,6 +1407,7 @@ enum mad_flow tty_filter(void *data, struct mad_frame *frame)
   struct player *player = data;
   char command;
   enum mad_flow flow = MAD_FLOW_CONTINUE;
+  int stopped = 0;
 
   /* tty_fd should be a tty in noncanonical mode with VMIN = VTIME = 0 */
 
@@ -1417,12 +1436,11 @@ enum mad_flow tty_filter(void *data, struct mad_frame *frame)
 	  break;
 	}
 
-	stop_audio(player, command == KEY_STOP);
-	message(" --%s--", command == KEY_PAUSE ? _("Paused") : _("Stopped"));
+	stop_audio(player, stopped = (command == KEY_STOP));
+	message(" --%s--", stopped ? _("Stopped") : _("Paused"));
 
-	if (command == KEY_STOP) {
+	if (stopped) {
 	  player->control = PLAYER_CONTROL_REPLAY;
-	  player->stats.play_timer = mad_timer_zero;
 	  flow = MAD_FLOW_STOP;
 	}
 
@@ -1456,7 +1474,8 @@ enum mad_flow tty_filter(void *data, struct mad_frame *frame)
 	mad_timer_set(&threshold, 4, 0, 0);
 
 	player->control =
-	  (mad_timer_compare(player->stats.play_timer, threshold) < 0) ?
+	  (stopped ||
+	   mad_timer_compare(player->stats.play_timer, threshold) < 0) ?
 	  PLAYER_CONTROL_PREVIOUS : PLAYER_CONTROL_REPLAY;
       }
       goto stop;

@@ -17,15 +17,15 @@ dnl You should have received a copy of the GNU General Public License
 dnl along with this program; if not, write to the Free Software
 dnl Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 dnl
-AC_REVISION([$Id: configure.in,v 1.51 2001/10/18 08:11:09 rob Exp $])dnl
+AC_REVISION([$Id: configure.in,v 1.55 2001/10/23 01:06:17 rob Exp $])dnl
 
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(libmad/decoder.h)
-AM_INIT_AUTOMAKE(mad, 0.14.0b)
+AM_INIT_AUTOMAKE(mad, 0.14.1b)
 
 AM_CONFIG_HEADER(config.h)
-AC_CONFIG_SUBDIRS(libz libid3 libmad)
+AC_CONFIG_SUBDIRS(libz libid3tag libmad)
 
 dnl System type.
 
@@ -115,8 +115,7 @@ fi
 dnl Checks for header files.
 
 AC_HEADER_STDC
-AC_CHECK_HEADERS(termios.h)
-dnl AC_CHECK_HEADERS(poll.h signal.h)
+AC_CHECK_HEADERS(termios.h stropts.h sys/soundcard.h machine/soundcard.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 
@@ -132,8 +131,7 @@ AC_REPLACE_FUNCS(strcasecmp strncasecmp)
 AC_SEARCH_LIBS(pow, m)
 AC_SEARCH_LIBS(log10, m)
 
-AC_CHECK_LIB(z, compress2, build_libz=false, build_libz=true)
-AM_CONDITIONAL(BUILD_LIBZ, test $build_libz = true)
+AC_CHECK_LIB(z, compress2, use_libz=false, use_libz=true)
 
 case "$host" in
     *-linux*) AC_DEFINE(HAVE_MMAP) ;;
@@ -178,6 +176,17 @@ if test "$audio" = unknown
 then
     AC_EGREP_CPP(yes, [
 # include <sys/soundcard.h>
+# if defined(OPEN_SOUND_SYSTEM) || defined(UNIX_SOUND_SYSTEM) ||  \
+    defined(VOXWARE)
+yes
+# endif
+], [audio="oss"])
+fi
+
+if test "$audio" = unknown
+then
+    AC_EGREP_CPP(yes, [
+# include <machine/soundcard.h>
 # if defined(OPEN_SOUND_SYSTEM) || defined(UNIX_SOUND_SYSTEM) ||  \
     defined(VOXWARE)
 yes
@@ -285,9 +294,13 @@ case "$host" in
 	build_winamp=true
 	;;
 esac
-AM_CONDITIONAL(BUILD_WINAMP, test $build_winamp = true)
 
 dnl Create output files.
+
+AM_CONDITIONAL(BUILD_LIBZ,   [test $use_libz     = true ||  \
+			      test $build_winamp = true])
+AM_CONDITIONAL(USE_LIBZ,     [test $use_libz     = true])
+AM_CONDITIONAL(BUILD_WINAMP, [test $build_winamp = true])
 
 test -n "$arch"     && CFLAGS="$CFLAGS $arch"
 test -n "$debug"    && CFLAGS="$CFLAGS $debug"
@@ -296,5 +309,5 @@ test -n "$profile"  && CFLAGS="$CFLAGS $profile" LDFLAGS="$LDFLAGS $profile"
 
 AC_OUTPUT(Makefile intl/Makefile po/Makefile.in  \
 	  winamp/Makefile winamp/in_mad.psc  \
-	  msvc++/Makefile msvc++/libmad/Makefile msvc++/libid3/Makefile  \
+	  msvc++/Makefile msvc++/libmad/Makefile msvc++/libid3tag/Makefile  \
 	  msvc++/libz/Makefile msvc++/demo/Makefile)

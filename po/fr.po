@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: mad 0.12.0a\n"
-"POT-Creation-Date: 2001-10-17 22:13-0700\n"
+"POT-Creation-Date: 2001-10-22 18:07-0700\n"
 "PO-Revision-Date: 2001-10-17 21:59-07:00\n"
 "Last-Translator: Gabriel Bouvigne <bouvigne@mp3-tech.org>\n"
 "Language-Team: French <bouvigne@mp3-tech.org>\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-1\n"
 "Content-Transfer-Encoding: 8-bit\n"
 
-#: player.c:551 version.c:37
+#: player.c:553 version.c:37
 msgid "Copyright (C)"
 msgstr "Copyright ©"
 
@@ -466,304 +466,316 @@ msgstr "pas assez de mémoire pour allouer les buffers de mixage"
 msgid "mixing %d streams\n"
 msgstr "mixage de %d voies\n"
 
-#: player.c:495
+#: player.c:497
 msgid "Title"
 msgstr ""
 
 #. Subtitle
 #. Copyright
 #. Produced
-#: player.c:499
+#: player.c:501
 msgid "Composer"
 msgstr ""
 
-#: player.c:500
+#: player.c:502
 msgid "Artist"
 msgstr ""
 
-#: player.c:501
+#: player.c:503
 msgid "Orchestra"
 msgstr ""
 
-#: player.c:502
+#: player.c:504
 msgid "Conductor"
 msgstr ""
 
-#: player.c:503
+#: player.c:505
 msgid "Lyricist"
 msgstr ""
 
-#: player.c:504
+#: player.c:506
 msgid "Album"
 msgstr ""
 
-#: player.c:505
+#: player.c:507
 msgid "Year"
 msgstr ""
 
-#: player.c:506
+#: player.c:508
 msgid "Track"
 msgstr ""
 
-#: player.c:507
+#: player.c:509
+msgid "Publisher"
+msgstr ""
+
+#: player.c:510
 msgid "Genre"
 msgstr ""
 
-#: player.c:508
+#: player.c:511
+msgid "Station"
+msgstr ""
+
+#: player.c:512
 msgid "Encoder"
 msgstr ""
 
-#: player.c:551
+#: player.c:553
 msgid "Produced (P)"
 msgstr ""
 
-#: player.c:620
+#: player.c:610
+msgid "Comment"
+msgstr ""
+
+#: player.c:629
 #, fuzzy
 msgid "not enough memory to display tag"
 msgstr "pas assez de mémoire pour allouer les filtres"
 
-#: player.c:633
+#: player.c:642
 msgid "I"
 msgstr "I"
 
-#: player.c:633
+#: player.c:642
 msgid "II"
 msgstr "II"
 
-#: player.c:633
+#: player.c:642
 msgid "III"
 msgstr "III"
 
-#: player.c:635
+#: player.c:644
 msgid "single channel"
 msgstr "canal unique"
 
-#: player.c:635
+#: player.c:644
 msgid "dual channel"
 msgstr "deux canaux indépendants"
 
-#: player.c:635
+#: player.c:644
 msgid "joint stereo"
 msgstr "stéréo combinée"
 
-#: player.c:635
+#: player.c:644
 msgid "stereo"
 msgstr "stéréo"
 
-#: player.c:702
+#: player.c:713
 msgid " (LR)"
 msgstr " (LR)"
 
-#: player.c:706
+#: player.c:717
 msgid " (MS)"
 msgstr " (MS)"
 
-#: player.c:710
+#: player.c:721
 msgid " (I)"
 msgstr " (I)"
 
-#: player.c:714
+#: player.c:725
 msgid " (MS+I)"
 msgstr " (MS+I)"
 
-#: player.c:719
+#: player.c:730
 #, c-format
 msgid "%s Layer %s, %s%u kbps%s, %u Hz, %s%s, %s"
 msgstr "%s Layer %s, %s%u kbps%s, %u Hz, %s%s, %s"
 
-#: player.c:721
+#: player.c:732
 msgid "VBR (avg "
 msgstr "VBR (moy "
 
-#: player.c:724
+#: player.c:735
 msgid ")"
 msgstr ")"
 
-#: player.c:726
+#: player.c:737
 msgid "CRC"
 msgstr "CRC"
 
-#: player.c:726
+#: player.c:737
 msgid "no CRC"
 msgstr "no CRC"
 
-#: player.c:778
+#: player.c:789
 msgid "no channel selected for dual channel; using first"
 msgstr ""
 "pas de canal sélectionné pour les deux canaux indépendants; utilisation du "
 "premier"
 
-#: player.c:794
+#: player.c:805
 #, fuzzy, c-format
 msgid "using output sample frequency %u Hz"
 msgstr "valeur d'échantillonnage réservée"
 
-#: player.c:816
+#: player.c:827
 msgid "mono output not available; forcing stereo"
 msgstr ""
 
-#: player.c:818
+#: player.c:829
 msgid "stereo output not available; using first channel (use -m to mix)"
 msgstr ""
 
-#: player.c:825
+#: player.c:836
 #, c-format
 msgid "sample frequency %u Hz not available; closest %u Hz"
 msgstr ""
 "fréquence d'échantillonnage de %u Hz non disponible; la plus proche est %u Hz"
 
-#: player.c:849
+#: player.c:860
 msgid "not enough memory to allocate resampling buffer"
 msgstr "pas assez de mémoire pour allouer les buffers de rééchantillonnage"
 
-#: player.c:858
+#: player.c:869
 #, c-format
 msgid "cannot resample %u Hz to %u Hz"
 msgstr "ne peut rééchantillonner de %u Hz vers %u Hz"
 
-#: player.c:867
+#: player.c:878
 #, c-format
 msgid "resampling %u Hz to %u Hz"
 msgstr " rééchantillonnage de %u Hz vers %u Hz"
 
-#: player.c:941
+#: player.c:950
 #, fuzzy
 msgid "not enough memory to allocate tag data buffer"
 msgstr "pas assez de mémoire pour allouer les buffers d'entrée"
 
-#: player.c:959
+#: player.c:970
 msgid "EOF while reading tag data"
 msgstr ""
 
-#: player.c:993
+#: player.c:1004
 msgid "not enough memory"
 msgstr "pas assez de mémoire"
 
-#: player.c:994
+#: player.c:1005
 msgid "lost synchronization"
 msgstr "synchronisation perdue"
 
-#: player.c:995
+#: player.c:1006
 msgid "reserved header layer value"
 msgstr "valeur de layer dans l'en-tête réservée"
 
-#: player.c:996
+#: player.c:1007
 msgid "forbidden bitrate value"
 msgstr "valeur de débit interdite"
 
-#: player.c:997
+#: player.c:1008
 msgid "reserved sample frequency value"
 msgstr "valeur d'échantillonnage réservée"
 
-#: player.c:998
+#: player.c:1009
 msgid "reserved emphasis value"
 msgstr "valeur de mise en relief (emphasis) réservée"
 
-#: player.c:999
+#: player.c:1010
 msgid "CRC check failed"
 msgstr "test CRC échoué"
 
-#: player.c:1000
+#: player.c:1011
 msgid "forbidden bit allocation value"
 msgstr "valeur d'allocation de bits interdite"
 
-#: player.c:1001
+#: player.c:1012
 msgid "bad scalefactor index"
 msgstr "mauvais index d'échelle (scalefactor)"
 
-#: player.c:1002
+#: player.c:1013
 msgid "bad frame length"
 msgstr "mauvaise taille de frame"
 
-#: player.c:1003
+#: player.c:1014
 msgid "bad big_values count"
 msgstr "mauvaise valeur de big_value"
 
-#: player.c:1004
+#: player.c:1015
 msgid "reserved block_type"
 msgstr "block_type réservé"
 
-#: player.c:1005
+#: player.c:1016
 #, fuzzy
 msgid "bad scalefactor selection info"
 msgstr "mauvais index d'échelle (scalefactor)"
 
-#: player.c:1006
+#: player.c:1017
 msgid "bad main_data_begin pointer"
 msgstr "mauvais pointeur main_data_begin"
 
-#: player.c:1007
+#: player.c:1018
 msgid "bad audio data length"
 msgstr "mauvaise taille de données audio"
 
-#: player.c:1008
+#: player.c:1019
 msgid "bad Huffman table select"
 msgstr "mauvaise séléction de table de Huffman"
 
-#: player.c:1009
+#: player.c:1020
 msgid "Huffman data overrun"
 msgstr ""
 
-#: player.c:1010
+#: player.c:1021
 #, fuzzy
 msgid "incompatible block_type for JS"
 msgstr "block_type incompatible pour MS"
 
-#: player.c:1062
+#: player.c:1073
 #, c-format
 msgid "frame %lu: %s"
 msgstr "frame %lu: %s"
 
-#: player.c:1118
+#: player.c:1123
 msgid "not enough memory to allocate input buffer"
 msgstr "pas assez de mémoire pour allouer les buffers d'entrée"
 
-#: player.c:1193 player.c:1197
+#: player.c:1199 player.c:1203
 msgid "stdin"
 msgstr "stdin"
 
-#: player.c:1193
+#: player.c:1199
 msgid "is a tty"
 msgstr ""
 
-#: player.c:1245
+#: player.c:1257
 #, c-format
 msgid "%lu frames decoded (%s), %+.1f dB peak amplitude, %lu clipped samples\n"
 msgstr ""
 
-#: player.c:1421
-msgid "Paused"
-msgstr ""
-
-#: player.c:1421
+#: player.c:1440
 msgid "Stopped"
 msgstr ""
 
-#: player.c:1485
+#: player.c:1440
+msgid "Paused"
+msgstr ""
+
+#: player.c:1504
 msgid "[Overall Time]"
 msgstr ""
 
-#: player.c:1492
+#: player.c:1511
 msgid "[Current Time Remaining]"
 msgstr ""
 
-#: player.c:1497
+#: player.c:1516
 msgid "[Current Time]"
 msgstr ""
 
-#: player.c:1799
+#: player.c:1818
 msgid "not enough memory to allocate sample buffer"
 msgstr "pas assez de mémoire pour allouer le buffer d'échantillonnage"
 
-#: player.c:1863
+#: player.c:1882
 msgid "not enough memory to allocate filters"
 msgstr "pas assez de mémoire pour allouer les filtres"
 
-#: player.c:1883
+#: player.c:1902
 msgid "lead-in"
 msgstr ""
 
-#: audio_oss.c:148
+#: audio_oss.c:156
 msgid "no supported audio format available"
 msgstr "aucun format audio supporté disponible"
 

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_sun.c,v 1.21 2001/10/18 22:36:54 rob Exp $
+ * $Id: audio_sun.c,v 1.22 2001/10/20 22:15:34 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -32,7 +32,11 @@
 # include <string.h>
 # include <errno.h>
 # include <sys/types.h>
-# include <stropts.h>
+
+# ifdef HAVE_STROPTS_H
+#  include <stropts.h>
+# endif
+
 # include <sys/conf.h>
 
 # include "mad.h"
@@ -152,17 +156,32 @@ int play(struct audio_play *play)
 }
 
 static
+int flush(void)
+{
+# if defined(I_FLUSH)
+  if (ioctl(sfd, I_FLUSH, FLUSHW) == -1) {
+    audio_error = ":ioctl(I_FLUSH)";
+    return -1;
+  }
+# elif defined(AUDIO_FLUSH)
+  if (ioctl(sfd, AUDIO_FLUSH) == -1) {
+    audio_error = ":ioctl(AUDIO_FLUSH)";
+    return -1;
+  }
+# endif
+
+  return 0;
+}
+
+static
 int stop(struct audio_stop *stop)
 {
   int result;
 
   result = set_pause(1);
 
-  if (stop->flush &&
-      ioctl(sfd, I_FLUSH, FLUSHW) == -1 && result == 0) {
-    audio_error = ":ioctl(I_FLUSH)";
+  if (result == 0 && stop->flush && flush() == -1)
     result = -1;
-  }
 
   return result;
 }

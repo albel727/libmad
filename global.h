@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: global.h,v 1.4 2001/09/25 08:49:13 rob Exp $
+ * $Id: global.h,v 1.5 2001/10/21 03:07:29 rob Exp $
  */
 
 # ifndef GLOBAL_H
@@ -73,7 +73,7 @@ int strncasecmp(char const *, char const *, unsigned long);
 # if defined(ENABLE_NLS)
 #  include <libintl.h>
 # else
-#  define gettext(text)				text
+#  define gettext(text)	text
 # endif
 
 # endif

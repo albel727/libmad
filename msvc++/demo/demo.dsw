@@ -15,7 +15,7 @@ Package=<4>
     Project_Dep_Name libmad
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name libid3
+    Project_Dep_Name libid3tag
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name libz
@@ -24,7 +24,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "libid3"="..\libid3\libid3.dsp" - Package Owner=<4>
+Project: "libid3tag"="..\libid3tag\libid3tag.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{

@@ -19,10 +19,10 @@
 ## If you would like to negotiate alternate licensing terms, you may do
 ## so by contacting the author: Robert Leslie <rob@mars.org>
 ##
-## $Id: Makefile.am,v 1.4 2001/10/18 07:42:26 rob Exp $
+## $Id: Makefile.am,v 1.5 2001/10/20 22:16:42 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
 
 SUBDIRS =
-DIST_SUBDIRS =		libmad libid3 libz demo
+DIST_SUBDIRS =		libmad libid3tag libz demo

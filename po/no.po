@@ -4,15 +4,15 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: mad 0.12.0a\n"
-"POT-Creation-Date: 2001-10-17 22:13-0700\n"
-"PO-Revision-Date: 2001-10-17 22:00-07:00\n"
+"POT-Creation-Date: 2001-10-22 18:07-0700\n"
+"PO-Revision-Date: 2001-10-21 00:08-07:00\n"
 "Last-Translator: Christoffer Nicolaisen <chrn@start.no>\n"
 "Language-Team: Norwegian <chrn@start.no>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=ISO-8859-1\n"
 "Content-Transfer-Encoding: 8-bit\n"
 
-#: player.c:551 version.c:37
+#: player.c:553 version.c:37
 msgid "Copyright (C)"
 msgstr "Copyright ©"
 
@@ -451,306 +451,316 @@ msgstr "Ikke nok minne til å samle miksebuffere"
 msgid "mixing %d streams\n"
 msgstr "mikser %d strømmer\n"
 
-#: player.c:495
-#, fuzzy
+#: player.c:497
 msgid "Title"
-msgstr "Tid"
+msgstr "Tittel"
 
 #. Subtitle
 #. Copyright
 #. Produced
-#: player.c:499
+#: player.c:501
 msgid "Composer"
 msgstr "Komponist"
 
-#: player.c:500
+#: player.c:502
 msgid "Artist"
 msgstr ""
 
-#: player.c:501
+#: player.c:503
 msgid "Orchestra"
 msgstr ""
 
-#: player.c:502
-#, fuzzy
-msgid "Conductor"
-msgstr "Country"
-
-#: player.c:503
-msgid "Lyricist"
-msgstr ""
-
 #: player.c:504
-msgid "Album"
+msgid "Conductor"
 msgstr ""
 
 #: player.c:505
+msgid "Lyricist"
+msgstr ""
+
+#: player.c:506
+msgid "Album"
+msgstr ""
+
+#: player.c:507
 msgid "Year"
 msgstr "År"
 
-#: player.c:506
-#, fuzzy
+#: player.c:508
 msgid "Track"
-msgstr "Trance"
+msgstr "Spor"
 
-#: player.c:507
+#: player.c:509
+msgid "Publisher"
+msgstr "Utgiver"
+
+#: player.c:510
 msgid "Genre"
 msgstr ""
 
-#: player.c:508
+#: player.c:511
+#, fuzzy
+msgid "Station"
+msgstr "Latin"
+
+#: player.c:512
 #, fuzzy
 msgid "Encoder"
 msgstr "Kodet av"
 
-#: player.c:551
+#: player.c:553
 msgid "Produced (P)"
 msgstr ""
 
-#: player.c:620
+#: player.c:610
+msgid "Comment"
+msgstr "Kommentar"
+
+#: player.c:629
 #, fuzzy
 msgid "not enough memory to display tag"
 msgstr "ikke nok minne til å kunne samle filtere"
 
-#: player.c:633
+#: player.c:642
 msgid "I"
 msgstr "I"
 
-#: player.c:633
+#: player.c:642
 msgid "II"
 msgstr "II"
 
-#: player.c:633
+#: player.c:642
 msgid "III"
 msgstr "III"
 
-#: player.c:635
+#: player.c:644
 msgid "single channel"
 msgstr "enkel kanal"
 
-#: player.c:635
+#: player.c:644
 msgid "dual channel"
 msgstr "dobbel kanal"
 
-#: player.c:635
+#: player.c:644
 msgid "joint stereo"
 msgstr "delt stereo"
 
-#: player.c:635
+#: player.c:644
 msgid "stereo"
 msgstr "stereo"
 
-#: player.c:702
+#: player.c:713
 msgid " (LR)"
 msgstr " (LR)"
 
-#: player.c:706
+#: player.c:717
 msgid " (MS)"
 msgstr " (MS)"
 
-#: player.c:710
+#: player.c:721
 msgid " (I)"
 msgstr " (I)"
 
-#: player.c:714
+#: player.c:725
 msgid " (MS+I)"
 msgstr " (MS+I)"
 
-#: player.c:719
+#: player.c:730
 #, c-format
 msgid "%s Layer %s, %s%u kbps%s, %u Hz, %s%s, %s"
 msgstr "%s Lag %s, %s%u kbps%s, %u Hz, %s%s, %s"
 
-#: player.c:721
+#: player.c:732
 msgid "VBR (avg "
 msgstr "VBR (snitt "
 
-#: player.c:724
+#: player.c:735
 msgid ")"
 msgstr ")"
 
-#: player.c:726
+#: player.c:737
 msgid "CRC"
 msgstr "CRC"
 
-#: player.c:726
+#: player.c:737
 msgid "no CRC"
 msgstr "ingen CRC"
 
-#: player.c:778
+#: player.c:789
 msgid "no channel selected for dual channel; using first"
 msgstr "ingen kanal valgt for dobbel kanal, bruker første"
 
-#: player.c:794
+#: player.c:805
 #, fuzzy, c-format
 msgid "using output sample frequency %u Hz"
 msgstr "reservert samplefrekvensverdi"
 
-#: player.c:816
+#: player.c:827
 msgid "mono output not available; forcing stereo"
 msgstr ""
 
-#: player.c:818
+#: player.c:829
 msgid "stereo output not available; using first channel (use -m to mix)"
 msgstr ""
 
-#: player.c:825
+#: player.c:836
 #, c-format
 msgid "sample frequency %u Hz not available; closest %u Hz"
 msgstr "samplefrekvens %u Hz er ikke tilgjengelig; nærmeste er %u Hz"
 
-#: player.c:849
+#: player.c:860
 msgid "not enough memory to allocate resampling buffer"
 msgstr "ikke nok minne til å samle resamplingsbuffere"
 
-#: player.c:858
+#: player.c:869
 #, c-format
 msgid "cannot resample %u Hz to %u Hz"
 msgstr "kan ikke resample %u Hz til %u Hz"
 
-#: player.c:867
+#: player.c:878
 #, c-format
 msgid "resampling %u Hz to %u Hz"
 msgstr "resampler %u Hz til %u Hz"
 
-#: player.c:941
+#: player.c:950
 #, fuzzy
 msgid "not enough memory to allocate tag data buffer"
 msgstr "ID3: ikke nok minne til å samle tagbuffere\n"
 
-#: player.c:959
+#: player.c:970
 #, fuzzy
 msgid "EOF while reading tag data"
 msgstr "EOF (slutt på filen) mens programmet leste av merket"
 
-#: player.c:993
+#: player.c:1004
 msgid "not enough memory"
 msgstr "ikke nok minne"
 
-#: player.c:994
+#: player.c:1005
 msgid "lost synchronization"
 msgstr "mistet synkroniseringen"
 
-#: player.c:995
+#: player.c:1006
 msgid "reserved header layer value"
 msgstr "header layer value reservert"
 
-#: player.c:996
+#: player.c:1007
 msgid "forbidden bitrate value"
 msgstr "forbudt verdi for bitrate"
 
-#: player.c:997
+#: player.c:1008
 msgid "reserved sample frequency value"
 msgstr "reservert samplefrekvensverdi"
 
-#: player.c:998
+#: player.c:1009
 msgid "reserved emphasis value"
 msgstr "reservert trykkverdi"
 
-#: player.c:999
+#: player.c:1010
 msgid "CRC check failed"
 msgstr "sjekk av CRC mislyktes"
 
-#: player.c:1000
+#: player.c:1011
 msgid "forbidden bit allocation value"
 msgstr "bitsamlingsverdi forbudt"
 
-#: player.c:1001
+#: player.c:1012
 msgid "bad scalefactor index"
 msgstr "ugyldig skalafaktorindeks"
 
-#: player.c:1002
+#: player.c:1013
 msgid "bad frame length"
 msgstr "ugyldig framelengde"
 
-#: player.c:1003
+#: player.c:1014
 msgid "bad big_values count"
 msgstr "ugyldig telling av big_values"
 
-#: player.c:1004
+#: player.c:1015
 msgid "reserved block_type"
 msgstr "reservert block_type"
 
-#: player.c:1005
+#: player.c:1016
 #, fuzzy
 msgid "bad scalefactor selection info"
 msgstr "ugyldig skalafaktorindeks"
 
-#: player.c:1006
+#: player.c:1017
 msgid "bad main_data_begin pointer"
 msgstr "ugyldig peking til main_data_begin"
 
-#: player.c:1007
+#: player.c:1018
 msgid "bad audio data length"
 msgstr "ugyldig lengde på lyddata"
 
-#: player.c:1008
+#: player.c:1019
 msgid "bad Huffman table select"
 msgstr "ugyldig valg av Huffmann-tabell"
 
-#: player.c:1009
+#: player.c:1020
 msgid "Huffman data overrun"
 msgstr ""
 
-#: player.c:1010
+#: player.c:1021
 #, fuzzy
 msgid "incompatible block_type for JS"
 msgstr "inkompatibel block_type for MS"
 
-#: player.c:1062
+#: player.c:1073
 #, c-format
 msgid "frame %lu: %s"
 msgstr "frame %lu: %s"
 
-#: player.c:1118
+#: player.c:1123
 msgid "not enough memory to allocate input buffer"
 msgstr "ikke nok minne til å kunne samle inn-buffer"
 
-#: player.c:1193 player.c:1197
+#: player.c:1199 player.c:1203
 msgid "stdin"
 msgstr "stdin"
 
-#: player.c:1193
+#: player.c:1199
 msgid "is a tty"
 msgstr ""
 
-#: player.c:1245
+#: player.c:1257
 #, c-format
 msgid "%lu frames decoded (%s), %+.1f dB peak amplitude, %lu clipped samples\n"
 msgstr ""
 
-#: player.c:1421
-msgid "Paused"
-msgstr ""
-
-#: player.c:1421
+#: player.c:1440
 msgid "Stopped"
 msgstr ""
 
-#: player.c:1485
+#: player.c:1440
+msgid "Paused"
+msgstr ""
+
+#: player.c:1504
 msgid "[Overall Time]"
 msgstr ""
 
-#: player.c:1492
+#: player.c:1511
 msgid "[Current Time Remaining]"
 msgstr ""
 
-#: player.c:1497
+#: player.c:1516
 msgid "[Current Time]"
 msgstr ""
 
-#: player.c:1799
+#: player.c:1818
 msgid "not enough memory to allocate sample buffer"
 msgstr "ikke nok minne til å kunne samle sample-buffer"
 
-#: player.c:1863
+#: player.c:1882
 msgid "not enough memory to allocate filters"
 msgstr "ikke nok minne til å kunne samle filtere"
 
-#: player.c:1883
+#: player.c:1902
 msgid "lead-in"
 msgstr "lead-in"
 
-#: audio_oss.c:148
+#: audio_oss.c:156
 msgid "no supported audio format available"
 msgstr "ingen støttede lydformater tilgjengelige"
 
@@ -844,9 +854,6 @@ msgstr "mislyktes i å lukke synkroniseringsobjekt"
 
 #~ msgid "Play counter"
 #~ msgstr "Teller"
-
-#~ msgid "Comments"
-#~ msgstr "Kommentarer"
 
 #~ msgid "Audio encryption"
 #~ msgstr "Lydkryptering"
@@ -955,9 +962,6 @@ msgstr "mislyktes i å lukke synkroniseringsobjekt"
 
 #~ msgid "Part of a set"
 #~ msgstr "Del av et sett"
-
-#~ msgid "Publisher"
-#~ msgstr "Utgiver"
 
 #~ msgid "ISRC (International Standard Recording Code)"
 #~ msgstr "ISRC (International Standard Recording Code)"
@@ -1312,9 +1316,6 @@ msgstr "mislyktes i å lukke synkroniseringsobjekt"
 
 #~ msgid "Bebob"
 #~ msgstr "Bebob"
-
-#~ msgid "Latin"
-#~ msgstr "Latin"
 
 #~ msgid "Revival"
 #~ msgstr "Revival"

@@ -16,9 +16,9 @@
 .\" along with this program; if not, write to the Free Software
 .\" Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 .\"
-.\" $Id: madplay.1,v 1.20 2001/10/18 06:19:20 rob Exp $
+.\" $Id: madplay.1,v 1.22 2001/10/23 03:26:12 rob Exp $
 .\"
-.TH MADPLAY 1 "17 October 2001" "MAD" "MPEG Audio Decoder"
+.TH MADPLAY 1 "22 October 2001" "MAD" "MPEG Audio Decoder"
 .SH NAME
 madplay \- decode and play MPEG audio stream(s)
 .SH SYNOPSIS
@@ -191,15 +191,15 @@ Forward; advance to the next file.
 Back; replay the current file, unless it has been playing for less than 4
 seconds, in which case replay the previous file.
 .TP 3
-.B Q
-Quit; stop decoding and exit.
-.TP 3
 .B T
 Time display; change the time display mode. This only works with
 .B \-v
 .RB ( \-\-verbose ).
 The display mode alternates among overall playing time, current time
 remaining, and current playing time.
+.TP 3
+.B Q
+Quit; stop decoding and exit.
 .RE
 .TP
 .B \-\-no\-tty\-control
@@ -334,11 +334,17 @@ MAD is implemented entirely without the use of floating point arithmetic and
 should therefore perform well on all architectures, especially those without
 an FPU.
 .SH BUGS
-Granularity of start and stop times
+The granularity of start and stop times
 .RB ( \-\-start
 and
 .BR \-\-time )
 is not yet as fine as this specification suggests.
+.PP
+Due to a bug in Cygwin at the time of this writing,
+.B madplay
+never enables
+.B \-\-tty\-control
+by default under Cygwin.
 .SH AUTHOR
 Robert Leslie <rob@mars.org>
 .SH "SEE ALSO"

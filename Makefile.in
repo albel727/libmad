@@ -60,6 +60,7 @@ POST_UNINSTALL = :
 host_alias = @host_alias@
 host_triplet = @host@
 AS = @AS@
+AUDIO = @AUDIO@
 CATALOGS = @CATALOGS@
 CATOBJEXT = @CATOBJEXT@
 CC = @CC@
@@ -95,11 +96,11 @@ l = @l@
 @BUILD_WINAMP_FALSE@winamp = 
 @BUILD_LIBZ_TRUE@libz = libz
 @BUILD_LIBZ_FALSE@libz = 
-@BUILD_LIBZ_TRUE@ldadd_libz = -Llibz
-@BUILD_LIBZ_FALSE@ldadd_libz = 
+@USE_LIBZ_TRUE@ldadd_libz = -Llibz -lz
+@USE_LIBZ_FALSE@ldadd_libz = -lz
 
-SUBDIRS = intl po $(libz) libid3 libmad $(winamp)
-DIST_SUBDIRS = intl po   libz  libid3 libmad   winamp  msvc++
+SUBDIRS = intl po $(libz) libid3tag libmad $(winamp)
+DIST_SUBDIRS = intl po   libz  libid3tag libmad   winamp  msvc++
 
 bin_PROGRAMS = madplay
 bin_SCRIPTS = abxtest
@@ -133,19 +134,29 @@ mad123_SOURCES = mad123.c
 madmix_SOURCES = $(common_sources) madmix.c $(default_audio)
 EXTRA_madmix_SOURCES = $(extra_audio)
 
-AUDIO = @AUDIO@
+audio = @AUDIO@
 
 localedir = $(datadir)/locale
-INCLUDES = -Ilibmad -I$(srcdir)/libid3 -Iintl  			-DLOCALEDIR=\"$(localedir)\"
+INCLUDES = -Ilibmad -I$(srcdir)/libid3tag -Iintl  			-DLOCALEDIR=\"$(localedir)\"
 
 
-LDADD = @LIBOBJS@ libmad/libmad.la @INTLLIBS@
+depend_libmad = libmad/libmad.la
+depend_libid3tag = libid3tag/libid3tag.la
 
-madplay_DEPENDENCIES = $(AUDIO) $(LDADD) libid3/libid3.la
-madplay_LDADD = $(AUDIO) $(LDADD) libid3/libid3.la $(ldadd_libz) -lz
+ldadd_libmad = $(depend_libmad)
+ldadd_libid3tag = $(depend_libid3tag) $(ldadd_libz)
 
-madmix_DEPENDENCIES = $(AUDIO) $(LDADD)
-madmix_LDADD = $(AUDIO) $(LDADD)
+depend = @LIBOBJS@ @INTLLIBS@
+ldadd = $(depend)
+
+DEPENDENCIES = $(depend) $(depend_libmad)
+LDADD = $(ldadd)  $(ldadd_libmad)
+
+madplay_DEPENDENCIES = $(audio) $(DEPENDENCIES) $(depend_libid3tag)
+madplay_LDADD = $(audio) $(LDADD)        $(ldadd_libid3tag)
+
+madmix_DEPENDENCIES = $(audio) $(DEPENDENCIES)
+madmix_LDADD = $(audio) $(LDADD)
 
 CLEANFILES = $(EXTRA_PROGRAMS) *.exe gmon.out
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4

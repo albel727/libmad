@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: config.h,v 1.2 2001/10/18 09:48:18 rob Exp $
+ * $Id: config.h,v 1.3 2001/10/21 00:24:44 rob Exp $
  */
 
 # ifndef LIBMAD_CONFIG_H
@@ -88,7 +88,7 @@
 #define PACKAGE "libmad"
 
 /* Version number of package */
-#define VERSION "0.14.0b"
+#define VERSION "0.14.1b"
 
 /*****************************************************************************
  * End of automatically configured definitions                               *

@@ -19,7 +19,7 @@
 ## If you would like to negotiate alternate licensing terms, you may do
 ## so by contacting the author: Robert Leslie <rob@mars.org>
 ##
-## $Id: Makefile.am,v 1.14 2001/10/17 22:07:13 rob Exp $
+## $Id: Makefile.am,v 1.16 2001/10/20 22:15:34 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
@@ -32,14 +32,18 @@ endif
 
 if BUILD_LIBZ
 libz = libz
-ldadd_libz = -Llibz
 else
 libz =
-ldadd_libz =
 endif
 
-SUBDIRS =		intl po $(libz) libid3 libmad $(winamp)
-DIST_SUBDIRS =		intl po   libz  libid3 libmad   winamp  msvc++
+if USE_LIBZ
+ldadd_libz = -Llibz -lz
+else
+ldadd_libz = -lz
+endif
+
+SUBDIRS =		intl po $(libz) libid3tag libmad $(winamp)
+DIST_SUBDIRS =		intl po   libz  libid3tag libmad   winamp  msvc++
 
 bin_PROGRAMS =		madplay
 bin_SCRIPTS =		abxtest
@@ -78,19 +82,29 @@ mad123_SOURCES =	mad123.c
 madmix_SOURCES =	$(common_sources) madmix.c $(default_audio)
 EXTRA_madmix_SOURCES =	$(extra_audio)
 
-AUDIO =			@AUDIO@
+audio =			@AUDIO@
 
 localedir =		$(datadir)/locale
-INCLUDES =		-Ilibmad -I$(srcdir)/libid3 -Iintl  \
+INCLUDES =		-Ilibmad -I$(srcdir)/libid3tag -Iintl  \
 			-DLOCALEDIR=\"$(localedir)\"
 
-LDADD =			@LIBOBJS@ libmad/libmad.la @INTLLIBS@
+depend_libmad =		libmad/libmad.la
+depend_libid3tag =	libid3tag/libid3tag.la
 
-madplay_DEPENDENCIES =	$(AUDIO) $(LDADD) libid3/libid3.la
-madplay_LDADD =		$(AUDIO) $(LDADD) libid3/libid3.la $(ldadd_libz) -lz
+ldadd_libmad =		$(depend_libmad)
+ldadd_libid3tag =	$(depend_libid3tag) $(ldadd_libz)
 
-madmix_DEPENDENCIES =	$(AUDIO) $(LDADD)
-madmix_LDADD =		$(AUDIO) $(LDADD)
+depend =		@LIBOBJS@ @INTLLIBS@
+ldadd =			$(depend)
+
+DEPENDENCIES =		$(depend) $(depend_libmad)
+LDADD =			$(ldadd)  $(ldadd_libmad)
+
+madplay_DEPENDENCIES =	$(audio) $(DEPENDENCIES) $(depend_libid3tag)
+madplay_LDADD =		$(audio) $(LDADD)        $(ldadd_libid3tag)
+
+madmix_DEPENDENCIES =	$(audio) $(DEPENDENCIES)
+madmix_LDADD =		$(audio) $(LDADD)
 
 CLEANFILES =		$(EXTRA_PROGRAMS) *.exe gmon.out
 

@@ -107,6 +107,10 @@ Frequently Asked Questions
 Changes
 =======
 
+  Changes since 0.14.0b:
+    - none visible; the plug-in is now linked with the new libid3tag
+      library, which will eventually enable full ID3v2 support
+
   Changes since 0.13.0b:
     - a new, improved dithering algorithm has been implemented
     - streaming can now be disabled (to use other plug-ins with better

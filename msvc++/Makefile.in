@@ -94,7 +94,7 @@ WINAMP_TARGET = @WINAMP_TARGET@
 l = @l@
 
 SUBDIRS = 
-DIST_SUBDIRS = libmad libid3 libz demo
+DIST_SUBDIRS = libmad libid3tag libz demo
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../config.h
 CONFIG_CLEAN_FILES = 

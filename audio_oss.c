@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_oss.c,v 1.22 2001/05/05 00:50:01 rob Exp $
+ * $Id: audio_oss.c,v 1.23 2001/10/23 01:06:17 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -28,7 +28,15 @@
 # include <unistd.h>
 # include <fcntl.h>
 # include <sys/ioctl.h>
-# include <sys/soundcard.h>
+
+# if defined(HAVE_SYS_SOUNDCARD_H)
+#  include <sys/soundcard.h>
+# elif defined(HAVE_MACHINE_SOUNDCARD_H)
+#  include <machine/soundcard.h>
+# else
+#  error "need <sys/soundcard.h> or <machine/soundcard.h>"
+# endif
+
 # include <errno.h>
 
 # include "mad.h"

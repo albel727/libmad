@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# From configure.in Id: configure.in,v 1.51 2001/10/18 08:11:09 rob Exp 
+# From configure.in Id: configure.in,v 1.55 2001/10/23 01:06:17 rob Exp 
 
 
 
@@ -877,7 +877,7 @@ fi
 
 PACKAGE=mad
 
-VERSION=0.14.0b
+VERSION=0.14.1b
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -963,7 +963,7 @@ fi
 
 
 
-subdirs="libz libid3 libmad"
+subdirs="libz libid3tag libmad"
 
 
 
@@ -3872,7 +3872,7 @@ EOF
 
 fi
 
-for ac_hdr in termios.h
+for ac_hdr in termios.h stropts.h sys/soundcard.h machine/soundcard.h
 do
 ac_safe=`echo "$ac_hdr" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for $ac_hdr""... $ac_c" 1>&6
@@ -4498,21 +4498,12 @@ LIBS="$ac_save_LIBS"
 fi
 if eval "test \"`echo '$ac_cv_lib_'$ac_lib_var`\" = yes"; then
   echo "$ac_t""yes" 1>&6
-  build_libz=false
+  use_libz=false
 else
   echo "$ac_t""no" 1>&6
-build_libz=true
+use_libz=true
 fi
 
-
-
-if test $build_libz = true; then
-  BUILD_LIBZ_TRUE=
-  BUILD_LIBZ_FALSE='#'
-else
-  BUILD_LIBZ_TRUE='#'
-  BUILD_LIBZ_FALSE=
-fi
 
 case "$host" in
     *-linux*) cat >> confdefs.h <<\EOF
@@ -4523,17 +4514,17 @@ EOF
 do
 ac_safe=`echo "$ac_hdr" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for $ac_hdr""... $ac_c" 1>&6
-echo "configure:4527: checking for $ac_hdr" >&5
+echo "configure:4518: checking for $ac_hdr" >&5
 if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 4532 "configure"
+#line 4523 "configure"
 #include "confdefs.h"
 #include <$ac_hdr>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:4537: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:4528: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -4562,12 +4553,12 @@ done
 for ac_func in getpagesize
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
-echo "configure:4566: checking for $ac_func" >&5
+echo "configure:4557: checking for $ac_func" >&5
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 4571 "configure"
+#line 4562 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -4590,7 +4581,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:4594: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:4585: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -4615,7 +4606,7 @@ fi
 done
 
 echo $ac_n "checking for working mmap""... $ac_c" 1>&6
-echo "configure:4619: checking for working mmap" >&5
+echo "configure:4610: checking for working mmap" >&5
 if eval "test \"`echo '$''{'ac_cv_func_mmap_fixed_mapped'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
@@ -4623,7 +4614,7 @@ else
   ac_cv_func_mmap_fixed_mapped=no
 else
   cat > conftest.$ac_ext <<EOF
-#line 4627 "configure"
+#line 4618 "configure"
 #include "confdefs.h"
 
 /* Thanks to Mike Haertel and Jim Avera for this test.
@@ -4766,7 +4757,7 @@ main()
 }
 
 EOF
-if { (eval echo configure:4770: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+if { (eval echo configure:4761: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
 then
   ac_cv_func_mmap_fixed_mapped=yes
 else
@@ -4791,7 +4782,7 @@ fi
 esac
 
 echo $ac_n "checking whether to use mmap""... $ac_c" 1>&6
-echo "configure:4795: checking whether to use mmap" >&5
+echo "configure:4786: checking whether to use mmap" >&5
 # Check whether --enable-mmap or --disable-mmap was given.
 if test "${enable_mmap+set}" = set; then
   enableval="$enable_mmap"
@@ -4867,7 +4858,7 @@ AUDIO=""
 
 
 echo $ac_n "checking for audio support""... $ac_c" 1>&6
-echo "configure:4871: checking for audio support" >&5
+echo "configure:4862: checking for audio support" >&5
 
 audio="unknown"
 
@@ -4878,7 +4869,7 @@ esac
 if test "$audio" = unknown
 then
     cat > conftest.$ac_ext <<EOF
-#line 4882 "configure"
+#line 4873 "configure"
 #include "confdefs.h"
 
 # include <mmsystem.h>
@@ -4896,7 +4887,7 @@ fi
 if test "$audio" = unknown
 then
     cat > conftest.$ac_ext <<EOF
-#line 4900 "configure"
+#line 4891 "configure"
 #include "confdefs.h"
 
 # include <sys/soundcard.h>
@@ -4918,7 +4909,29 @@ fi
 if test "$audio" = unknown
 then
     cat > conftest.$ac_ext <<EOF
-#line 4922 "configure"
+#line 4913 "configure"
+#include "confdefs.h"
+
+# include <machine/soundcard.h>
+# if defined(OPEN_SOUND_SYSTEM) || defined(UNIX_SOUND_SYSTEM) ||  \
+    defined(VOXWARE)
+yes
+# endif
+
+EOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  egrep "yes" >/dev/null 2>&1; then
+  rm -rf conftest*
+  audio="oss"
+fi
+rm -f conftest*
+
+fi
+
+if test "$audio" = unknown
+then
+    cat > conftest.$ac_ext <<EOF
+#line 4935 "configure"
 #include "confdefs.h"
 
 # include <sys/audioio.h>
@@ -4992,7 +5005,7 @@ fi
 
 
 echo $ac_n "checking whether to enable profiling""... $ac_c" 1>&6
-echo "configure:4996: checking whether to enable profiling" >&5
+echo "configure:5009: checking whether to enable profiling" >&5
 # Check whether --enable-profiling or --disable-profiling was given.
 if test "${enable_profiling+set}" = set; then
   enableval="$enable_profiling"
@@ -5006,7 +5019,7 @@ fi
 echo "$ac_t""${enable_profiling-no}" 1>&6
 
 echo $ac_n "checking whether to enable debugging""... $ac_c" 1>&6
-echo "configure:5010: checking whether to enable debugging" >&5
+echo "configure:5023: checking whether to enable debugging" >&5
 # Check whether --enable-debugging or --disable-debugging was given.
 if test "${enable_debugging+set}" = set; then
   enableval="$enable_debugging"
@@ -5044,7 +5057,7 @@ echo "$ac_t""${enable_debugging-default}" 1>&6
 
 case "$enable_debugging" in
     yes) echo $ac_n "checking for malloc in -lefence""... $ac_c" 1>&6
-echo "configure:5048: checking for malloc in -lefence" >&5
+echo "configure:5061: checking for malloc in -lefence" >&5
 ac_lib_var=`echo efence'_'malloc | sed 'y%./+-%__p_%'`
 if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
@@ -5052,7 +5065,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lefence  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 5056 "configure"
+#line 5069 "configure"
 #include "confdefs.h"
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
@@ -5063,7 +5076,7 @@ int main() {
 malloc()
 ; return 0; }
 EOF
-if { (eval echo configure:5067: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:5080: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -5093,7 +5106,7 @@ fi
 esac
 
 echo $ac_n "checking whether to enable experimental code""... $ac_c" 1>&6
-echo "configure:5097: checking whether to enable experimental code" >&5
+echo "configure:5110: checking whether to enable experimental code" >&5
 # Check whether --enable-experimental or --disable-experimental was given.
 if test "${enable_experimental+set}" = set; then
   enableval="$enable_experimental"
@@ -5122,6 +5135,27 @@ case "$host" in
 esac
 
 
+
+
+if test $use_libz     = true ||  \
+			      test $build_winamp = true; then
+  BUILD_LIBZ_TRUE=
+  BUILD_LIBZ_FALSE='#'
+else
+  BUILD_LIBZ_TRUE='#'
+  BUILD_LIBZ_FALSE=
+fi
+
+
+if test $use_libz     = true; then
+  USE_LIBZ_TRUE=
+  USE_LIBZ_FALSE='#'
+else
+  USE_LIBZ_TRUE='#'
+  USE_LIBZ_FALSE=
+fi
+
+
 if test $build_winamp = true; then
   BUILD_WINAMP_TRUE=
   BUILD_WINAMP_FALSE='#'
@@ -5129,7 +5163,6 @@ else
   BUILD_WINAMP_TRUE='#'
   BUILD_WINAMP_FALSE=
 fi
-
 
 test -n "$arch"     && CFLAGS="$CFLAGS $arch"
 test -n "$debug"    && CFLAGS="$CFLAGS $debug"
@@ -5239,7 +5272,7 @@ ac_given_INSTALL="$INSTALL"
 
 trap 'rm -fr `echo "Makefile intl/Makefile po/Makefile.in  \
 	  winamp/Makefile winamp/in_mad.psc  \
-	  msvc++/Makefile msvc++/libmad/Makefile msvc++/libid3/Makefile  \
+	  msvc++/Makefile msvc++/libmad/Makefile msvc++/libid3tag/Makefile  \
 	  msvc++/libz/Makefile msvc++/demo/Makefile config.h" | sed "s/:[^ ]*//g"` conftest*; exit 1' 1 2 15
 EOF
 cat >> $CONFIG_STATUS <<EOF
@@ -5323,10 +5356,12 @@ s%@GT_YES@%$GT_YES%g
 s%@MKINSTALLDIRS@%$MKINSTALLDIRS%g
 s%@l@%$l%g
 s%@LIBOBJS@%$LIBOBJS%g
-s%@BUILD_LIBZ_TRUE@%$BUILD_LIBZ_TRUE%g
-s%@BUILD_LIBZ_FALSE@%$BUILD_LIBZ_FALSE%g
 s%@AUDIO@%$AUDIO%g
 s%@WINAMP_TARGET@%$WINAMP_TARGET%g
+s%@BUILD_LIBZ_TRUE@%$BUILD_LIBZ_TRUE%g
+s%@BUILD_LIBZ_FALSE@%$BUILD_LIBZ_FALSE%g
+s%@USE_LIBZ_TRUE@%$USE_LIBZ_TRUE%g
+s%@USE_LIBZ_FALSE@%$USE_LIBZ_FALSE%g
 s%@BUILD_WINAMP_TRUE@%$BUILD_WINAMP_TRUE%g
 s%@BUILD_WINAMP_FALSE@%$BUILD_WINAMP_FALSE%g
 
@@ -5372,7 +5407,7 @@ cat >> $CONFIG_STATUS <<EOF
 
 CONFIG_FILES=\${CONFIG_FILES-"Makefile intl/Makefile po/Makefile.in  \
 	  winamp/Makefile winamp/in_mad.psc  \
-	  msvc++/Makefile msvc++/libmad/Makefile msvc++/libid3/Makefile  \
+	  msvc++/Makefile msvc++/libmad/Makefile msvc++/libid3tag/Makefile  \
 	  msvc++/libz/Makefile msvc++/demo/Makefile"}
 EOF
 cat >> $CONFIG_STATUS <<\EOF
@@ -5627,7 +5662,7 @@ if test "$no_recursion" != yes; then
     esac
   done
 
-  for ac_config_dir in libz libid3 libmad; do
+  for ac_config_dir in libz libid3tag libmad; do
 
     # Do not complain, so a configure script can configure whichever
     # parts of a large source tree are present.

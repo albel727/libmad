@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: player.h,v 1.11 2001/10/17 20:31:19 rob Exp $
+ * $Id: player.h,v 1.12 2001/10/19 23:20:28 rob Exp $
  */
 
 # ifndef PLAYER_H
@@ -133,6 +133,7 @@ struct player {
 
   struct stats {
     enum stats_show show;
+    char const *label;
 
     unsigned long total_bytes;
     mad_timer_t total_time;

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: minimad.c,v 1.15 2001/09/24 23:11:42 rob Exp $
+ * $Id: minimad.c,v 1.16 2001/10/21 03:07:29 rob Exp $
  */
 
 # include <stdio.h>
@@ -26,7 +26,16 @@
 
 # include "mad.h"
 
-static void decode(unsigned char const *, unsigned long);
+/*
+ * This is perhaps the simplest example use of the MAD high-level API.
+ * Standard input is mapped into memory via mmap(), then the high-level API
+ * is invoked with three callbacks: input, output, and error. The output
+ * callback converts MAD's high-resolution PCM samples to 16 bits, then
+ * writes them to standard output in little-endian, stereo-interleaved
+ * format.
+ */
+
+static int decode(unsigned char const *, unsigned long);
 
 int main(int argc, char *argv[])
 {
@@ -40,8 +49,6 @@ int main(int argc, char *argv[])
       stat.st_size == 0)
     return 2;
 
-  /* 1. map input stream into memory */
-
   fdm = mmap(0, stat.st_size, PROT_READ, MAP_SHARED, STDIN_FILENO, 0);
   if (fdm == MAP_FAILED)
     return 3;
@@ -54,14 +61,24 @@ int main(int argc, char *argv[])
   return 0;
 }
 
-/* private message buffer */
+/*
+ * This is a private message structure. A generic pointer to this structure
+ * is passed to each of the callback functions. Put here any data you need
+ * to access from within the callbacks.
+ */
 
 struct buffer {
   unsigned char const *start;
   unsigned long length;
 };
 
-/* 2. called when more input is needed; refill stream buffer */
+/*
+ * This is the input callback. The purpose of this callback is to (re)fill
+ * the stream buffer which is to be decoded. In this example, an entire file
+ * has been mapped into memory, so we just call mad_stream_buffer() with the
+ * address and length of the mapping. When this callback is called a second
+ * time, we are finished decoding.
+ */
 
 static
 enum mad_flow input(void *data,
@@ -80,13 +97,11 @@ enum mad_flow input(void *data,
 }
 
 /*
- * N.B.:
- *
- * The following routine performs simple rounding, clipping, and scaling of
- * MAD's high-resolution samples down to 16 bits. It does not perform any
- * dithering or noise shaping, which would be recommended to obtain any
- * exceptional audio quality. It is therefore not recommended to use this
- * routine if high-quality output is desired.
+ * The following utility routine performs simple rounding, clipping, and
+ * scaling of MAD's high-resolution samples down to 16 bits. It does not
+ * perform any dithering or noise shaping, which would be recommended to
+ * obtain any exceptional audio quality. It is therefore not recommended to
+ * use this routine if high-quality output is desired.
  */
 
 static inline
@@ -105,7 +120,11 @@ signed int scale(mad_fixed_t sample)
   return sample >> (MAD_F_FRACBITS + 1 - 16);
 }
 
-/* 3. called to process output */
+/*
+ * This is the output callback function. It is called after each frame of
+ * MPEG audio data has been completely decoded. The purpose of this callback
+ * is to output (or play) the decoded PCM audio.
+ */
 
 static
 enum mad_flow output(void *data,
@@ -141,7 +160,12 @@ enum mad_flow output(void *data,
   return MAD_FLOW_CONTINUE;
 }
 
-/* 4. called to handle a decoding error */
+/*
+ * This is the error callback function. It is called whenever a decoding
+ * error occurs. The error is indicated by stream->error; the list of
+ * possible MAD_ERROR_* errors can be found in the mad.h (or
+ * libmad/stream.h) header file.
+ */
 
 static
 enum mad_flow error(void *data,
@@ -153,16 +177,26 @@ enum mad_flow error(void *data,
   fprintf(stderr, "decoding error 0x%04x at byte offset %u\n",
 	  stream->error, stream->this_frame - buffer->start);
 
-  return MAD_FLOW_STOP;
+  return MAD_FLOW_BREAK;
 }
 
-/* 5. put it all together */
+/*
+ * This is the function called by main() above to perform all the
+ * decoding. It instantiates a decoder object and configures it with the
+ * input, output, and error callback functions above. A single call to
+ * mad_decoder_run() continues until a callback function returns
+ * MAD_FLOW_STOP (to stop decoding) or MAD_FLOW_BREAK (to stop decoding and
+ * signal an error).
+ */
 
 static
-void decode(unsigned char const *start, unsigned long length)
+int decode(unsigned char const *start, unsigned long length)
 {
   struct buffer buffer;
   struct mad_decoder decoder;
+  int result;
+
+  /* initialize our private message structure */
 
   buffer.start  = start;
   buffer.length = length;
@@ -173,9 +207,13 @@ void decode(unsigned char const *start, unsigned long length)
 		   input, 0 /* header */, 0 /* filter */, output,
 		   error, 0 /* message */);
 
-  /* start the decoder */
+  /* start decoding */
 
-  mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
+  result = mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
+
+  /* release the decoder */
 
   mad_decoder_finish(&decoder);
+
+  return result;
 }

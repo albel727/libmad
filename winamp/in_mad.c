@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: in_mad.c,v 1.30 2001/10/17 19:33:18 rob Exp $
+ * $Id: in_mad.c,v 1.32 2001/10/22 20:18:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -40,6 +40,7 @@
 
 # include "in2.h"
 # include "mad.h"
+# include "id3tag.h"
 # include "xing.h"
 
 # define PLUGIN_VERSION		VERSION ""
@@ -691,8 +692,9 @@ void show_config(HWND parent)
 static
 void show_about(HWND parent)
 {
-  char about[] =
+  char const about[] =
     "MPEG Audio Decoder version " MAD_VERSION "\n"
+    "ID3 Tag Library version " ID3_VERSION "\n"
     "Winamp plug-in version " PLUGIN_VERSION "\n\n"
 
     "Copyright \xa9 " MAD_PUBLISHYEAR " " MAD_AUTHOR "\n\n"
@@ -794,16 +796,17 @@ void input_close(struct input *input)
   }
 }
 
+# if 0
 static
 int input_skip(struct input *input, unsigned long count)
 {
   if (input_seek(input, count, FILE_CURRENT) == -1) {
-    unsigned char buffer[256];
+    unsigned char sink[256];
     unsigned long len;
 
     while (count) {
-      len = input_read(input, buffer,
-		       count < sizeof(buffer) ? count : sizeof(buffer));
+      len = input_read(input, sink,
+		       count < sizeof(sink) ? count : sizeof(sink));
 
       if (len == -1)
 	return -1;
@@ -816,135 +819,7 @@ int input_skip(struct input *input, unsigned long count)
 
   return 0;
 }
-
-static
-int id3v2_tag(unsigned char const *buffer, unsigned long buflen,
-	      struct input *input, unsigned long *tagsize)
-{
-  unsigned char header_data[10];
-  unsigned char const *header;
-  struct {
-    unsigned int major;
-    unsigned int revision;
-  } version;
-  unsigned int flags;
-  unsigned long size, count, len;
-  unsigned char *ptr, *end, *tag = 0;
-  int result = 0;
-
-  enum {
-    FLAG_UNSYNC       = 0x0080,
-    FLAG_EXTENDED     = 0x0040,
-    FLAG_EXPERIMENTAL = 0x0020,
-
-    FLAG_UNKNOWN      = 0x001f
-  };
-
-  if (buflen < 10) {
-    header = header_data;
-
-    memcpy(header_data, buffer, buflen);
-
-    for (ptr = header_data + buflen, count = 10 - buflen;
-	 count; count -= len, ptr += len) {
-      len = input_read(input, ptr, count);
-
-      if (len == 0 || len == -1)
-	goto fail;
-    }
-
-    buffer += buflen;
-    buflen  = 0;
-  }
-  else {
-    header = buffer;
-
-    buffer += 10;
-    buflen -= 10;
-  }
-
-  if (header[3] == 0xff || header[4] == 0xff ||
-      (header[6] & 0x80) || (header[7] & 0x80) ||
-      (header[8] & 0x80) || (header[9] & 0x80))
-    goto fail;
-
-  version.major    = header[3];
-  version.revision = header[4];
-
-  flags = header[5];
-
-  /* high bit is not used */
-  size = (header[6] << 21) | (header[7] << 14) |
-         (header[8] <<  7) | (header[9] <<  0);
-
-  *tagsize = 10 + size;
-
-  if (version.major < 2 || version.major > 3)
-    goto abort;
-
-  if (size == 0)
-    goto done;
-
-  tag = LocalAlloc(0, size);
-  if (tag == 0)
-    goto abort;
-
-  if (buflen < size) {
-    memcpy(tag, buffer, buflen);
-
-    for (ptr = tag + buflen, count = size - buflen;
-	 count; count -= len, ptr += len) {
-      len = input_read(input, ptr, count);
-
-      if (len == 0 || len == -1)
-	goto fail;
-    }
-
-    buffer += buflen;
-    buflen  = 0;
-  }
-  else {
-    memcpy(tag, buffer, size);
-
-    buffer += size;
-    buflen -= size;
-  }
-
-  /* undo unsynchronisation */
-
-  if (flags & FLAG_UNSYNC) {
-    unsigned char *new = tag;
-
-    count = size;
-
-    for (ptr = tag; ptr < tag + size - 1; ++ptr) {
-      *new++ = *ptr;
-
-      if (ptr[0] == 0xff && ptr[1] == 0x00)
-	--count, ++ptr;
-    }
-
-    size = count;
-  }
-
-  ptr = tag;
-  end = tag + size;
-
-  if (0) {
-  fail:
-    result = -1;
-  }
-
- done:
-  if (tag)
-    LocalFree(tag);
-
-  return result;
-
- abort:
-  /* skip the unread part of the tag */
-  return (size > buflen) ? input_skip(input, size - buflen) : 0;
-}
+# endif
 
 static
 void mono_filter(struct mad_frame *frame)
@@ -1244,6 +1119,7 @@ int do_error(struct mad_stream *stream, struct mad_frame *frame,
 	     struct input *input, int *last_error, struct stats *stats)
 {
   int do_continue = 1;
+  signed long tagsize;
 
   switch (stream->error) {
   case MAD_ERROR_BADCRC:
@@ -1263,23 +1139,10 @@ int do_error(struct mad_stream *stream, struct mad_frame *frame,
     break;
 
   case MAD_ERROR_LOSTSYNC:
-    if (strncmp(stream->this_frame, "ID3", 3) == 0) {
-      unsigned long tagsize;
-
-      /* ID3v2 tag */
-      if (id3v2_tag(stream->this_frame, stream->bufend - stream->this_frame,
-		    input, &tagsize) == -1)
-	return 1;
-
-      if (tagsize > stream->bufend - stream->this_frame)
-	mad_stream_skip(stream, stream->bufend - stream->this_frame);
-      else
-	mad_stream_skip(stream, tagsize);
-    }
-    else if (strncmp(stream->this_frame, "TAG", 3) == 0) {
-      /* ID3v1 tag */
-      mad_stream_skip(stream, 128);
-    }
+    tagsize = id3_tag_query(stream->this_frame,
+			    stream->bufend - stream->this_frame);
+    if (tagsize > 0)
+      mad_stream_skip(stream, tagsize);
     else if (stats)
       ++stats->sync_errors;
 
@@ -1304,7 +1167,7 @@ void do_vis(char *data, int nch, int resolution, int position)
 
   /*
    * Winamp visuals may have problems accepting sample sizes larger than
-   * 16 bits, so we reduce the sample size here.
+   * 16 bits, so we reduce the sample size here if necessary.
    */
 
   switch (resolution) {
@@ -1508,11 +1371,9 @@ DWORD WINAPI run_decode_thread(void *param)
 	switch (state->channel) {
 	case CHANNEL_RIGHT:
 	  ch1 = ch2;
-
 	case CHANNEL_LEFT:
 	  ch2 = 0;
 	  nch = 1;
-
 	case CHANNEL_MONO:
 	case CHANNEL_STEREO:
 	  break;

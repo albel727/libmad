@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_null.c,v 1.11 2001/04/14 04:46:51 rob Exp $
+ * $Id: audio_null.c,v 1.12 2001/10/20 22:15:34 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -27,8 +27,6 @@
 
 # include "mad.h"
 # include "audio.h"
-
-/* this can be used as a template to create new output modules */
 
 static
 int init(struct audio_init *init)
@@ -43,8 +41,39 @@ int config(struct audio_config *config)
 }
 
 static
+void update_stats(struct audio_stats *stats,
+		  unsigned int nsamples, mad_fixed_t const *sample)
+{
+  enum {
+    MIN = -MAD_F_ONE,
+    MAX =  MAD_F_ONE - 1
+  };
+
+  while (nsamples--) {
+    if (*sample >= stats->peak_sample) {
+      stats->peak_sample = *sample;
+
+      if (*sample > MAX && *sample - MAX > stats->peak_clipping)
+	stats->peak_clipping = *sample - MAX;
+    }
+    else if (*sample < -stats->peak_sample) {
+      stats->peak_sample = -*sample;
+
+      if (*sample < MIN && MIN - *sample > stats->peak_clipping)
+	stats->peak_clipping = MIN - *sample;
+    }
+
+    ++sample;
+  }
+}
+
+static
 int play(struct audio_play *play)
 {
+  update_stats(play->stats, play->nsamples, play->samples[0]);
+  if (play->samples[1])
+    update_stats(play->stats, play->nsamples, play->samples[1]);
+
   return 0;
 }
 

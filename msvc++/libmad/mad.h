@@ -37,7 +37,7 @@ extern "C" {
 
 # define MAD_VERSION_MAJOR	0
 # define MAD_VERSION_MINOR	14
-# define MAD_VERSION_PATCH	0
+# define MAD_VERSION_PATCH	1
 # define MAD_VERSION_EXTRA	" (beta)"
 
 # define MAD_VERSION_STRINGIZE(str)	#str
