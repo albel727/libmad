@@ -16,12 +16,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_au.c,v 1.2 2000/09/24 18:21:32 rob Exp $
+ * $Id: audio_snd.c,v 1.2 2000/10/25 21:51:39 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
 # endif
+
+# include "global.h"
 
 # include <stdio.h>
 # include <string.h>
@@ -156,21 +158,21 @@ int finish(struct audio_finish *finish)
   return 0;
 }
 
-int audio_au(union audio_control *control)
+int audio_snd(union audio_control *control)
 {
   audio_error = 0;
 
   switch (control->command) {
-  case audio_cmd_init:
+  case AUDIO_COMMAND_INIT:
     return init(&control->init);
 
-  case audio_cmd_config:
+  case AUDIO_COMMAND_CONFIG:
     return config(&control->config);
 
-  case audio_cmd_play:
+  case AUDIO_COMMAND_PLAY:
     return play(&control->play);
 
-  case audio_cmd_finish:
+  case AUDIO_COMMAND_FINISH:
     return finish(&control->finish);
   }
 

@@ -16,8 +16,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: id3.h,v 1.2 2000/03/19 06:43:38 rob Exp $
+ * $Id: id3.h,v 1.3 2000/10/25 21:51:39 rob Exp $
  */
+
+# ifndef ID3_H
+# define ID3_H
 
 extern char const *id3_error;
 
@@ -30,3 +33,4 @@ void id3_text(int (*)(char const *, ...), char const *, char const *,
 void id3_comment(int (*)(char const *, ...), char const *, char const *,
 		 unsigned int, unsigned char const *, unsigned long);
 
+# endif

@@ -1,175 +1,442 @@
-#
-# mad - MPEG audio decoder
-# Copyright (C) 2000 Robert Leslie
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
+# Makefile.in generated automatically by automake 1.4 from Makefile.am
+
+# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
 # This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-#
-# $Id: Makefile.in,v 1.10 2000/09/20 01:06:22 rob Exp $
-#
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
 
-## OPTIONS ####################################################################
 
-# Fixed Point Math multiply options:
-# (set by --enable-fpm during configure)
-#
-# FPM_APPROX	use 32-bit approximation
-# FPM_64BIT	use 64-bit (long long) accuracy
-# FPM_INTEL	use Intel assembly
-# FPM_ARM	use ARM V4 assembly
-# FPM_MIPS	use MIPS assembly
-# FPM_SPARC	use SPARC V8 assembly
-# (default)	use slow explicit computation
+SHELL = @SHELL@
 
-FPM =		@FPM@
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
 
-# Architecture-Specific Optimization options (supported architectures only):
-# (set by --enable-aso during configure)
-#
-# ASO_IMDCT	optimize Layer III IMDCT
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
 
-ASO =		@ASO@
+DESTDIR =
 
-# Other options:
-# (now kept in config.h)
-#
-# OPT_SSO	use fast subband synthesis approximation optimization
-# OPT_ISKLUGE	use Layer III intensity stereo kluge
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
 
-## ENVIRONMENT ################################################################
+top_builddir = .
 
-@SET_MAKE@
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
 
-src =		@srcdir@
-VPATH =		@srcdir@
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
 
-prefix =	@prefix@
-exec_prefix =	@exec_prefix@
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+host_alias = @host_alias@
+host_triplet = @host@
+ARCH = @ARCH@
+AS = @AS@
+CC = @CC@
+DEBUGGER = @DEBUGGER@
+DLLTOOL = @DLLTOOL@
+IMDCT_L = @IMDCT_L@
+LIBTOOL = @LIBTOOL@
+LN_S = @LN_S@
+LTLIBOBJS = @LTLIBOBJS@
+MAKEINFO = @MAKEINFO@
+OBJDUMP = @OBJDUMP@
+OPTIMIZER = @OPTIMIZER@
+PACKAGE = @PACKAGE@
+PROFILER = @PROFILER@
+RANLIB = @RANLIB@
+VERSION = @VERSION@
 
-MANDEST =	@mandir@
+lib_LTLIBRARIES = libmad.la
+include_HEADERS = mad.h
 
-INCDEST =	@includedir@
-LIBDEST =	@libdir@
+EXTRA_DIST = mad.h.sed
 
-MANEXT =	3
+exported_headers =  	version.h fixed.h bit.h timer.h stream.h frame.h synth.h decoder.h
 
-INSTALL =	@INSTALL@
-LIBINSTALL =	@INSTALL_DATA@
 
-CC =		@CC@
-INCLUDES =	@CPPFLAGS@
-DEFINES =	@DEFS@ $(FPM) $(ASO)
-LIBS =		@LIBS@
+headers =  	$(exported_headers) global.h layer12.h layer3.h huffman.h
 
-AR =		ar
-RANLIB =	@RANLIB@
 
-ARCH =		@ARCH@
-DEBUGGER =	@DEBUGGER@
-OPTIMIZER =	@OPTIMIZER@
-PROFILER =	@PROFILER@
+data_includes =  	D.dat imdct_s.dat qc_table.dat rq_table.dat sf_table.dat
 
-COPTS =		@CFLAGS@ -Wall $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
-LDOPTS =	@LDFLAGS@ $(PROFILER)
 
-## FLAGS ######################################################################
+libmad_la_SOURCES =  	version.c fixed.c bit.c timer.c stream.c frame.c synth.c decoder.c  	layer12.c layer3.c huffman.c $(headers) $(data_includes)
 
-CFLAGS =	$(SOOPTS) $(COPTS) $(INCLUDES) $(DEFINES)
-LDFLAGS =	$(LDOPTS)
 
-## OBJECTS ####################################################################
+EXTRA_libmad_la_SOURCES = imdct_l_arm.S
 
-TARGETS =	$(LIBMAD) $(INCMAD)
+libmad_la_DEPENDENCIES = @IMDCT_L@
+libmad_la_LIBADD = @IMDCT_L@
 
-LIBMAD =	libmad.a
-INCMAD =	mad.h
+CFLAGS = @CFLAGS@ -Wall @ARCH@ @DEBUGGER@ @OPTIMIZER@ @PROFILER@
+LDFLAGS = @LDFLAGS@ @PROFILER@
+INCLUDES = $(FPM) $(ASO)
 
-LIBMADSO =	libmad.so
-SOMAJOR =	0.11
-SOMINOR =	4b
+BUILT_SOURCES = mad.h
+CLEANFILES = mad.h
 
-MISCOBJS =	@MISCOBJS@
+# The API for MAD is not yet stable enough to use versioning, so we use
+# release numbering instead.
 
-MADOBJS =	version.o fixed.o bit.o timer.o stream.o frame.o synth.o  \
-		decoder.o layer12.o layer3.o huffman.o $(MISCOBJS)
-MADINCLUDES =	version.h fixed.h bit.h timer.h stream.h frame.h synth.h  \
-		decoder.h
+libmad_la_LDFLAGS = -release $(VERSION)
 
-## GENERIC RULES ##############################################################
+FPM = @FPM@
+ASO = @ASO@
+ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+mkinstalldirs = $(SHELL) $(top_srcdir)/../mkinstalldirs
+CONFIG_HEADER = config.h
+CONFIG_CLEAN_FILES = 
+LTLIBRARIES =  $(lib_LTLIBRARIES)
 
-all :: $(TARGETS)
 
-check :: all
-	@echo "No self-tests available."
+DEFS = @DEFS@ -I. -I$(srcdir) -I.
+CPPFLAGS = @CPPFLAGS@
+LIBS = @LIBS@
+libmad_la_OBJECTS =  version.lo fixed.lo bit.lo timer.lo stream.lo \
+frame.lo synth.lo decoder.lo layer12.lo layer3.lo huffman.lo
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
+HEADERS =  $(include_HEADERS)
 
-install :: all
-	$(LIBINSTALL) $(LIBMAD) "$(LIBDEST)/."
-	$(LIBINSTALL) $(INCMAD) "$(INCDEST)/."
+DIST_COMMON =  ./stamp-h.in Makefile.am Makefile.in acconfig.h \
+aclocal.m4 config.h.in configure configure.in
 
-again :: clean all
 
-clean ::
-	rm -f $(TARGETS) *.o *.a *.so* gmon.* core
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
-distclean :: clean
-	rm -f mad.h
-	rm -f config.status config.cache config.log config.h
-	rm -f Makefile
+TAR = gtar
+GZIP_ENV = --best
+SOURCES = $(libmad_la_SOURCES) $(EXTRA_libmad_la_SOURCES)
+OBJECTS = $(libmad_la_OBJECTS)
 
-maintainer-clean :: distclean
-	rm -f config.h.in configure
+all: all-redirect
+.SUFFIXES:
+.SUFFIXES: .S .c .lo .o .s
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --foreign --include-deps Makefile
 
-dist :: $(INCMAD)
-	$(MAKE) config.h.in configure
-	$(MAKE) distclean
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
-depend ::
-	( sed -n -e '1,/^## DEPEND/p' Makefile.in;  \
-	  echo;  \
-	  $(CC) -MM $(DEFINES) *.c;  \
-	) > Makefile.in.new
-	mv -f Makefile.in.new Makefile.in
+$(ACLOCAL_M4):  configure.in 
+	cd $(srcdir) && $(ACLOCAL)
 
-## AUTOCONF RULES #############################################################
+config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
+	$(SHELL) ./config.status --recheck
+$(srcdir)/configure: $(srcdir)/configure.in $(ACLOCAL_M4) $(CONFIGURE_DEPENDENCIES)
+	cd $(srcdir) && $(AUTOCONF)
 
-Makefile: config.status
-	./config.status && touch .stamp/config.h
+config.h: stamp-h
+	@if test ! -f $@; then \
+		rm -f stamp-h; \
+		$(MAKE) stamp-h; \
+	else :; fi
+stamp-h: $(srcdir)/config.h.in $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES= CONFIG_HEADERS=config.h \
+	     $(SHELL) ./config.status
+	@echo timestamp > stamp-h 2> /dev/null
+$(srcdir)/config.h.in: $(srcdir)/stamp-h.in
+	@if test ! -f $@; then \
+		rm -f $(srcdir)/stamp-h.in; \
+		$(MAKE) $(srcdir)/stamp-h.in; \
+	else :; fi
+$(srcdir)/stamp-h.in: $(top_srcdir)/configure.in $(ACLOCAL_M4) acconfig.h
+	cd $(top_srcdir) && $(AUTOHEADER)
+	@echo timestamp > $(srcdir)/stamp-h.in 2> /dev/null
 
-.stamp/config.h: config.status
-	./config.status && touch .stamp/config.h
+mostlyclean-hdr:
 
-config.status: .stamp/configure .stamp/config.h.in Makefile.in
-	./config.status --recheck
+clean-hdr:
 
-.stamp/configure: configure.in
-	autoconf && touch .stamp/configure
+distclean-hdr:
+	-rm -f config.h
 
-.stamp/config.h.in: configure.in acconfig.h
-	autoheader &&  \
-	sed -e '/\$$''Id: /s/\$$//g' config.h.in >config.h.in.new &&  \
-	mv -f config.h.in.new config.h.in &&  \
-	touch .stamp/config.h.in
+maintainer-clean-hdr:
 
-## BUILD RULES ################################################################
+mostlyclean-libLTLIBRARIES:
 
-$(LIBMAD): $(MADOBJS)
-	$(AR) rc $@ $(MADOBJS)
-	$(RANLIB) $@
+clean-libLTLIBRARIES:
+	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
 
-$(INCMAD): Makefile mad.h.sed ../COPYRIGHT $(MADINCLUDES)
+distclean-libLTLIBRARIES:
+
+maintainer-clean-libLTLIBRARIES:
+
+install-libLTLIBRARIES: $(lib_LTLIBRARIES)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(libdir)
+	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    echo "$(LIBTOOL)  --mode=install $(INSTALL) $$p $(DESTDIR)$(libdir)/$$p"; \
+	    $(LIBTOOL)  --mode=install $(INSTALL) $$p $(DESTDIR)$(libdir)/$$p; \
+	  else :; fi; \
+	done
+
+uninstall-libLTLIBRARIES:
+	@$(NORMAL_UNINSTALL)
+	list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	  $(LIBTOOL)  --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p; \
+	done
+
+.c.o:
+	$(COMPILE) -c $<
+
+.s.o:
+	$(COMPILE) -c $<
+
+.S.o:
+	$(COMPILE) -c $<
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+.c.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
+
+.s.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
+
+.S.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
+
+mostlyclean-libtool:
+	-rm -f *.lo
+
+clean-libtool:
+	-rm -rf .libs _libs
+
+distclean-libtool:
+
+maintainer-clean-libtool:
+
+libmad.la: $(libmad_la_OBJECTS) $(libmad_la_DEPENDENCIES)
+	$(LINK) -rpath $(libdir) $(libmad_la_LDFLAGS) $(libmad_la_OBJECTS) $(libmad_la_LIBADD) $(LIBS)
+
+install-includeHEADERS: $(include_HEADERS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(includedir)
+	@list='$(include_HEADERS)'; for p in $$list; do \
+	  if test -f "$$p"; then d= ; else d="$(srcdir)/"; fi; \
+	  echo " $(INSTALL_DATA) $$d$$p $(DESTDIR)$(includedir)/$$p"; \
+	  $(INSTALL_DATA) $$d$$p $(DESTDIR)$(includedir)/$$p; \
+	done
+
+uninstall-includeHEADERS:
+	@$(NORMAL_UNINSTALL)
+	list='$(include_HEADERS)'; for p in $$list; do \
+	  rm -f $(DESTDIR)$(includedir)/$$p; \
+	done
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP)
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	here=`pwd` && cd $(srcdir) \
+	  && mkid -f$$here/ID $$unique $(LISP)
+
+TAGS:  $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)config.h.in$$unique$(LISP)$$tags" \
+	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags config.h.in $$unique $(LISP) -o $$here/TAGS)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(PACKAGE)-$(VERSION)
+top_distdir = $(distdir)
+
+# This target untars the dist file and tries a VPATH configuration.  Then
+# it guarantees that the distribution is self-contained by making another
+# tarfile.
+distcheck: dist
+	-rm -rf $(distdir)
+	GZIP=$(GZIP_ENV) $(TAR) zxf $(distdir).tar.gz
+	mkdir $(distdir)/=build
+	mkdir $(distdir)/=inst
+	dc_install_base=`cd $(distdir)/=inst && pwd`; \
+	cd $(distdir)/=build \
+	  && ../configure --srcdir=.. --prefix=$$dc_install_base \
+	  && $(MAKE) $(AM_MAKEFLAGS) \
+	  && $(MAKE) $(AM_MAKEFLAGS) dvi \
+	  && $(MAKE) $(AM_MAKEFLAGS) check \
+	  && $(MAKE) $(AM_MAKEFLAGS) install \
+	  && $(MAKE) $(AM_MAKEFLAGS) installcheck \
+	  && $(MAKE) $(AM_MAKEFLAGS) dist
+	-rm -rf $(distdir)
+	@banner="$(distdir).tar.gz is ready for distribution"; \
+	dashes=`echo "$$banner" | sed s/./=/g`; \
+	echo "$$dashes"; \
+	echo "$$banner"; \
+	echo "$$dashes"
+dist: distdir
+	-chmod -R a+r $(distdir)
+	GZIP=$(GZIP_ENV) $(TAR) chozf $(distdir).tar.gz $(distdir)
+	-rm -rf $(distdir)
+dist-all: distdir
+	-chmod -R a+r $(distdir)
+	GZIP=$(GZIP_ENV) $(TAR) chozf $(distdir).tar.gz $(distdir)
+	-rm -rf $(distdir)
+distdir: $(DISTFILES)
+	-rm -rf $(distdir)
+	mkdir $(distdir)
+	-chmod 777 $(distdir)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pr $$/$$file $(distdir)/$$file; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	  fi; \
+	done
+
+info-am:
+info: info-am
+dvi-am:
+dvi: dvi-am
+check-am: all-am
+check: check-am
+installcheck-am:
+installcheck: installcheck-am
+all-recursive-am: config.h
+	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+
+install-exec-am: install-libLTLIBRARIES
+install-exec: install-exec-am
+
+install-data-am: install-includeHEADERS
+install-data: install-data-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+install: install-am
+uninstall-am: uninstall-libLTLIBRARIES uninstall-includeHEADERS
+uninstall: uninstall-am
+all-am: Makefile $(LTLIBRARIES) $(HEADERS) config.h
+all-redirect: all-am
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
+installdirs:
+	$(mkinstalldirs)  $(DESTDIR)$(libdir) $(DESTDIR)$(includedir)
+
+
+mostlyclean-generic:
+
+clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
+mostlyclean-am:  mostlyclean-hdr mostlyclean-libLTLIBRARIES \
+		mostlyclean-compile mostlyclean-libtool \
+		mostlyclean-tags mostlyclean-generic
+
+mostlyclean: mostlyclean-am
+
+clean-am:  clean-hdr clean-libLTLIBRARIES clean-compile clean-libtool \
+		clean-tags clean-generic mostlyclean-am
+
+clean: clean-am
+
+distclean-am:  distclean-hdr distclean-libLTLIBRARIES distclean-compile \
+		distclean-libtool distclean-tags distclean-generic \
+		clean-am
+	-rm -f libtool
+
+distclean: distclean-am
+	-rm -f config.status
+
+maintainer-clean-am:  maintainer-clean-hdr \
+		maintainer-clean-libLTLIBRARIES \
+		maintainer-clean-compile maintainer-clean-libtool \
+		maintainer-clean-tags maintainer-clean-generic \
+		distclean-am
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+maintainer-clean: maintainer-clean-am
+	-rm -f config.status
+
+.PHONY: mostlyclean-hdr distclean-hdr clean-hdr maintainer-clean-hdr \
+mostlyclean-libLTLIBRARIES distclean-libLTLIBRARIES \
+clean-libLTLIBRARIES maintainer-clean-libLTLIBRARIES \
+uninstall-libLTLIBRARIES install-libLTLIBRARIES mostlyclean-compile \
+distclean-compile clean-compile maintainer-clean-compile \
+mostlyclean-libtool distclean-libtool clean-libtool \
+maintainer-clean-libtool uninstall-includeHEADERS \
+install-includeHEADERS tags mostlyclean-tags distclean-tags clean-tags \
+maintainer-clean-tags distdir info-am info dvi-am dvi check check-am \
+installcheck-am installcheck all-recursive-am install-exec-am \
+install-exec install-data-am install-data install-am install \
+uninstall-am uninstall all-redirect all-am all installdirs \
+mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+
+
+mad.h: Makefile.am config.status config.h  \
+		$(srcdir)/../COPYRIGHT $(srcdir)/mad.h.sed $(exported_headers)
 	(sed -e '1s|.*|/*|' -e '1b' -e '$$s|.*| */|' -e '$$b'  \
-		-e 's/^.*/ *&/' ../COPYRIGHT; echo;  \
+		-e 's/^.*/ *&/' $(srcdir)/../COPYRIGHT; echo;  \
 	if [ ".$(FPM)" != "." ]; then  \
 		echo ".$(FPM)" | sed -e 's|^\.-D|# define |'; echo;  \
 	fi;  \
@@ -177,43 +444,18 @@ $(INCMAD): Makefile mad.h.sed ../COPYRIGHT $(MADINCLUDES)
 		config.h; echo;  \
 	sed -ne 's/^# *define  *\(SIZEOF_.*\)/# define \1/p'  \
 		config.h; echo;  \
-	sed -n -f mad.h.sed $(MADINCLUDES)) | cat -s >$@
-
-$(LIBMADSO): $(LIBMADSO).$(SOMAJOR)
-	rm -f $(LIBMADSO)
-	ln -s $(LIBMADSO).$(SOMAJOR) $(LIBMADSO)
-
-$(LIBMADSO).$(SOMAJOR): $(LIBMADSO).$(SOMAJOR).$(SOMINOR)
-	rm -f $(LIBMADSO).$(SOMAJOR)
-	ln -s $(LIBMADSO).$(SOMAJOR).$(SOMINOR) $(LIBMADSO).$(SOMAJOR)
-
-$(LIBMADSO).$(SOMAJOR).$(SOMINOR): Makefile *.c *.h
-	rm -f $(MADOBJS)
-	$(MAKE) $(MADOBJS) SOOPTS=-fPIC
-	$(CC) -shared -Wl,-soname,$(LIBMADSO).$(SOMAJOR) $(LDFLAGS)  \
-		$(MADOBJS) -o $(LIBMADSO).$(SOMAJOR).$(SOMINOR)
-	rm -f $(MADOBJS)
+	for header in $(exported_headers); do  \
+		echo;  \
+		sed -n -f $(srcdir)/mad.h.sed $(srcdir)/$$header; echo;  \
+	done) | cat -s >$@
 
 .c.s:
-	$(CC) $(ARCH) $(OPTIMIZER) $(INCLUDES) $(DEFINES) -S $<
+	$(COMPILE) -S $<
 
-*.o *.s: Makefile
+again: clean all
 
-## DEPENDENCIES ###############################################################
+.PHONY: again
 
-bit.o: bit.c config.h bit.h
-decoder.o: decoder.c config.h stream.h bit.h frame.h fixed.h timer.h \
- synth.h decoder.h
-fixed.o: fixed.c config.h fixed.h
-frame.o: frame.c config.h bit.h stream.h frame.h fixed.h timer.h \
- layer12.h layer3.h
-huffman.o: huffman.c config.h huffman.h
-layer12.o: layer12.c config.h fixed.h bit.h stream.h frame.h timer.h \
- layer12.h sf_table.dat qc_table.dat
-layer3.o: layer3.c config.h fixed.h bit.h stream.h frame.h timer.h \
- huffman.h layer3.h rq_table.dat imdct_s.dat
-stream.o: stream.c config.h bit.h stream.h
-synth.o: synth.c config.h fixed.h frame.h timer.h stream.h bit.h \
- synth.h D.dat
-timer.o: timer.c config.h timer.h
-version.o: version.c config.h version.h
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

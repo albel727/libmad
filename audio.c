@@ -16,12 +16,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.c,v 1.13 2000/09/24 17:49:25 rob Exp $
+ * $Id: audio.c,v 1.18 2000/10/25 21:51:39 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
 # endif
+
+# include "global.h"
 
 # include <string.h>
 
@@ -30,6 +32,8 @@
 
 char const *audio_error;
 
+static mad_fixed_t left_err, right_err;
+
 /*
  * NAME:	audio_output()
  * DESCRIPTION: choose an audio output module from a specifier pathname
@@ -37,6 +41,39 @@ char const *audio_error;
 audio_ctlfunc_t *audio_output(char const **path)
 {
   char const *ext;
+  int i;
+
+  struct map {
+    char const *name;
+    audio_ctlfunc_t *module;
+  };
+
+  struct map const types[] = {
+    { "raw",  audio_raw  },
+    { "pcm",  audio_raw  },
+    { "wave", audio_wave },
+    { "wav",  audio_wave },
+    { "snd",  audio_snd  },
+    { "au",   audio_snd  },
+# if defined(DEBUG)
+    { "hex",  audio_hex  },
+# endif
+    { "null", audio_null }
+  };
+
+  struct map const exts[] = {
+    { "raw",  audio_raw  },
+    { "pcm",  audio_raw  },
+    { "out",  audio_raw  },
+    { "bin",  audio_raw  },
+    { "wav",  audio_wave },
+    { "snd",  audio_snd  },
+    { "au",   audio_snd  },
+# if defined(DEBUG)
+    { "hex",  audio_hex  },
+    { "txt",  audio_hex  }
+# endif
+  };
 
   if (path == 0)
     return AUDIO_DEFAULT;
@@ -50,31 +87,10 @@ audio_ctlfunc_t *audio_output(char const **path)
     type  = *path;
     *path = ext + 1;
 
-    if (strncmp(type, "raw", ext - type) == 0 ||
-	strncmp(type, "RAW", ext - type) == 0 ||
-	strncmp(type, "pcm", ext - type) == 0 ||
-	strncmp(type, "PCM", ext - type) == 0)
-      return audio_raw;
-
-    if (strncmp(type, "wave", ext - type) == 0 ||
-	strncmp(type, "WAVE", ext - type) == 0 ||
-	strncmp(type, "wav",  ext - type) == 0 ||
-	strncmp(type, "WAV",  ext - type) == 0)
-      return audio_wave;
-
-    if (strncmp(type, "au", ext - type) == 0 ||
-	strncmp(type, "AU", ext - type) == 0)
-      return audio_au;
-
-# ifdef DEBUG
-    if (strncmp(type, "hex", ext - type) == 0 ||
-	strncmp(type, "HEX", ext - type) == 0)
-      return audio_hex;
-# endif
-
-    if (strncmp(type, "null", ext - type) == 0 ||
-	strncmp(type, "NULL", ext - type) == 0)
-      return audio_null;
+    for (i = 0; i < sizeof(types) / sizeof(types[0]); ++i) {
+      if (strncasecmp(type, types[i].name, ext - type) == 0)
+	return types[i].module;
+    }
 
     *path = type;
     return 0;
@@ -92,31 +108,10 @@ audio_ctlfunc_t *audio_output(char const **path)
   if (ext) {
     ++ext;
 
-    if (strcmp(ext, "raw") == 0 ||
-	strcmp(ext, "RAW") == 0 ||
-	strcmp(ext, "pcm") == 0 ||
-	strcmp(ext, "PCM") == 0 ||
-	strcmp(ext, "out") == 0 ||
-	strcmp(ext, "OUT") == 0)
-      return audio_raw;
-
-    if (strcmp(ext, "wav") == 0 ||
-	strcmp(ext, "WAV") == 0)
-      return audio_wave;
-
-    if (strcmp(ext, "au")  == 0 ||
-	strcmp(ext, "AU")  == 0 ||
-	strcmp(ext, "snd") == 0 ||
-	strcmp(ext, "SND") == 0)
-      return audio_au;
-
-# ifdef DEBUG
-    if (strcmp(ext, "hex") == 0 ||
-	strcmp(ext, "HEX") == 0 ||
-	strcmp(ext, "txt") == 0 ||
-	strcmp(ext, "TXT") == 0)
-      return audio_hex;
-# endif
+    for (i = 0; i < sizeof(exts) / sizeof(exts[0]); ++i) {
+      if (strcasecmp(ext, exts[i].name) == 0)
+	return exts[i].module;
+    }
   }
 
   return 0;
@@ -138,7 +133,7 @@ signed long audio_linear_round(unsigned int bits, mad_fixed_t sample)
   else if (sample < -MAD_F_ONE)
     sample = -MAD_F_ONE;
 
-  /* quantize */
+  /* quantize and scale */
   return sample >> (MAD_F_FRACBITS + 1 - bits);
 }
 
@@ -169,6 +164,7 @@ signed long audio_linear_dither(unsigned int bits, mad_fixed_t sample,
   /* error */
   *error = sample - quantized;
 
+  /* scale */
   return quantized >> (MAD_F_FRACBITS + 1 - bits);
 }
 
@@ -178,9 +174,8 @@ signed long audio_linear_dither(unsigned int bits, mad_fixed_t sample,
  */
 unsigned int audio_pcm_u8(unsigned char *data, unsigned int nsamples,
 			  mad_fixed_t const *left, mad_fixed_t const *right,
-			  int mode)
+			  enum audio_mode mode)
 {
-  static mad_fixed_t left_err, right_err;
   unsigned int len;
 
   len = nsamples;
@@ -233,9 +228,8 @@ unsigned int audio_pcm_u8(unsigned char *data, unsigned int nsamples,
  */
 unsigned int audio_pcm_s16le(unsigned char *data, unsigned int nsamples,
 			     mad_fixed_t const *left, mad_fixed_t const *right,
-			     int mode)
+			     enum audio_mode mode)
 {
-  static mad_fixed_t left_err, right_err;
   unsigned int len;
   register signed int sample;
 
@@ -305,9 +299,8 @@ unsigned int audio_pcm_s16le(unsigned char *data, unsigned int nsamples,
  */
 unsigned int audio_pcm_s16be(unsigned char *data, unsigned int nsamples,
 			     mad_fixed_t const *left, mad_fixed_t const *right,
-			     int mode)
+			     enum audio_mode mode)
 {
-  static mad_fixed_t left_err, right_err;
   unsigned int len;
   register signed int sample;
 
@@ -372,14 +365,167 @@ unsigned int audio_pcm_s16be(unsigned char *data, unsigned int nsamples,
 }
 
 /*
+ * NAME:	audio_pcm_s24le()
+ * DESCRIPTION:	write a block of signed 24-bit little-endian PCM samples
+ */
+unsigned int audio_pcm_s24le(unsigned char *data, unsigned int nsamples,
+			     mad_fixed_t const *left, mad_fixed_t const *right,
+			     enum audio_mode mode)
+{
+  unsigned int len;
+  register signed long sample;
+
+  len = nsamples;
+
+  if (right) {  /* stereo */
+    switch (mode) {
+    case AUDIO_MODE_ROUND:
+      while (len--) {
+	sample  = audio_linear_round(24, *left++);
+	*data++ = (sample >>  0) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >> 16) & 0xff;
+
+	sample  = audio_linear_round(24, *right++);
+	*data++ = (sample >>  0) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >> 16) & 0xff;
+      }
+      break;
+
+    case AUDIO_MODE_DITHER:
+      while (len--) {
+	sample  = audio_linear_dither(24, *left++,  &left_err);
+	*data++ = (sample >>  0) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >> 16) & 0xff;
+
+	sample  = audio_linear_dither(24, *right++, &right_err);
+	*data++ = (sample >>  0) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >> 16) & 0xff;
+      }
+      break;
+
+    default:
+      return 0;
+    }
+
+    return nsamples * 3 * 2;
+  }
+  else {  /* mono */
+    switch (mode) {
+    case AUDIO_MODE_ROUND:
+      while (len--) {
+	sample  = audio_linear_round(24, *left++);
+	*data++ = (sample >>  0) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >> 16) & 0xff;
+      }
+      break;
+
+    case AUDIO_MODE_DITHER:
+      while (len--) {
+	sample  = audio_linear_dither(24, *left++, &left_err);
+	*data++ = (sample >>  0) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >> 16) & 0xff;
+      }
+      break;
+
+    default:
+      return 0;
+    }
+
+    return nsamples * 3;
+  }
+}
+
+/*
+ * NAME:	audio_pcm_s24be()
+ * DESCRIPTION:	write a block of signed 24-bit big-endian PCM samples
+ */
+unsigned int audio_pcm_s24be(unsigned char *data, unsigned int nsamples,
+			     mad_fixed_t const *left, mad_fixed_t const *right,
+			     enum audio_mode mode)
+{
+  unsigned int len;
+  register signed long sample;
+
+  len = nsamples;
+
+  if (right) {  /* stereo */
+    switch (mode) {
+    case AUDIO_MODE_ROUND:
+      while (len--) {
+	sample  = audio_linear_round(24, *left++);
+	*data++ = (sample >> 16) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >>  0) & 0xff;
+
+	sample  = audio_linear_round(24, *right++);
+	*data++ = (sample >> 16) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >>  0) & 0xff;
+      }
+      break;
+
+    case AUDIO_MODE_DITHER:
+      while (len--) {
+	sample  = audio_linear_dither(24, *left++,  &left_err);
+	*data++ = (sample >> 16) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >>  0) & 0xff;
+
+	sample  = audio_linear_dither(24, *right++, &right_err);
+	*data++ = (sample >> 16) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >>  0) & 0xff;
+      }
+      break;
+
+    default:
+      return 0;
+    }
+
+    return nsamples * 3 * 2;
+  }
+  else {  /* mono */
+    switch (mode) {
+    case AUDIO_MODE_ROUND:
+      while (len--) {
+	sample  = audio_linear_round(24, *left++);
+	*data++ = (sample >> 16) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >>  0) & 0xff;
+      }
+      break;
+
+    case AUDIO_MODE_DITHER:
+      while (len--) {
+	sample  = audio_linear_dither(24, *left++, &left_err);
+	*data++ = (sample >> 16) & 0xff;
+	*data++ = (sample >>  8) & 0xff;
+	*data++ = (sample >>  0) & 0xff;
+      }
+      break;
+
+    default:
+      return 0;
+    }
+
+    return nsamples * 3;
+  }
+}
+
+/*
  * NAME:	audio_pcm_s32le()
  * DESCRIPTION:	write a block of signed 32-bit little-endian PCM samples
  */
 unsigned int audio_pcm_s32le(unsigned char *data, unsigned int nsamples,
 			     mad_fixed_t const *left, mad_fixed_t const *right,
-			     int mode)
+			     enum audio_mode mode)
 {
-  static mad_fixed_t left_err, right_err;
   unsigned int len;
   register signed long sample;
 
@@ -461,9 +607,8 @@ unsigned int audio_pcm_s32le(unsigned char *data, unsigned int nsamples,
  */
 unsigned int audio_pcm_s32be(unsigned char *data, unsigned int nsamples,
 			     mad_fixed_t const *left, mad_fixed_t const *right,
-			     int mode)
+			     enum audio_mode mode)
 {
-  static mad_fixed_t left_err, right_err;
   unsigned int len;
   register signed long sample;
 
@@ -664,9 +809,8 @@ unsigned char audio_mulaw_dither(mad_fixed_t sample, mad_fixed_t *error)
  */
 unsigned int audio_pcm_mulaw(unsigned char *data, unsigned int nsamples,
 			     mad_fixed_t const *left, mad_fixed_t const *right,
-			     int mode)
+			     enum audio_mode mode)
 {
-  static mad_fixed_t left_err, right_err;
   unsigned int len;
 
   len = nsamples;

@@ -16,18 +16,26 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_raw.c,v 1.9 2000/09/24 02:30:31 rob Exp $
+ * $Id: audio_raw.c,v 1.11 2000/10/25 21:51:39 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
 # endif
 
+# include "global.h"
+
 # include <stdio.h>
 # include <string.h>
 
 # include "mad.h"
 # include "audio.h"
+
+# if defined(WORDS_BIGENDIAN)
+#  define audio_pcm_s16  audio_pcm_s16be
+# else
+#  define audio_pcm_s16  audio_pcm_s16le
+# endif
 
 static FILE *outfile;
 
@@ -58,8 +66,8 @@ int play(struct audio_play *play)
 {
   unsigned char data[MAX_NSAMPLES * 2 * 2];
 
-  audio_pcm_s16le(data, play->nsamples,
-		  play->samples[0], play->samples[1], play->mode);
+  audio_pcm_s16(data, play->nsamples,
+		play->samples[0], play->samples[1], play->mode);
 
   if (fwrite(data, play->samples[1] ? 4 : 2,
 	     play->nsamples, outfile) != play->nsamples) {
@@ -87,16 +95,16 @@ int audio_raw(union audio_control *control)
   audio_error = 0;
 
   switch (control->command) {
-  case audio_cmd_init:
+  case AUDIO_COMMAND_INIT:
     return init(&control->init);
 
-  case audio_cmd_config:
+  case AUDIO_COMMAND_CONFIG:
     return config(&control->config);
 
-  case audio_cmd_play:
+  case AUDIO_COMMAND_PLAY:
     return play(&control->play);
 
-  case audio_cmd_finish:
+  case AUDIO_COMMAND_FINISH:
     return finish(&control->finish);
   }
 

@@ -16,12 +16,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madmix.c,v 1.7 2000/09/24 02:27:20 rob Exp $
+ * $Id: madmix.c,v 1.9 2000/10/25 21:51:40 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
 # endif
+
+# include "global.h"
 
 # include <stdio.h>
 # include <stdarg.h>
@@ -30,9 +32,7 @@
 # include <unistd.h>
 # include <errno.h>
 
-# ifdef HAVE_GETOPT_H
-#  include <getopt.h>
-# endif
+# include "getopt.h"
 
 # include "mad.h"
 # include "audio.h"
@@ -76,7 +76,7 @@ void error(char const *id, char const *format, ...)
   }
   else {
     vfprintf(stderr, format, args);
-    putc('\n', stderr);
+    fputc('\n', stderr);
   }
 
   va_end(args);
@@ -96,7 +96,7 @@ int do_output(int (*audio)(union audio_control *),
 
   if (channels != MAD_NCHANNELS(frame) ||
       speed    != frame->sfreq) {
-    control.command = audio_cmd_config;
+    control.command = AUDIO_COMMAND_CONFIG;
 
     control.config.channels = MAD_NCHANNELS(frame);
     control.config.speed    = frame->sfreq;
@@ -110,11 +110,11 @@ int do_output(int (*audio)(union audio_control *),
     speed    = frame->sfreq;
   }
 
-  control.command = audio_cmd_play;
+  control.command = AUDIO_COMMAND_PLAY;
 
-  control.play.nsamples   = synth->pcmlen;
-  control.play.samples[0] = synth->pcmout[0];
-  control.play.samples[1] = synth->pcmout[1];
+  control.play.nsamples   = synth->pcm.length;
+  control.play.samples[0] = synth->pcm.samples[0];
+  control.play.samples[1] = synth->pcm.samples[1];
   control.play.mode       = AUDIO_MODE_DITHER;
 
   if (audio(&control) == -1) {
@@ -192,7 +192,7 @@ int do_mix(struct audio *mix, int ninputs, int (*audio)(union audio_control *))
     do_output(audio, &frame, &synth);
   }
 
-  mad_synth_finish(&syth);
+  mad_synth_finish(&synth);
   mad_frame_finish(&frame);
 
   return 0;
@@ -207,7 +207,7 @@ int audio_init(int (*audio)(union audio_control *), char const *path)
 {
   union audio_control control;
 
-  control.command   = audio_cmd_init;
+  control.command   = AUDIO_COMMAND_INIT;
   control.init.path = path;
 
   if (audio(&control) == -1) {
@@ -227,7 +227,7 @@ int audio_finish(int (*audio)(union audio_control *))
 {
   union audio_control control;
 
-  control.command = audio_cmd_finish;
+  control.command = AUDIO_COMMAND_FINISH;
 
   if (audio(&control) == -1) {
     error("audio", audio_error);
@@ -244,7 +244,7 @@ int audio_finish(int (*audio)(union audio_control *))
 static
 void usage(char const *argv0)
 {
-  error("Usage", "%s input1 [input2 ...]", argv0);
+  fprintf(stderr, _("Usage: %s input1 [input2 ...]"), argv0);
 }
 
 /*
@@ -262,8 +262,9 @@ int main(int argc, char *argv[])
   if (argc > 1) {
     if (strcmp(argv[1], "--version") == 0) {
       printf("%s - %s\n", mad_version, mad_copyright);
-      printf("Build options: %s\n", mad_build);
-      fprintf(stderr, "`%s --license' for licensing information.\n", argv[0]);
+      printf(_("Build options: %s\n"), mad_build);
+      fprintf(stderr, _("`%s --license' for licensing information.\n"),
+	      argv[0]);
       return 0;
     }
     if (strcmp(argv[1], "--license") == 0) {
@@ -287,7 +288,7 @@ int main(int argc, char *argv[])
 
       output = audio_output(&opath);
       if (output == 0) {
-	error(0, "%s: unknown output format type", opath);
+	error(0, _("%s: unknown output format type"), opath);
 	return 2;
       }
       break;
@@ -313,11 +314,11 @@ int main(int argc, char *argv[])
 
   mix = malloc(ninputs * sizeof(*mix));
   if (mix == 0) {
-    error(0, "not enough memory to allocate mixing buffers");
+    error(0, _("not enough memory to allocate mixing buffers"));
     return 3;
   }
 
-  printf("mixing %d stream%s\n", ninputs, ninputs == 1 ? "" : "s");
+  printf(_("mixing %d streams\n"), ninputs);
 
   for (i = 0; i < ninputs; ++i) {
     if (strcmp(argv[optind + i], "-") == 0) {

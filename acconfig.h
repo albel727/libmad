@@ -16,16 +16,43 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: acconfig.h,v 1.10 2000/09/24 17:49:25 rob Exp $
+ * $Id: acconfig.h,v 1.12 2000/10/25 21:51:39 rob Exp $
  */
+
+# ifndef CONFIG_H
+# define CONFIG_H
 
 /*****************************************************************************
  * Definitions selected automatically by `configure'                         *
  *****************************************************************************/
 @TOP@
 
+/* Define to the name of the distribution.  */
+#undef PACKAGE
+
+/* Define to the version of the distribution.  */
+#undef VERSION
+
 /* Define to be the name of your default audio output module. */
 #define AUDIO_DEFAULT 0
+
+/* Define if you have mmap() and you want to use it. */
+#undef USE_MMAP
+
+/* Define to 1 if NLS is requested.  */
+#undef ENABLE_NLS
+
+/* Define as 1 if you have catgets and don't want to use GNU gettext.  */
+#undef HAVE_CATGETS
+
+/* Define as 1 if you have gettext and don't want to use GNU gettext.  */
+#undef HAVE_GETTEXT
+
+/* Define if your locale.h file contains LC_MESSAGES.  */
+#undef HAVE_LC_MESSAGES
+
+/* Define as 1 if you have the stpcpy function.  */
+#undef HAVE_STPCPY
 
 /* Define to enable diagnostic debugging support. */
 #undef DEBUG
@@ -37,16 +64,8 @@
 #undef EXPERIMENTAL
 
 @BOTTOM@
-
 /*****************************************************************************
  * End of automatically configured definitions                               *
  *****************************************************************************/
 
-# if defined(DEBUG) && defined(NDEBUG)
-#  error "cannot define both DEBUG and NDEBUG"
 # endif
-
-# ifdef DEBUG
-#  include <stdio.h>
-# endif
-

@@ -16,8 +16,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: id3v2.h,v 1.2 2000/03/19 06:43:38 rob Exp $
+ * $Id: id3v2.h,v 1.3 2000/10/25 21:51:39 rob Exp $
  */
+
+# ifndef ID3V2_H
+# define ID3V2_H
 
 struct id3v2_frame {
   char const *id;
@@ -29,3 +32,4 @@ struct id3v2_frame {
 struct id3v2_frame const *id3v2_hash(register char const *,
 				     register unsigned int);
 
+# endif

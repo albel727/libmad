@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: resample.h,v 1.1 2000/09/08 00:47:25 rob Exp $
+ * $Id: resample.h,v 1.2 2000/10/25 21:51:40 rob Exp $
  */
 
 # ifndef RESAMPLE_H
@@ -39,4 +39,3 @@ unsigned int resample_block(struct resample_state *, unsigned int nsamples,
 			    mad_fixed_t const *, mad_fixed_t *);
 
 # endif
-

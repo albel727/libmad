@@ -16,12 +16,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: resample.c,v 1.3 2000/09/24 17:49:25 rob Exp $
+ * $Id: resample.c,v 1.4 2000/10/25 21:51:40 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
 # endif
+
+# include "global.h"
 
 # include <string.h>
 

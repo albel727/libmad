@@ -16,12 +16,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_oss.c,v 1.15 2000/09/24 17:49:25 rob Exp $
+ * $Id: audio_oss.c,v 1.16 2000/10/25 21:51:39 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
 # endif
+
+# include "global.h"
 
 # include <unistd.h>
 # include <fcntl.h>
@@ -53,7 +55,7 @@
 static int sfd;
 static unsigned int (*audio_pcm)(unsigned char *, unsigned int,
 				 mad_fixed_t const *, mad_fixed_t const *,
-				 int);
+				 enum audio_mode);
 
 static
 int init(struct audio_init *init)
@@ -122,7 +124,7 @@ int config(struct audio_config *config)
     break;
 
   default:
-    audio_error = "no supported audio format available";
+    audio_error = _("no supported audio format available");
     return -1;
   }
 
@@ -133,7 +135,7 @@ int config(struct audio_config *config)
   }
 
   if (channels != config->channels) {
-    audio_error = "required number of channels not available";
+    audio_error = _("required number of channels not available");
     return -1;
   }
 
@@ -144,7 +146,7 @@ int config(struct audio_config *config)
   }
 
   if (speed != config->speed) {
-    audio_error = "sample speed not available";
+    audio_error = _("sample speed not available");
     config->speed = speed;
   }
 
@@ -204,16 +206,16 @@ int audio_oss(union audio_control *control)
   audio_error = 0;
 
   switch (control->command) {
-  case audio_cmd_init:
+  case AUDIO_COMMAND_INIT:
     return init(&control->init);
 
-  case audio_cmd_config:
+  case AUDIO_COMMAND_CONFIG:
     return config(&control->config);
 
-  case audio_cmd_play:
+  case AUDIO_COMMAND_PLAY:
     return play(&control->play);
 
-  case audio_cmd_finish:
+  case AUDIO_COMMAND_FINISH:
     return finish(&control->finish);
   }
 

@@ -16,12 +16,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: id3.c,v 1.7 2000/09/24 17:49:25 rob Exp $
+ * $Id: id3.c,v 1.8 2000/10/25 21:51:39 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
 # endif
+
+# include "global.h"
 
 # include <sys/types.h>
 # include <unistd.h>
@@ -36,52 +38,52 @@ char const *id3_error;
 
 static
 char const *const genre_str[] = {
-  "Blues",		"Classic Rock",		"Country",
-  "Dance",		"Disco",		"Funk",
-  "Grunge",		"Hip-Hop",		"Jazz",
-  "Metal",		"New Age",		"Oldies",
-  "Other",		"Pop",			"R&B",
-  "Rap",		"Reggae",		"Rock",
-  "Techno",		"Industrial",		"Alternative",
-  "Ska",		"Death Metal",		"Pranks",
-  "Soundtrack",		"Euro-Techno",		"Ambient",
-  "Trip-Hop",		"Vocal",		"Jazz+Funk",
-  "Fusion",		"Trance",		"Classical",
-  "Instrumental",	"Acid",			"House",
-  "Game",		"Sound Clip",		"Gospel",
-  "Noise",		"AlternRock",		"Bass",
-  "Soul",		"Punk",			"Space",
-  "Meditative",		"Instrumental Pop",	"Instrumental Rock",
-  "Ethnic",		"Gothic",		"Darkwave",
-  "Techno-Industrial",	"Electronic",		"Pop-Folk",
-  "Eurodance",		"Dream",		"Southern Rock",
-  "Comedy",		"Cult",			"Gangsta",
-  "Top 40",		"Christian Rap",	"Pop/Funk",
-  "Jungle",		"Native American",	"Cabaret",
-  "New Wave",		"Psychadelic",		"Rave",
-  "Showtunes",		"Trailer",		"Lo-Fi",
-  "Tribal",		"Acid Punk",		"Acid Jazz",
-  "Polka",		"Retro",		"Musical",
-  "Rock & Roll",	"Hard Rock",
+  /* ID3 tag genre names */
+  N_("Blues"),		     N_("Classic Rock"),       N_("Country"),
+  N_("Dance"),		     N_("Disco"),	       N_("Funk"),
+  N_("Grunge"),		     N_("Hip-Hop"),	       N_("Jazz"),
+  N_("Metal"),		     N_("New Age"),	       N_("Oldies"),
+  N_("Other"),		     N_("Pop"),		       N_("R&B"),
+  N_("Rap"),		     N_("Reggae"),	       N_("Rock"),
+  N_("Techno"),		     N_("Industrial"),	       N_("Alternative"),
+  N_("Ska"),		     N_("Death Metal"),	       N_("Pranks"),
+  N_("Soundtrack"),	     N_("Euro-Techno"),	       N_("Ambient"),
+  N_("Trip-Hop"),	     N_("Vocal"),	       N_("Jazz+Funk"),
+  N_("Fusion"),		     N_("Trance"),	       N_("Classical"),
+  N_("Instrumental"),	     N_("Acid"),	       N_("House"),
+  N_("Game"),		     N_("Sound Clip"),	       N_("Gospel"),
+  N_("Noise"),		     N_("AlternRock"),	       N_("Bass"),
+  N_("Soul"),		     N_("Punk"),	       N_("Space"),
+  N_("Meditative"),	     N_("Instrumental Pop"),   N_("Instrumental Rock"),
+  N_("Ethnic"),		     N_("Gothic"),	       N_("Darkwave"),
+  N_("Techno-Industrial"),   N_("Electronic"),	       N_("Pop-Folk"),
+  N_("Eurodance"),	     N_("Dream"),	       N_("Southern Rock"),
+  N_("Comedy"),		     N_("Cult"),	       N_("Gangsta"),
+  N_("Top 40"),		     N_("Christian Rap"),      N_("Pop/Funk"),
+  N_("Jungle"),		     N_("Native American"),    N_("Cabaret"),
+  N_("New Wave"),	     N_("Psychadelic"),	       N_("Rave"),
+  N_("Showtunes"),	     N_("Trailer"),	       N_("Lo-Fi"),
+  N_("Tribal"),		     N_("Acid Punk"),	       N_("Acid Jazz"),
+  N_("Polka"),		     N_("Retro"),	       N_("Musical"),
+  N_("Rock & Roll"),	     N_("Hard Rock"),
 
   /* Winamp extensions */
-
-  "Folk",		"Folk-Rock",		"National Folk",
-  "Swing",		"Fast Fusion",		"Bebob",
-  "Latin",		"Revival",		"Celtic",
-  "Bluegrass",		"Avantgarde",		"Gothic Rock",
-  "Progressive Rock",	"Psychedelic Rock",	"Symphonic Rock",
-  "Slow Rock",		"Big Band",		"Chorus",
-  "Easy Listening",	"Acoustic",		"Humour",
-  "Speech",		"Chanson",		"Opera",
-  "Chamber Music",	"Sonata",		"Symphony",
-  "Booty Bass",		"Primus",		"Porn Groove",
-  "Satire",		"Slow Jam",		"Club",
-  "Tango",		"Samba",		"Folklore",
-  "Ballad",		"Power Ballad",		"Rhythmic Soul",
-  "Freestyle",		"Duet",			"Punk Rock",
-  "Drum Solo",		"A capella",		"Euro-House",
-  "Dance Hall"
+  N_("Folk"),		     N_("Folk-Rock"),	       N_("National Folk"),
+  N_("Swing"),		     N_("Fast Fusion"),	       N_("Bebob"),
+  N_("Latin"),		     N_("Revival"),	       N_("Celtic"),
+  N_("Bluegrass"),	     N_("Avantgarde"),	       N_("Gothic Rock"),
+  N_("Progressive Rock"),    N_("Psychedelic Rock"),   N_("Symphonic Rock"),
+  N_("Slow Rock"),	     N_("Big Band"),	       N_("Chorus"),
+  N_("Easy Listening"),	     N_("Acoustic"),	       N_("Humour"),
+  N_("Speech"),		     N_("Chanson"),	       N_("Opera"),
+  N_("Chamber Music"),	     N_("Sonata"),	       N_("Symphony"),
+  N_("Booty Bass"),	     N_("Primus"),	       N_("Porn Groove"),
+  N_("Satire"),		     N_("Slow Jam"),	       N_("Club"),
+  N_("Tango"),		     N_("Samba"),	       N_("Folklore"),
+  N_("Ballad"),		     N_("Power Ballad"),       N_("Rhythmic Soul"),
+  N_("Freestyle"),	     N_("Duet"),	       N_("Punk Rock"),
+  N_("Drum Solo"),	     N_("A capella"),	       N_("Euro-House"),
+  N_("Dance Hall")
 };
 
 # define NGENRES	(sizeof(genre_str) / sizeof(genre_str[0]))
@@ -108,10 +110,10 @@ void id3_v1_show(int (*message)(char const *, ...),
   memcpy(comment, &tag[97], 30);
 
   index = tag[127];
-  genre = (index < NGENRES) ? genre_str[index] : "";
+  genre = (index < NGENRES) ? gettext(genre_str[index]) : "";
 
-  message(" Title: %-30s  Artist: %s\n"
-	  " Album: %-30s   Genre: %s\n",
+  message(_(" Title: %-30s  Artist: %s\n"
+	    " Album: %-30s   Genre: %s\n"),
 	  title, artist, album, genre);
 
   if (comment[28] == 0 && comment[29] != 0) {
@@ -121,11 +123,11 @@ void id3_v1_show(int (*message)(char const *, ...),
 
     track = comment[29];
 
-    message("  Year: %-4s  Track: %-3u               Comment: %s\n",
+    message(_("  Year: %-4s  Track: %-3u               Comment: %s\n"),
 	    year, track, comment);
   }
   else {
-    message("  Year: %-4s                           Comment: %s\n",
+    message(_("  Year: %-4s                           Comment: %s\n"),
 	    year, comment);
   }
 }
@@ -209,11 +211,11 @@ int id3_v2_read(int (*message)(char const *, ...),
   int result = 0;
 
   enum {
-    flag_unsync       = 0x0080,
-    flag_extended     = 0x0040,
-    flag_experimental = 0x0020,
+    FLAG_UNSYNC       = 0x0080,
+    FLAG_EXTENDED     = 0x0040,
+    FLAG_EXPERIMENTAL = 0x0020,
 
-    flag_unknown      = 0x001f
+    FLAG_UNKNOWN      = 0x001f
   };
 
   if (buflen < 10) {
@@ -231,7 +233,7 @@ int id3_v2_read(int (*message)(char const *, ...),
 	goto fail;
       }
       else if (len == 0) {
-	id3_error = "EOF while reading tag";
+	id3_error = _("EOF while reading tag");
 	goto fail;
       }
     }
@@ -248,7 +250,7 @@ int id3_v2_read(int (*message)(char const *, ...),
   if (header[3] == 0xff || header[4] == 0xff ||
       (header[6] & 0x80) || (header[7] & 0x80) ||
       (header[8] & 0x80) || (header[9] & 0x80)) {
-    id3_error = "invalid header";
+    id3_error = _("invalid header");
     goto fail;
   }
 
@@ -267,12 +269,12 @@ int id3_v2_read(int (*message)(char const *, ...),
     goto abort;
 
   if (version.major < 2 || version.major > 3) {
-    message("ID3: version 2.%u.%u not supported\n",
+    message(_("ID3: version 2.%u.%u not supported\n"),
 	    version.major, version.revision);
     goto abort;
   }
 
-  message("ID3: version 2.%u.%u, flags 0x%02x, size %lu bytes\n",
+  message(_("ID3: version 2.%u.%u, flags 0x%02x, size %lu bytes\n"),
 	  version.major, version.revision, flags, size);
 
   if (size == 0)
@@ -280,7 +282,7 @@ int id3_v2_read(int (*message)(char const *, ...),
 
   tag = malloc(size);
   if (tag == 0) {
-    message("ID3: not enough memory to allocate tag buffer\n");
+    message(_("ID3: not enough memory to allocate tag buffer\n"));
     goto abort;
   }
 
@@ -299,7 +301,7 @@ int id3_v2_read(int (*message)(char const *, ...),
 	goto fail;
       }
       else if (len == 0) {
-	id3_error = "EOF while reading tag";
+	id3_error = _("EOF while reading tag");
 	goto fail;
       }
     }
@@ -313,12 +315,12 @@ int id3_v2_read(int (*message)(char const *, ...),
     buflen -= size;
   }
 
-  if (flags & flag_unknown)
-    message("ID3: unknown flags 0x%02x\n", flags & flag_unknown);
+  if (flags & FLAG_UNKNOWN)
+    message(_("ID3: unknown flags 0x%02x\n"), flags & FLAG_UNKNOWN);
 
   /* undo unsynchronisation */
 
-  if (flags & flag_unsync) {
+  if (flags & FLAG_UNSYNC) {
     unsigned char *new = tag;
 
     count = size;
@@ -338,7 +340,7 @@ int id3_v2_read(int (*message)(char const *, ...),
 
   /* extended header */
 
-  if ((flags & flag_extended) && end - ptr >= 4) {
+  if ((flags & FLAG_EXTENDED) && end - ptr >= 4) {
     unsigned int ext_flags;
     unsigned long padding;
 
@@ -348,7 +350,7 @@ int id3_v2_read(int (*message)(char const *, ...),
 
     if (count >= 6 && end - ptr >= count) {
       enum {
-	ext_flag_crc = 0x8000
+	EXT_FLAG_CRC = 0x8000
       };
 
       ext_flags = int16(&ptr[0]);
@@ -357,12 +359,12 @@ int id3_v2_read(int (*message)(char const *, ...),
       ptr   += 6;
       count -= 6;
 
-      message("ID3: extended header flags 0x%04x, %lu bytes padding\n",
+      message(_("ID3: extended header flags 0x%04x, %lu bytes padding\n"),
 	      ext_flags, padding);
 
       end -= padding;
 
-      if ((ext_flags & ext_flag_crc) &&
+      if ((ext_flags & EXT_FLAG_CRC) &&
 	  count >= 4 && end - ptr >= count) {
 	unsigned long crc;
 
@@ -372,7 +374,7 @@ int id3_v2_read(int (*message)(char const *, ...),
 	count -= 4;
 
 	/* FIXME: check CRC... */
-	message("ID3: total frame CRC 0x%04lx\n", crc);
+	message(_("ID3: total frame CRC 0x%04lx\n"), crc);
       }
     }
 
@@ -382,8 +384,8 @@ int id3_v2_read(int (*message)(char const *, ...),
 
   /* experimental notice */
 
-  if (flags & flag_experimental)
-    message("ID3: experimental tag\n");
+  if (flags & FLAG_EXPERIMENTAL)
+    message(_("ID3: experimental tag\n"));
 
   /* read frames */
 
@@ -393,13 +395,13 @@ int id3_v2_read(int (*message)(char const *, ...),
     struct id3v2_frame const *frame;
 
     enum {
-      frame_tag_alter_preserve  = 0x8000,
-      frame_file_alter_preserve = 0x4000,
-      frame_read_only           = 0x2000,
+      FRAME_TAG_ALTER_PRESERVE  = 0x8000,
+      FRAME_FILE_ALTER_PRESERVE = 0x4000,
+      FRAME_READ_ONLY           = 0x2000,
 
-      frame_compression         = 0x0080,
-      frame_encryption          = 0x0040,
-      frame_grouping_identity   = 0x0020
+      FRAME_COMPRESSION         = 0x0080,
+      FRAME_ENCRYPTION          = 0x0040,
+      FRAME_GROUPING_IDENTITY   = 0x0020
     };
 
     if (version.major == 2) {
@@ -438,12 +440,12 @@ int id3_v2_read(int (*message)(char const *, ...),
 		       frame_flags, ptr, size);
       }
       else {
-	message("ID3: unhandled %s (%s): flags 0x%04x, %lu bytes\n",
+	message(_("ID3: unhandled %s (%s): flags 0x%04x, %lu bytes\n"),
 		frame->id, frame->description, frame_flags, size);
       }
     }
     else {
-      message("ID3: unknown frame \"%s\" (flags 0x%04x; %lu bytes)\n",
+      message(_("ID3: unknown frame \"%s\" (flags 0x%04x; %lu bytes)\n"),
 	      id, frame_flags, size);
     }
 
@@ -483,6 +485,7 @@ unsigned long content_type(unsigned char const *ptr, unsigned long size,
   while (ptr < end && *ptr == '(') {
     unsigned char const *start;
     unsigned int genre;
+    char const *str;
 
     start = ptr++;
 
@@ -503,9 +506,11 @@ unsigned long content_type(unsigned char const *ptr, unsigned long size,
 	++count;
       }
 
+      str = (*ptr == 'R') ? _("Remix") : _("Cover");
+
       if (text)
-	strcat(text, *ptr == 'R' ? "Remix" : "Cover");
-      count += 5;
+	strcat(text, str);
+      count += strlen(str);
 
       ptr += 3;
       continue;
@@ -536,9 +541,11 @@ unsigned long content_type(unsigned char const *ptr, unsigned long size,
       ++count;
     }
 
+    str = gettext(genre_str[genre]);
+
     if (text)
-      strcat(text, genre_str[genre]);
-    count += strlen(genre_str[genre]);
+      strcat(text, str);
+    count += strlen(str);
   }
 
   if (text) {
@@ -563,12 +570,12 @@ void id3_text(int (*message)(char const *, ...),
   unsigned long count;
 
   if (size == 0) {
-    message("ID3: %s: no data\n", id);
+    message(_("ID3: %s: no data\n"), id);
     return;
   }
 
   if (*data) {
-    message("ID3: %s: Unicode\n", description);
+    message(_("ID3: %s: Unicode\n"), description);
     return;
   }
 
@@ -579,7 +586,7 @@ void id3_text(int (*message)(char const *, ...),
 
   text = malloc(count + 1);
   if (text == 0) {
-    message("ID3: %s: not enough memory\n", description);
+    message(_("ID3: %s: not enough memory\n"), description);
     return;
   }
 
@@ -609,12 +616,12 @@ void id3_comment(int (*message)(char const *, ...),
   unsigned long len;
 
   if (size == 0) {
-    message("ID3: %s: no data\n", id);
+    message(_("ID3: %s: no data\n"), id);
     return;
   }
 
   if (*data) {
-    message("ID3: %s: Unicode\n", description);
+    message(_("ID3: %s: Unicode\n"), description);
     return;
   }
 
@@ -639,7 +646,7 @@ void id3_comment(int (*message)(char const *, ...),
 
   text = malloc(len + 1);
   if (text == 0) {
-    message("ID3: %s: not enough memory\n", description);
+    message(_("ID3: %s: not enough memory\n"), description);
     return;
   }
 
@@ -655,5 +662,5 @@ void id3_comment(int (*message)(char const *, ...),
   return;
 
  fail:
-  message("ID3: %s: bad format\n", id);
+  message(_("ID3: %s: bad format\n"), id);
 }

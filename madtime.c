@@ -16,11 +16,17 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madtime.c,v 1.8 2000/09/08 00:47:25 rob Exp $
+ * $Id: madtime.c,v 1.11 2000/10/25 21:51:40 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
+# endif
+
+# include "global.h"
+
+# if !defined(HAVE_MMAP)
+#  error "madtime currently requires mmap() support"
 # endif
 
 # include <stdio.h>
@@ -31,12 +37,11 @@
 # include <unistd.h>
 # include <string.h>
 # include <sys/mman.h>
+# include <locale.h>
 
-# ifdef HAVE_GETOPT_H
-#  include <getopt.h>
-# endif
+# include "getopt.h"
 
-# ifndef O_BINARY
+# if !defined(O_BINARY)
 #  define O_BINARY  0
 # endif
 
@@ -44,7 +49,7 @@
 
 static
 signed int scan(unsigned char const *ptr, unsigned long len,
-		struct mad_timer *duration)
+		mad_timer_t *duration)
 {
   struct mad_stream stream;
   struct mad_frame frame;
@@ -59,7 +64,7 @@ signed int scan(unsigned char const *ptr, unsigned long len,
   bitrate = kbps = count = vbr = 0;
 
   while (1) {
-    if (mad_frame_header(&frame, &stream, 0) == -1) {
+    if (mad_frame_header(&frame, &stream) == -1) {
       if (MAD_RECOVERABLE(stream.error))
 	continue;
       else
@@ -74,7 +79,7 @@ signed int scan(unsigned char const *ptr, unsigned long len,
     kbps += bitrate / 1000;
     ++count;
 
-    mad_timer_add(duration, &frame.duration);
+    mad_timer_add(duration, frame.duration);
   }
 
   mad_frame_finish(&frame);
@@ -87,7 +92,7 @@ signed int scan(unsigned char const *ptr, unsigned long len,
 }
 
 static
-int calc(char const *path, struct mad_timer *duration,
+int calc(char const *path, mad_timer_t *duration,
 	 signed int *kbps, unsigned long *kbytes)
 {
   int fd;
@@ -107,7 +112,7 @@ int calc(char const *path, struct mad_timer *duration,
   }
 
   if (!S_ISREG(stat.st_mode)) {
-    fprintf(stderr, "%s: Not a regular file\n", path);
+    fprintf(stderr, _("%s: Not a regular file\n"), path);
     close(fd);
     return -1;
   }
@@ -142,21 +147,27 @@ int calc(char const *path, struct mad_timer *duration,
 }
 
 static
-void show(struct mad_timer const *duration, signed int kbps,
+void show(mad_timer_t duration, signed int kbps,
 	  unsigned long kbytes, char const *label)
 {
-  char duration_str[13];
+  char duration_str[19], *point;
 
-  mad_timer_str(duration, duration_str, "%4u:%02u:%02u.%1u", MAD_TIMER_HOURS);
+  mad_timer_string(duration, duration_str,
+		   "%4lu:%02u:%02u.%1u", MAD_UNITS_HOURS,
+		   MAD_UNITS_DECISECONDS, 0);
 
-  printf("%8.1f MB  %c%3u kbps  %s  %s\n", kbytes / 1024.0,
+  point = strchr(duration_str, '.');
+  if (point)
+    *point = *localeconv()->decimal_point;
+
+  printf(_("%8.1f MB  %c%3u kbps  %s  %s\n"), kbytes / 1024.0,
 	 kbps < 0 ? '~' : ' ', abs(kbps), duration_str, label);
 }
 
 static
 void usage(char const *argv0)
 {
-  fprintf(stderr, "Usage: %s [-s] file.mpg [...]\n", argv0);
+  fprintf(stderr, _("Usage: %s [-s] FILE [...]\n"), argv0);
 }
 
 /*
@@ -165,10 +176,18 @@ void usage(char const *argv0)
  */
 int main(int argc, char *argv[])
 {
-  struct mad_timer total;
+  mad_timer_t total;
   unsigned long total_kbps, total_kbytes, count;
   signed int bitrate;
   int vbr, opt, i, sum_only = 0;
+
+  /* internationalization support */
+
+  setlocale(LC_ALL, "");
+  bindtextdomain(PACKAGE, LOCALEDIR);
+  textdomain(PACKAGE);
+
+  /* initialize and get options */
 
   while ((opt = getopt(argc, argv, "s")) != -1) {
     switch (opt) {
@@ -187,24 +206,24 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  mad_timer_init(&total);
+  /* main processing */
+
+  total = mad_timer_zero;
 
   total_kbps = total_kbytes = count = bitrate = vbr = 0;
 
   for (i = optind; i < argc; ++i) {
-    struct mad_timer duration;
+    mad_timer_t duration = mad_timer_zero;
     signed int kbps;
     unsigned long kbytes;
-
-    mad_timer_init(&duration);
 
     if (calc(argv[i], &duration, &kbps, &kbytes) == -1)
       continue;
 
     if (!sum_only)
-      show(&duration, kbps, kbytes, argv[i]);
+      show(duration, kbps, kbytes, argv[i]);
 
-    mad_timer_add(&total, &duration);
+    mad_timer_add(&total, duration);
 
     total_kbytes += kbytes;
 
@@ -217,19 +236,15 @@ int main(int argc, char *argv[])
       vbr = 1;
 
     bitrate = kbps;
-
-    mad_timer_finish(&duration);
   }
 
   if (count == 0)
     count = 1;
 
   if (argc > 2 || sum_only) {
-    show(&total, ((total_kbps * 2) / count + 1) / 2 * (vbr ? -1 : 1),
-	 total_kbytes, "TOTAL");
+    show(total, ((total_kbps * 2) / count + 1) / 2 * (vbr ? -1 : 1),
+	 total_kbytes, _("TOTAL"));
   }
-
-  mad_timer_finish(&total);
 
   return 0;
 }

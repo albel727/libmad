@@ -16,12 +16,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_win32.c,v 1.35 2000/09/24 02:30:50 rob Exp $
+ * $Id: audio_win32.c,v 1.40 2000/10/25 21:51:39 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
 # endif
+
+# include "global.h"
 
 # include <windows.h>
 # include <mmsystem.h>
@@ -52,7 +54,7 @@ char const *error_text(MMRESULT result)
   static char buffer[MAXERRORLENGTH];
 
   if (waveOutGetErrorText(result, buffer, sizeof(buffer)) != MMSYSERR_NOERROR)
-    return "error getting error text";
+    return _("error getting error text");
 
   return buffer;
 }
@@ -71,7 +73,7 @@ int init(struct audio_init *init)
       while (i--)
 	CloseHandle(output[i].event_handle);
 
-      audio_error = "failed to create synchronization object";
+      audio_error = _("failed to create synchronization object");
       return -1;
     }
 
@@ -112,23 +114,31 @@ void CALLBACK callback(HWAVEOUT handle, UINT message, DWORD data,
 }
 
 static
-int open_dev(HWAVEOUT *handle, unsigned short channels, unsigned int speed)
+void set_format(WAVEFORMATEX *format, unsigned int channels,
+		unsigned int speed, unsigned int bits)
 {
-  WAVEFORMATEX format;
   unsigned int block_al;
   unsigned long bytes_ps;
-  MMRESULT error;
 
-  block_al = channels * (16 / 8);
+  block_al = channels * bits / 8;
   bytes_ps = speed * block_al;
 
-  format.wFormatTag      = WAVE_FORMAT_PCM;
-  format.nChannels       = channels;
-  format.nSamplesPerSec  = speed;
-  format.nAvgBytesPerSec = bytes_ps;
-  format.nBlockAlign     = block_al;
-  format.wBitsPerSample  = 16;
-  format.cbSize          = 0;
+  format->wFormatTag      = WAVE_FORMAT_PCM;
+  format->nChannels       = channels;
+  format->nSamplesPerSec  = speed;
+  format->nAvgBytesPerSec = bytes_ps;
+  format->nBlockAlign     = block_al;
+  format->wBitsPerSample  = bits;
+  format->cbSize          = 0;
+}
+
+static
+int open_dev(HWAVEOUT *handle, unsigned int channels, unsigned int speed)
+{
+  WAVEFORMATEX format;
+  MMRESULT error;
+
+  set_format(&format, channels, speed, 16);
 
   error = waveOutOpen(handle, WAVE_MAPPER, &format,
 		      (DWORD) callback, 0, CALLBACK_FUNCTION);
@@ -200,16 +210,16 @@ int wait(struct buffer *buffer)
     break;
 
   case WAIT_ABANDONED:
-    audio_error = "wait abandoned";
+    audio_error = _("wait abandoned");
     return -1;
 
   case WAIT_TIMEOUT:
-    audio_error = "wait timeout";
+    audio_error = _("wait timeout");
     return -1;
 
   case WAIT_FAILED:
   default:
-    audio_error = "wait failed";
+    audio_error = _("wait failed");
     return -1;
   }
 
@@ -308,7 +318,7 @@ int finish(struct audio_finish *finish)
 
   for (i = 0; i < NBUFFERS; ++i) {
     if (CloseHandle(output[i].event_handle) == 0 && result == 0) {
-      audio_error = "failed to close synchronization object";
+      audio_error = _("failed to close synchronization object");
       result = -1;
     }
   }
@@ -321,16 +331,16 @@ int audio_win32(union audio_control *control)
   audio_error = 0;
 
   switch (control->command) {
-  case audio_cmd_init:
+  case AUDIO_COMMAND_INIT:
     return init(&control->init);
 
-  case audio_cmd_config:
+  case AUDIO_COMMAND_CONFIG:
     return config(&control->config);
 
-  case audio_cmd_play:
+  case AUDIO_COMMAND_PLAY:
     return play(&control->play);
 
-  case audio_cmd_finish:
+  case AUDIO_COMMAND_FINISH:
     return finish(&control->finish);
   }
 

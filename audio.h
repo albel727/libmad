@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.h,v 1.16 2000/09/24 17:49:25 rob Exp $
+ * $Id: audio.h,v 1.20 2000/10/25 21:51:39 rob Exp $
  */
 
 # ifndef AUDIO_H
@@ -26,36 +26,41 @@
 
 # define MAX_NSAMPLES	(1152 * 3)	/* allow for resampled frame */
 
-enum {
-  audio_cmd_init,
-  audio_cmd_config,
-  audio_cmd_play,
-  audio_cmd_finish
+enum audio_command {
+  AUDIO_COMMAND_INIT,
+  AUDIO_COMMAND_CONFIG,
+  AUDIO_COMMAND_PLAY,
+  AUDIO_COMMAND_FINISH
+};
+
+enum audio_mode {
+  AUDIO_MODE_ROUND  = 0x0001,
+  AUDIO_MODE_DITHER = 0x0002
 };
 
 union audio_control {
-  short command;
+  enum audio_command command;
 
   struct audio_init {
-    short command;
+    enum audio_command command;
     char const *path;
   } init;
 
   struct audio_config {
-    short command;
-    unsigned short channels;
+    enum audio_command command;
+    unsigned int channels;
     unsigned int speed;
   } config;
 
   struct audio_play {
-    short command;
-    unsigned short nsamples;
+    enum audio_command command;
+    unsigned int nsamples;
     mad_fixed_t const *samples[2];
-    int mode;
+    enum audio_mode mode;
   } play;
 
   struct audio_finish {
-    short command;
+    enum audio_command command;
   } finish;
 };
 
@@ -72,7 +77,7 @@ audio_ctlfunc_t audio_win32;
 
 audio_ctlfunc_t audio_raw;
 audio_ctlfunc_t audio_wave;
-audio_ctlfunc_t audio_au;
+audio_ctlfunc_t audio_snd;
 audio_ctlfunc_t audio_hex;
 audio_ctlfunc_t audio_null;
 
@@ -80,24 +85,32 @@ signed long audio_linear_round(unsigned int, mad_fixed_t);
 signed long audio_linear_dither(unsigned int, mad_fixed_t, mad_fixed_t *);
 
 unsigned int audio_pcm_u8(unsigned char *, unsigned int,
-			  mad_fixed_t const *, mad_fixed_t const *, int);
+			  mad_fixed_t const *, mad_fixed_t const *,
+			  enum audio_mode);
 unsigned int audio_pcm_s16le(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *, int);
+			     mad_fixed_t const *, mad_fixed_t const *,
+			     enum audio_mode);
 unsigned int audio_pcm_s16be(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *, int);
+			     mad_fixed_t const *, mad_fixed_t const *,
+			     enum audio_mode);
+unsigned int audio_pcm_s24le(unsigned char *, unsigned int,
+			     mad_fixed_t const *, mad_fixed_t const *,
+			     enum audio_mode);
+unsigned int audio_pcm_s24be(unsigned char *, unsigned int,
+			     mad_fixed_t const *, mad_fixed_t const *,
+			     enum audio_mode);
 unsigned int audio_pcm_s32le(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *, int);
+			     mad_fixed_t const *, mad_fixed_t const *,
+			     enum audio_mode);
 unsigned int audio_pcm_s32be(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *, int);
+			     mad_fixed_t const *, mad_fixed_t const *,
+			     enum audio_mode);
 
 unsigned char audio_mulaw_round(mad_fixed_t);
 unsigned char audio_mulaw_dither(mad_fixed_t, mad_fixed_t *);
 
 unsigned int audio_pcm_mulaw(unsigned char *, unsigned int,
-			     mad_fixed_t const *, mad_fixed_t const *, int);
-
-# define AUDIO_MODE_ROUND	0x0001
-# define AUDIO_MODE_DITHER	0x0002
+			     mad_fixed_t const *, mad_fixed_t const *,
+			     enum audio_mode);
 
 # endif
-

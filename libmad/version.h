@@ -16,10 +16,25 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: version.h,v 1.5 2000/09/20 01:06:22 rob Exp $
+ * $Id: version.h,v 1.7 2000/10/25 21:52:32 rob Exp $
  */
 
-# define MAD_VERSION		"0.11.4 (beta)"
+# ifndef MAD_VERSION_H
+# define MAD_VERSION_H
+
+# define MAD_VERSION_MAJOR	0
+# define MAD_VERSION_MINOR	12
+# define MAD_VERSION_PATCH	0
+# define MAD_VERSION_EXTRA	" (alpha)"
+
+# define MAD_VERSION_STRINGIZE(str)	#str
+# define MAD_VERSION_STRING(num)	MAD_VERSION_STRINGIZE(num)
+
+# define MAD_VERSION		MAD_VERSION_STRING(MAD_VERSION_MAJOR) "."  \
+				MAD_VERSION_STRING(MAD_VERSION_MINOR) "."  \
+				MAD_VERSION_STRING(MAD_VERSION_PATCH)  \
+				MAD_VERSION_EXTRA
+
 # define MAD_PUBLISHYEAR	"2000"
 # define MAD_AUTHOR		"Robert Leslie"
 # define MAD_EMAIL		"rob@mars.org"
@@ -30,3 +45,4 @@ extern char const mad_author[];
 extern char const mad_license[];
 extern char const mad_build[];
 
+# endif

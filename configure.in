@@ -1,4 +1,4 @@
-dnl -*- shell-script -*-
+dnl -*- m4 -*-
 dnl
 dnl mad - MPEG audio decoder
 dnl Copyright (C) 2000 Robert Leslie
@@ -17,13 +17,14 @@ dnl You should have received a copy of the GNU General Public License
 dnl along with this program; if not, write to the Free Software
 dnl Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 dnl
-AC_REVISION([$Id: configure.in,v 1.26 2000/09/20 01:02:49 rob Exp $])dnl
+AC_REVISION([$Id: configure.in,v 1.30 2000/10/26 01:40:54 rob Exp $])dnl
 
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(libmad/decoder.h)
-AC_CONFIG_HEADER(config.h)
+AM_INIT_AUTOMAKE(mad, 0.12.0a)
 
+AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SUBDIRS(libmad)
 
 dnl System type.
@@ -35,6 +36,17 @@ dnl Checks for programs.
 AC_PROG_MAKE_SET
 AC_PROG_CC
 AC_PROG_INSTALL
+
+AC_ISC_POSIX
+
+AC_DISABLE_SHARED
+AM_PROG_LIBTOOL
+
+dnl Internationalization support.
+
+ALL_LINGUAS="en fr"
+
+AM_GNU_GETTEXT
 
 dnl Compiler options.
 
@@ -56,9 +68,9 @@ then
 	i386-*)      ARCH="" ;;
 	i?86-*)      ARCH="-m486" ;;
 	arm-empeg-*) ARCH="-march=armv4 -mtune=strongarm1100" ;;
-	arm-*)       ARCH="-march=armv4 -mtune=strongarm" ;;
-	mips-*)      ARCH="-mips3" ;;
-		     #-mcpu=vr4100
+	armv4*-*)    ARCH="-march=armv4 -mtune=strongarm" ;;
+	mips*-*)     ARCH="" ;;
+		     # -mips3 -mcpu=vr4100
     esac
 fi
 
@@ -70,7 +82,8 @@ case "$CFLAGS" in
     *-O*) OPTIMIZER="-O2" ;;
 esac
 
-CFLAGS=""
+CFLAGS=`echo ".$CFLAGS" |  \
+    sed -e 's/^\.//' -e 's/-g//' -e 's/-O.//' -e 's/-O//'`
 
 if test -n "$OPTIMIZER" && test "$GCC" = yes
 then
@@ -81,7 +94,6 @@ fi
 dnl Checks for header files.
 
 AC_HEADER_STDC
-AC_CHECK_HEADERS(getopt.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 
@@ -92,20 +104,30 @@ AC_C_BIGENDIAN
 dnl Checks for library functions.
 
 AC_FUNC_VPRINTF
+AC_REPLACE_FUNCS(strcasecmp strncasecmp)
 
 case "$host" in
     *-linux*) AC_DEFINE(HAVE_MMAP) ;;
     *)        AC_FUNC_MMAP ;;
 esac
 
-dnl Cache checkpoint.
+AC_MSG_CHECKING(whether to use mmap)
+AC_ARG_ENABLE(mmap,
+[  --disable-mmap     \
+     do not use mmap even if available (lower mem usage)], [
+    case "$enableval" in
+	yes) AC_DEFINE(USE_MMAP) ;;
+    esac
+], [
+    AC_DEFINE(USE_MMAP)
+])
+AC_MSG_RESULT(${enable_mmap-yes})
 
 AC_CACHE_SAVE
 
 dnl Select an audio system.
 
 AUDIO=""
-
 AC_SUBST(AUDIO)
 
 AC_MSG_CHECKING(for audio support)
@@ -113,7 +135,7 @@ AC_MSG_CHECKING(for audio support)
 audio="unknown"
 
 case "$host" in
-    arm-empeg-*) audio="empeg" ;;
+    arm*-empeg-*) audio="empeg" ;;
 esac
 
 if test "$audio" = unknown
@@ -153,16 +175,6 @@ else
     AUDIO="$audio.o"
 fi
 
-dnl Prepare target variables.
-
-MAKE_TARGETS="default"
-INSTALL_TARGETS="install_default"
-
-AC_SUBST(MAKE_TARGETS)
-AC_SUBST(INSTALL_TARGETS)
-
-dnl Other options.
-
 dnl libmad options...
 
 AC_ARG_ENABLE(speed,
@@ -181,13 +193,16 @@ AC_ARG_ENABLE(aso,
 
 dnl madplay options...
 
+AC_MSG_CHECKING(whether to enable profiling)
 AC_ARG_ENABLE(profiling,
     [  --enable-profiling      generate profiling code], [
     case "$enableval" in
 	yes) PROFILER="-pg" ;;
     esac
 ])
+AC_MSG_RESULT(${enable_profiling-no})
 
+AC_MSG_CHECKING(whether to enable debugging)
 AC_ARG_ENABLE(debugging,
     [  --enable-debugging      enable diagnostic debugging support
   --disable-debugging     do not enable debugging and use more optimization], [
@@ -195,6 +210,7 @@ AC_ARG_ENABLE(debugging,
 	yes)
 	    AC_DEFINE(DEBUG)
 	    AUDIO="$AUDIO audio_hex.o"
+	    OPTIMIZER=""
 	    ;;
 	no)
 	    if test -n "$PROFILER"
@@ -211,21 +227,21 @@ AC_ARG_ENABLE(debugging,
 	    ;;
     esac
 ])
+AC_MSG_RESULT(${enable_debugging-default})
 
+case "$enable_debugging" in
+    yes) AC_CHECK_LIB(efence, malloc) ;;
+esac
+
+AC_MSG_CHECKING(whether to enable experimental code)
 AC_ARG_ENABLE(experimental,
     [  --enable-experimental   enable experimental code], [
     case "$enableval" in
 	yes) AC_DEFINE(EXPERIMENTAL) ;;
     esac
 ])
-
-AC_ARG_ENABLE(devlib,
-    [  --enable-devlib         enable installation of developer library], [
-    case "$enableval" in
-	yes) INSTALL_TARGETS="$INSTALL_TARGETS install_lib" ;;
-    esac
-])
+AC_MSG_RESULT(${enable_experimental-no})
 
 dnl Create output files.
 
-AC_OUTPUT(Makefile)
+AC_OUTPUT(Makefile intl/Makefile po/Makefile.in)

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: minimad.c,v 1.9 2000/09/14 19:40:37 rob Exp $
+ * $Id: minimad.c,v 1.10 2000/10/25 21:51:40 rob Exp $
  */
 
 # include <stdio.h>
@@ -64,18 +64,19 @@ struct buffer {
 /* 2. called when more input is needed; refill stream buffer */
 
 static
-int input(void *data, struct mad_stream *stream)
+enum mad_flow input(void *data,
+		    struct mad_stream *stream)
 {
   struct buffer *buffer = data;
 
   if (!buffer->length)
-    return MAD_DECODER_STOP;
+    return MAD_FLOW_STOP;
 
   mad_stream_buffer(stream, buffer->start, buffer->length);
 
   buffer->length = 0;
 
-  return MAD_DECODER_CONTINUE;
+  return MAD_FLOW_CONTINUE;
 }
 
 /* utility to scale and round samples to 16 bits */
@@ -99,8 +100,9 @@ signed int scale(mad_fixed_t sample)
 /* 3. called to process output */
 
 static
-int output(void *data, struct mad_frame const *frame,
-	               struct mad_synth const *synth)
+enum mad_flow output(void *data,
+		     struct mad_frame const *frame,
+		     struct mad_pcm *pcm)
 {
   unsigned int nchannels, nsamples;
   mad_fixed_t const *left_ch, *right_ch;
@@ -108,9 +110,9 @@ int output(void *data, struct mad_frame const *frame,
   /* frame->sfreq contains the sampling frequency */
 
   nchannels = MAD_NCHANNELS(frame);
-  nsamples  = synth->pcmlen;
-  left_ch   = synth->pcmout[0];
-  right_ch  = synth->pcmout[1];
+  nsamples  = pcm->length;
+  left_ch   = pcm->samples[0];
+  right_ch  = pcm->samples[1];
 
   while (nsamples--) {
     signed int sample;
@@ -128,21 +130,22 @@ int output(void *data, struct mad_frame const *frame,
     }
   }
 
-  return MAD_DECODER_CONTINUE;
+  return MAD_FLOW_CONTINUE;
 }
 
 /* 4. called to handle a decoding error */
 
 static
-int error(void *data, struct mad_stream *stream,
-	              struct mad_frame *frame)
+enum mad_flow error(void *data,
+		    struct mad_stream *stream,
+		    struct mad_frame *frame)
 {
   struct buffer *buffer = data;
 
   fprintf(stderr, "decoding error 0x%04x at byte offset %u\n",
 	  stream->error, stream->this_frame - buffer->start);
 
-  return MAD_DECODER_STOP;
+  return MAD_FLOW_STOP;
 }
 
 /* 5. put it all together */
@@ -158,11 +161,13 @@ void decode(unsigned char const *start, unsigned long length)
 
   /* configure input, output, and error functions */
 
-  mad_decoder_init(&decoder, &buffer, input, 0 /* filter */, output, error);
+  mad_decoder_init(&decoder, &buffer,
+		   input, 0 /* header */, 0 /* filter */, output,
+		   error, 0 /* message */);
 
   /* start the decoder */
 
-  mad_decoder_run(&decoder, MAD_DECODER_SYNC);
+  mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
 
   mad_decoder_finish(&decoder);
 }
