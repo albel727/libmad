@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_wav.c,v 1.7 2000/04/22 04:36:50 rob Exp $
+ * $Id: audio_wav.c,v 1.8 2000/05/09 17:36:27 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -108,8 +108,8 @@ int config(struct audio_config *config)
 
   /* "fmt " chunk */
 
-  bytes_ps = config->channels * config->speed * (16 / 8);
   block_al = config->channels * (16 / 8);
+  bytes_ps = config->speed * block_al;
 
   memcpy(&chunk[0], "fmt ", 4);
   int4(&chunk[4], 16);

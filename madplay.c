@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.20 2000/04/22 04:36:50 rob Exp $
+ * $Id: madplay.c,v 1.22 2000/05/11 04:42:47 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -31,10 +31,15 @@
 # include <sys/stat.h>
 # include <fcntl.h>
 # include <unistd.h>
+# include <getopt.h>
 # include <errno.h>
 
 # ifdef HAVE_MMAP
 #  include <sys/mman.h>
+# endif
+
+# ifndef O_BINARY
+#  define O_BINARY  0
 # endif
 
 # include "libmad.h"
@@ -758,7 +763,7 @@ int main(int argc, char *argv[])
     }
     else {
       fname = argv[i];
-      fd = open(fname, O_RDONLY);
+      fd = open(fname, O_RDONLY | O_BINARY);
       if (fd == -1) {
 	error(0, ":", fname);
 	result = 3;

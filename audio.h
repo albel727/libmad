@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.h,v 1.7 2000/04/22 04:36:50 rob Exp $
+ * $Id: audio.h,v 1.9 2000/05/09 17:36:27 rob Exp $
  */
 
 # ifndef AUDIO_H
@@ -66,6 +66,7 @@ audio_ctlfunc_t audio_output(char const **);
 
 int audio_oss(union audio_control *);
 int audio_sun(union audio_control *);
+int audio_win32(union audio_control *);
 
 int audio_wav(union audio_control *);
 int audio_raw(union audio_control *);
