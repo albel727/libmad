@@ -16,15 +16,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: layer3.h,v 1.4 2001/01/21 00:18:15 rob Exp $
+ * $Id: compat.c,v 1.1 2001/01/21 03:10:52 rob Exp $
  */
 
-# ifndef MAD_LAYER3_H
-# define MAD_LAYER3_H
-
-# include "stream.h"
-# include "frame.h"
-
-int mad_layer_III(struct mad_stream *, struct mad_frame *);
-
+# ifdef HAVE_CONFIG_H
+#  include "config.h"
 # endif
+
+# include "global.h"
+
+void __assert(char *file, int line, char *expr)
+{
+}

@@ -1,6 +1,6 @@
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.44 2000/11/16 10:51:04 rob Exp $
+ * $Id: madplay.c,v 1.46 2001/01/21 00:18:09 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -31,6 +31,9 @@
 # include <stdlib.h>
 # include <string.h>
 # include <assert.h>
+# include <unistd.h>
+# include <ctype.h>
+# include <math.h>
 
 # include "getopt.h"
 
@@ -48,6 +51,8 @@ static int experimental = 0;
 
 static
 struct option const options[] = {
+  { "amplify",		required_argument, 0,		 'a' },
+  { "attenuate",	required_argument, 0,		 'a' },
   { "author",		no_argument,	   0,		-'a' },
   { "fade-in",		optional_argument, 0,		-'i' },
   { "help",		no_argument,	   0,		 'h' },
@@ -61,6 +66,7 @@ struct option const options[] = {
   { "right",		no_argument,	   0,		 '2' },
   { "shuffle",		no_argument,	   0,		 'z' },
   { "start",		required_argument, 0,		 's' },
+  { "stereo",		no_argument,	   0,		 'S' },
   { "time",		required_argument, 0,		 't' },
   { "verbose",		no_argument,	   0,		 'v' },
   { "version",		no_argument,	   0,		 'V' },
@@ -71,8 +77,8 @@ struct option const options[] = {
   { "gap",		required_argument, 0,		 'g' },
 # endif
 # if defined(EXPERIMENTAL)
-  { "external-mix",	no_argument,	   &external_mix, 1 },
-  { "experimental",	no_argument,	   &experimental, 1 },
+  { "external-mix",	no_argument,	   &external_mix,  1 },
+  { "experimental",	no_argument,	   &experimental,  1 },
 # endif
   { 0 }
 };
@@ -119,6 +125,8 @@ void show_usage(int verbose)
   EPUTS(_("  -x, --cross-fade           cross-fade songs"
 	                              " (use with negative gap)\n"));
 # endif
+  EPUTS(_("  -a, --attenuate=DECIBELS   attenuate signal by DECIBELS (-)\n"));
+  EPUTS(_("  -a, --amplify=DECIBELS     amplify signal by DECIBELS (+)\n"));
 
   EPUTS(_("\nChannel selection:\n"));
   EPUTS(_("  -1, --left                 output first (left) channel only\n"));
@@ -126,6 +134,7 @@ void show_usage(int verbose)
 	                              " only\n"));
   EPUTS(_("  -m, --mono                 mix left and right channels"
 	                              " for monaural output\n"));
+  EPUTS(_("  -S, --stereo               force stereo output\n"));
 
 # if defined(EXPERIMENTAL)
   EPUTS(_("\nExperimental:\n"));
@@ -215,6 +224,9 @@ int parse_time(mad_timer_t *timer, char const *str)
   unsigned long seconds, fraction, fracpart;
   int minus;
 
+  while (isspace(*str))
+    ++str;
+
   do {
     seconds = fraction = fracpart = 0;
 
@@ -244,7 +256,7 @@ int parse_time(mad_timer_t *timer, char const *str)
     }
     while (*str >= '0' && *str <= '9');
 
-    if (*str == '.') {
+    if (*str == '.' || *str == *localeconv()->decimal_point) {
       char const *ptr;
 
       decimal = strtol(++str, (char **) &ptr, 10);
@@ -275,6 +287,9 @@ int parse_time(mad_timer_t *timer, char const *str)
   }
   while (*str == '-' || *str == '+');
 
+  while (isspace(*str))
+    ++str;
+
   if (*str != 0)
     return -1;
 
@@ -288,14 +303,65 @@ int parse_time(mad_timer_t *timer, char const *str)
  * DESCRIPTION:	parse a time value or die
  */
 static
-void get_time(mad_timer_t *time, int positive, char const *str,
-	      char const *name)
+mad_timer_t get_time(char const *str, int positive, char const *name)
 {
-  if (parse_time(time, str) == -1)
+  mad_timer_t time;
+
+  if (parse_time(&time, str) == -1)
     die(_("invalid %s specification \"%s\""), name, str);
 
-  if (positive && mad_timer_sign(*time) <= 0)
+  if (positive && mad_timer_sign(time) <= 0)
     die(_("%s must be positive"), name);
+
+  return time;
+}
+
+/*
+ * NAME:	parse_decibels()
+ * DESCRIPTION:	parse a decibel value specification string
+ */
+static
+int parse_decibels(double *db, char const *str)
+{
+  *db = strtod(str, (char **) &str);
+
+  while (isspace(*str))
+    ++str;
+
+  if (strncasecmp(str, "dB", 2) == 0) {
+    str += 2;
+
+    while (isspace(*str))
+      ++str;
+  }
+
+  if (*str != 0)
+    return -1;
+
+  return 0;
+}
+
+/*
+ * NAME:	get_decibels()
+ * DESCRIPTION:	parse a decibel value into a linear ratio or die
+ */
+static
+mad_fixed_t get_decibels(char const *str)
+{
+  double db;
+
+  enum {
+    DB_MIN = -175,
+    DB_MAX =  +18
+  };
+
+  if (parse_decibels(&db, str) == -1)
+    die(_("invalid decibel specification \"%s\""), str);
+
+  if (db < DB_MIN || db > DB_MAX)
+    die(_("decibel value must be in the range %+d to %+d"), DB_MIN, DB_MAX);
+
+  return mad_f_tofixed(pow(10, db / 20));
 }
 
 /*
@@ -313,7 +379,8 @@ void get_options(int argc, char *argv[], struct player *player)
 # if 0
 			    "g:x"
 # endif
-			    "12m"	/* channel selection options */
+			    "a:"
+			    "12mS"	/* channel selection options */
 			    "s:t:zr::"	/* playback options */
 			    "Vh",	/* miscellaneous options */
 			    options, &index)) != -1) {
@@ -326,6 +393,10 @@ void get_options(int argc, char *argv[], struct player *player)
       player->output.select = PLAYER_CHANNEL_LEFT + (opt - '1');
       break;
 
+    case 'a':
+      player->output.attenuate = get_decibels(optarg);
+      break;
+
     case -'a':
       printf("%s\n", mad_author);
       exit(0);
@@ -336,7 +407,7 @@ void get_options(int argc, char *argv[], struct player *player)
 
 # if 0
     case 'g':
-      get_time(&player->gap, 0, optarg, _("gap time"));
+      player->gap = get_time(optarg, 0, _("gap time"));
       player->flags |= PLAYER_FLAG_GAP;
       break;
 # endif
@@ -346,15 +417,15 @@ void get_options(int argc, char *argv[], struct player *player)
       exit(0);
 
     case -'i':
-      get_time(&player->fade_in, 1,
-	       optarg ? optarg : FADE_DEFAULT, _("fade-in time"));
+      player->fade_in = get_time(optarg ? optarg : FADE_DEFAULT, 1,
+				 _("fade-in time"));
       player->flags |= PLAYER_FLAG_FADEIN;
       break;
 
 # if 0
     case -'o':
-      get_time(&player->fade_out, 1,
-	       optarg ? optarg : FADE_DEFAULT, _("fade-out time"));
+      player->fade_out = get_time(optarg ? optarg : FADE_DEFAULT, 1,
+				  _("fade-out time"));
       player->flags |= PLAYER_FLAG_FADEOUT;
       break;
 # endif
@@ -397,12 +468,16 @@ void get_options(int argc, char *argv[], struct player *player)
       break;
 
     case 's':
-      get_time(&player->global_start, 0, optarg, _("start time"));
+      player->global_start = get_time(optarg, 0, _("start time"));
       player->flags |= PLAYER_FLAG_SKIP;
       break;
 
+    case 'S':
+      player->output.select = PLAYER_CHANNEL_STEREO;
+      break;
+
     case 't':
-      get_time(&player->global_stop, 1, optarg, _("playing time"));
+      player->global_stop = get_time(optarg, 1, _("playing time"));
       player->flags |= PLAYER_FLAG_TIMED;
       break;
 

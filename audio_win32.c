@@ -1,6 +1,6 @@
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_win32.c,v 1.40 2000/10/25 21:51:39 rob Exp $
+ * $Id: audio_win32.c,v 1.43 2001/01/21 00:18:09 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -35,7 +35,7 @@ static int opened;
 
 static HWAVEOUT wave_handle;
 
-# define NSLOTS		38	/* about one second of audio data (44.1 kHz) */
+# define NSLOTS		25	/* about 2 seconds of audio data (44.1 kHz) */
 # define NBUFFERS	 3	/* triple buffer */
 
 static struct buffer {
@@ -86,6 +86,7 @@ int init(struct audio_init *init)
   /* try to obtain high priority status */
 
   SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+  SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
   return 0;
 }
@@ -286,7 +287,8 @@ int play(struct audio_play *play)
   /* prepare block */
 
   len = audio_pcm_s16le(&buffer->pcm_data[buffer->pcm_length], play->nsamples,
-			play->samples[0], play->samples[1], play->mode);
+			play->samples[0], play->samples[1], play->mode,
+			play->stats);
 
   buffer->pcm_length += len;
 
@@ -314,6 +316,7 @@ int finish(struct audio_finish *finish)
 
   /* restore priority status */
 
+  SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
   SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 
   for (i = 0; i < NBUFFERS; ++i) {

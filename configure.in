@@ -1,7 +1,7 @@
 dnl -*- m4 -*-
 dnl
 dnl mad - MPEG audio decoder
-dnl Copyright (C) 2000 Robert Leslie
+dnl Copyright (C) 2000-2001 Robert Leslie
 dnl
 dnl This program is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -17,12 +17,12 @@ dnl You should have received a copy of the GNU General Public License
 dnl along with this program; if not, write to the Free Software
 dnl Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 dnl
-AC_REVISION([$Id: configure.in,v 1.33 2000/11/18 12:38:27 rob Exp $])dnl
+AC_REVISION([$Id: configure.in,v 1.37 2001/01/21 00:18:09 rob Exp $])dnl
 
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(libmad/decoder.h)
-AM_INIT_AUTOMAKE(mad, 0.12.2b)
+AM_INIT_AUTOMAKE(mad, 0.12.3b)
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SUBDIRS(libmad)
@@ -74,26 +74,37 @@ then
     esac
 fi
 
-case "$CFLAGS" in
-    *-g*) DEBUGGER="-g" ;;
-esac
+set -- $CFLAGS
+CFLAGS=""
 
-case "$CFLAGS" in
-    *-O*) OPTIMIZER="-O2" ;;
-esac
-
-CFLAGS=`echo ".$CFLAGS" |  \
-    sed -e 's/^\.//' -e 's/-g//' -e 's/-O.//' -e 's/-O//'`
+while test $# -gt 0
+do
+    case "$1" in
+	-g)
+	    DEBUGGER="-g"
+	    shift
+	    ;;
+	-O*)
+	    OPTIMIZER="-O2"
+	    shift
+	    ;;
+	*)
+	    CFLAGS="$CFLAGS $1"
+	    shift
+	    ;;
+    esac
+done
 
 if test -n "$OPTIMIZER" && test "$GCC" = yes
 then
-    OPTIMIZER="$OPTIMIZER"
-    # -funroll-loops -finline-functions
+    : #? OPTIMIZER="$OPTIMIZER -funroll-loops"
+    : #? OPTIMIZER="$OPTIMIZER -finline-functions"
 fi
 
 dnl Checks for header files.
 
 AC_HEADER_STDC
+dnl AC_CHECK_HEADERS(termios.h poll.h signal.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 
@@ -104,7 +115,10 @@ AC_C_BIGENDIAN
 dnl Checks for library functions.
 
 AC_FUNC_VPRINTF
+AC_CHECK_FUNCS(madvise)
 AC_REPLACE_FUNCS(strcasecmp strncasecmp)
+AC_SEARCH_LIBS(pow, m)
+AC_SEARCH_LIBS(log10, m)
 
 case "$host" in
     *-linux*) AC_DEFINE(HAVE_MMAP) ;;

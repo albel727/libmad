@@ -1,7 +1,7 @@
 #! /bin/sh
 #
 # mad - MPEG audio decoder
-# Copyright (C) 2000 Robert Leslie
+# Copyright (C) 2000-2001 Robert Leslie
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: abxtest,v 1.4 2000/11/18 12:38:27 rob Exp $
+# $Id: abxtest,v 1.5 2001/01/21 00:18:09 rob Exp $
 #
 
 #
@@ -71,7 +71,7 @@ done
 
 test $# -eq 2 || usage
 
-echo >&2 "ABX Double-Blind Test - Copyright (C) 2000 Robert Leslie"
+echo >&2 "ABX Double-Blind Test - Copyright (C) 2000-2001 Robert Leslie"
 echo "minimum $min, maximum $max trials"
 echo "statistical goal to disprove null hypothesis is p <= $goal"
 

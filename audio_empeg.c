@@ -1,6 +1,6 @@
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_empeg.c,v 1.5 2000/10/25 21:51:39 rob Exp $
+ * $Id: audio_empeg.c,v 1.7 2001/01/21 00:18:09 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -64,7 +64,8 @@ int config(struct audio_config *config)
    * but we may need to resample the output and/or convert to stereo.
    */
 
-  config->speed = 44100;
+  config->channels = 2;
+  config->speed    = 44100;
 
   return 0;
 }
@@ -143,16 +144,11 @@ static
 int play(struct audio_play *play)
 {
   unsigned char data[MAX_NSAMPLES * 2 * 2];
-  mad_fixed_t const *left, *right;
   unsigned int len;
 
-  left  = play->samples[0];
-  right = play->samples[1];
-
-  if (!right)
-    right = left;  /* always stereo */
-
-  len = audio_pcm_s16le(data, play->nsamples, left, right, play->mode);
+  len = audio_pcm_s16le(data, play->nsamples,
+			play->samples[0], play->samples[1], play->mode,
+			play->stats);
 
   return buffer(data, len);
 }

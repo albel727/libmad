@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2000-11-18 07:42-0500\n"
+"POT-Creation-Date: 2001-01-20 19:35-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,7 +20,7 @@ msgstr ""
 
 #: version.c:42
 #, c-format
-msgid "MPEG Audio Decoder version %s"
+msgid "MPEG Audio Decoder %s"
 msgstr ""
 
 #: version.c:56
@@ -103,235 +103,257 @@ msgstr ""
 msgid "%s: option `-W %s' doesn't allow an argument\n"
 msgstr ""
 
-#: madplay.c:91
+#: madplay.c:97
 #, c-format
 msgid "Usage: %s [OPTIONS] FILE [...]\n"
 msgstr ""
 
-#: madplay.c:94
+#: madplay.c:100
 #, c-format
 msgid "Try `%s --help' for more information.\n"
 msgstr ""
 
-#: madplay.c:98
+#: madplay.c:104
 msgid "Decode and play MPEG audio FILE(s).\n"
 msgstr ""
 
 #. the following usage text should agree with the option names
-#: madplay.c:102
+#: madplay.c:108
 msgid ""
 "\n"
 "Verbosity:\n"
 msgstr ""
 
-#: madplay.c:103
+#: madplay.c:109
 msgid "  -v, --verbose              show status while decoding\n"
 msgstr ""
 
-#: madplay.c:104
+#: madplay.c:110
 msgid "  -q, --quiet                be quiet but show warnings\n"
 msgstr ""
 
-#: madplay.c:105
+#: madplay.c:111
 msgid "  -Q, --very-quiet           be quiet and do not show warnings\n"
 msgstr ""
 
-#: madplay.c:107
+#: madplay.c:113
 msgid ""
 "\n"
 "Audio output:\n"
 msgstr ""
 
-#: madplay.c:108
+#: madplay.c:114
 msgid ""
 "  -o, --output=[TYPE:]PATH   send output to PATH with format TYPE (see "
 "below)\n"
 msgstr ""
 
-#: madplay.c:110
+#: madplay.c:116
 msgid "  -d, --no-dither            do not dither output PCM samples\n"
 msgstr ""
 
-#: madplay.c:112
+#: madplay.c:118
 #, c-format
 msgid "      --fade-in[=DURATION]   fade-in songs over DURATION (default %s)\n"
 msgstr ""
 
-#: madplay.c:116
+#: madplay.c:122
 #, c-format
 msgid ""
 "      --fade-out[=DURATION]  fade-out songs over DURATION (default %s)\n"
 msgstr ""
 
-#: madplay.c:118
+#: madplay.c:124
 msgid "  -g, --gap=DURATION         set inter-song gap to DURATION\n"
 msgstr ""
 
-#: madplay.c:119
+#: madplay.c:125
 msgid "  -x, --cross-fade           cross-fade songs (use with negative gap)\n"
 msgstr ""
 
-#: madplay.c:123
-msgid ""
-"\n"
-"Channel selection:\n"
+#: madplay.c:128
+msgid "  -a, --attenuate=DECIBELS   attenuate signal by DECIBELS (-)\n"
 msgstr ""
 
-#: madplay.c:124
-msgid "  -1, --left                 output first (left) channel only\n"
-msgstr ""
-
-#: madplay.c:125
-msgid "  -2, --right                output second (right) channel only\n"
-msgstr ""
-
-#: madplay.c:127
-msgid ""
-"  -m, --mono                 mix left and right channels for monaural "
-"output\n"
+#: madplay.c:129
+msgid "  -a, --amplify=DECIBELS     amplify signal by DECIBELS (+)\n"
 msgstr ""
 
 #: madplay.c:131
 msgid ""
 "\n"
-"Experimental:\n"
+"Channel selection:\n"
 msgstr ""
 
 #: madplay.c:132
+msgid "  -1, --left                 output first (left) channel only\n"
+msgstr ""
+
+#: madplay.c:133
+msgid "  -2, --right                output second (right) channel only\n"
+msgstr ""
+
+#: madplay.c:135
+msgid ""
+"  -m, --mono                 mix left and right channels for monaural "
+"output\n"
+msgstr ""
+
+#: madplay.c:137
+msgid "  -S, --stereo               force stereo output\n"
+msgstr ""
+
+#: madplay.c:140
+msgid ""
+"\n"
+"Experimental:\n"
+msgstr ""
+
+#: madplay.c:141
 msgid ""
 "      --external-mix         output pre-synthesis samples for external "
 "mixer\n"
 msgstr ""
 
-#: madplay.c:134
-msgid "      --experimental         enable experimental filter\n"
-msgstr ""
-
-#: madplay.c:137
-msgid ""
-"\n"
-"Playback:\n"
-msgstr ""
-
-#: madplay.c:138
-msgid "  -s, --start=TIME           skip to begin at TIME (HH:MM:SS.DDD)\n"
-msgstr ""
-
-#: madplay.c:140
-msgid "  -t, --time=DURATION        play only for DURATION (HH:MM:SS.DDD)\n"
-msgstr ""
-
-#: madplay.c:142
-msgid "  -z, --shuffle              randomize file list\n"
-msgstr ""
-
 #: madplay.c:143
-msgid "  -r, --repeat[=MAX]         play files MAX times, or indefinitely\n"
+msgid "      --experimental         enable experimental filter\n"
 msgstr ""
 
 #: madplay.c:146
 msgid ""
 "\n"
-"Miscellaneous:\n"
+"Playback:\n"
 msgstr ""
 
 #: madplay.c:147
-msgid "  -V, --version              display version number and exit\n"
+msgid "  -s, --start=TIME           skip to begin at TIME (HH:MM:SS.DDD)\n"
 msgstr ""
 
-#: madplay.c:148
-msgid "      --license              show copyright/license message and exit\n"
+#: madplay.c:149
+msgid "  -t, --time=DURATION        play only for DURATION (HH:MM:SS.DDD)\n"
 msgstr ""
 
-#: madplay.c:150
-msgid "  -h, --help                 display this help and exit\n"
+#: madplay.c:151
+msgid "  -z, --shuffle              randomize file list\n"
 msgstr ""
 
 #: madplay.c:152
+msgid "  -r, --repeat[=MAX]         play files MAX times, or indefinitely\n"
+msgstr ""
+
+#: madplay.c:155
+msgid ""
+"\n"
+"Miscellaneous:\n"
+msgstr ""
+
+#: madplay.c:156
+msgid "  -V, --version              display version number and exit\n"
+msgstr ""
+
+#: madplay.c:157
+msgid "      --license              show copyright/license message and exit\n"
+msgstr ""
+
+#: madplay.c:159
+msgid "  -h, --help                 display this help and exit\n"
+msgstr ""
+
+#: madplay.c:161
 msgid ""
 "\n"
 "Supported output format types:\n"
 msgstr ""
 
-#: madplay.c:153
+#: madplay.c:162
 msgid "  raw     binary signed 16-bit host-endian linear PCM\n"
 msgstr ""
 
-#: madplay.c:154
+#: madplay.c:163
 msgid "  wave    Microsoft RIFF/WAVE, 16-bit PCM format (*.wav)\n"
 msgstr ""
 
-#: madplay.c:155
+#: madplay.c:164
 msgid "  snd     Sun/NeXT audio, 8-bit ISDN mu-law (*.au, *.snd)\n"
 msgstr ""
 
-#: madplay.c:157
+#: madplay.c:166
 msgid "  hex     hexadecimal signed 24-bit linear PCM\n"
 msgstr ""
 
-#: madplay.c:159
+#: madplay.c:168
 msgid "  null    no output (decode only)\n"
 msgstr ""
 
-#: madplay.c:295
+#: madplay.c:311
 #, c-format
 msgid "invalid %s specification \"%s\""
 msgstr ""
 
-#: madplay.c:298
+#: madplay.c:314
 #, c-format
 msgid "%s must be positive"
 msgstr ""
 
-#: madplay.c:339
+#: madplay.c:359
+#, c-format
+msgid "invalid decibel specification \"%s\""
+msgstr ""
+
+#: madplay.c:362
+#, c-format
+msgid "decibel value must be in the range %+d to %+d"
+msgstr ""
+
+#: madplay.c:410
 msgid "gap time"
 msgstr ""
 
-#: madplay.c:350
+#: madplay.c:421
 msgid "fade-in time"
 msgstr ""
 
-#: madplay.c:357
+#: madplay.c:428
 msgid "fade-out time"
 msgstr ""
 
-#: madplay.c:372
+#: madplay.c:443
 msgid "multiple output destinations not supported"
 msgstr ""
 
-#: madplay.c:378
+#: madplay.c:449
 #, c-format
 msgid "unknown output format type for \"%s\""
 msgstr ""
 
-#: madplay.c:395
+#: madplay.c:466
 #, c-format
 msgid "invalid repeat count \"%s\""
 msgstr ""
 
-#: madplay.c:400
+#: madplay.c:471
 msgid "start time"
 msgstr ""
 
-#: madplay.c:405
+#: madplay.c:480
 msgid "playing time"
 msgstr ""
 
-#: madmix.c:266 madplay.c:415
+#: madplay.c:490
 #, c-format
 msgid "`%s --license' for licensing information.\n"
 msgstr ""
 
-#: madmix.c:265 madplay.c:416
+#: madmix.c:265 madplay.c:491
 #, c-format
 msgid "Build options: %s\n"
 msgstr ""
 
-#: madplay.c:474
+#: madplay.c:549
 msgid "cross-fade ignored without gap"
 msgstr ""
 
-#: madplay.c:476
+#: madplay.c:551
 msgid "cross-fade ignored without negative gap"
 msgstr ""
 
@@ -359,221 +381,220 @@ msgstr ""
 msgid "Usage: %s input1 [input2 ...]"
 msgstr ""
 
-#: madmix.c:291
+#: madmix.c:285
 #, c-format
 msgid "%s: unknown output format type"
 msgstr ""
 
-#: madmix.c:317
+#: madmix.c:311
 msgid "not enough memory to allocate mixing buffers"
 msgstr ""
 
-#: madmix.c:321
+#: madmix.c:315
 #, c-format
 msgid "mixing %d streams\n"
 msgstr ""
 
-#: player.c:319
+#: player.c:334
 msgid "I"
 msgstr ""
 
-#: player.c:319
+#: player.c:334
 msgid "II"
 msgstr ""
 
-#: player.c:319
+#: player.c:334
 msgid "III"
 msgstr ""
 
-#: player.c:323
+#: player.c:338
 msgid "single channel"
 msgstr ""
 
-#: player.c:323
+#: player.c:338
 msgid "dual channel"
 msgstr ""
 
-#: player.c:323
+#: player.c:338
 msgid "joint stereo"
 msgstr ""
 
-#: player.c:323
+#: player.c:338
 msgid "stereo"
 msgstr ""
 
-#: player.c:370
+#: player.c:385
 msgid " (LR)"
 msgstr ""
 
-#: player.c:374
+#: player.c:389
 msgid " (MS)"
 msgstr ""
 
-#: player.c:378
+#: player.c:393
 msgid " (I)"
 msgstr ""
 
-#: player.c:382
+#: player.c:397
 msgid " (MS+I)"
 msgstr ""
 
-#: player.c:387
+#: player.c:402
 #, c-format
 msgid "%s Layer %s, %s%u kbps%s, %u Hz, %s%s, %s"
 msgstr ""
 
-#: player.c:389
+#: player.c:404
 msgid "VBR (avg "
 msgstr ""
 
-#: player.c:392
+#: player.c:407
 msgid ")"
 msgstr ""
 
-#: player.c:394
+#: player.c:409
 msgid "CRC"
 msgstr ""
 
-#: player.c:394
+#: player.c:409
 msgid "no CRC"
 msgstr ""
 
-#: player.c:427
+#: player.c:452
 msgid "no channel selected for dual channel; using first"
 msgstr ""
 
-#: player.c:460
+#: player.c:488
+msgid "mono output not available; forcing stereo"
+msgstr ""
+
+#: player.c:490
+msgid "stereo output not available; using first channel (use -m to mix)"
+msgstr ""
+
+#: player.c:497
 #, c-format
 msgid "sample frequency %u Hz not available; closest %u Hz"
 msgstr ""
 
-#: player.c:484
+#: player.c:521
 msgid "not enough memory to allocate resampling buffer"
 msgstr ""
 
-#: player.c:493
+#: player.c:530
 #, c-format
 msgid "cannot resample %u Hz to %u Hz"
 msgstr ""
 
-#: player.c:502
+#: player.c:539
 #, c-format
 msgid "resampling %u Hz to %u Hz"
 msgstr ""
 
-#: player.c:561
+#: player.c:604
 msgid "not enough memory"
 msgstr ""
 
-#: player.c:562
+#: player.c:605
 msgid "lost synchronization"
 msgstr ""
 
-#: player.c:563
+#: player.c:606
 msgid "reserved header layer value"
 msgstr ""
 
-#: player.c:564
+#: player.c:607
 msgid "forbidden bitrate value"
 msgstr ""
 
-#: player.c:565
+#: player.c:608
 msgid "reserved sample frequency value"
 msgstr ""
 
-#: player.c:566
+#: player.c:609
 msgid "reserved emphasis value"
 msgstr ""
 
-#: player.c:567
+#: player.c:610
 msgid "CRC check failed"
 msgstr ""
 
-#: player.c:568
+#: player.c:611
 msgid "forbidden bit allocation value"
 msgstr ""
 
-#: player.c:569
+#: player.c:612
 msgid "bad scalefactor index"
 msgstr ""
 
-#: player.c:570
+#: player.c:613
 msgid "bad frame length"
 msgstr ""
 
-#: player.c:571
+#: player.c:614
 msgid "bad big_values count"
 msgstr ""
 
-#: player.c:572
+#: player.c:615
 msgid "reserved block_type"
 msgstr ""
 
-#: player.c:573
+#: player.c:616
 msgid "bad main_data_begin pointer"
 msgstr ""
 
-#: player.c:574
+#: player.c:617
 msgid "bad main data length"
 msgstr ""
 
-#: player.c:575
+#: player.c:618
 msgid "bad audio data length"
 msgstr ""
 
-#: player.c:576
+#: player.c:619
 msgid "bad Huffman table select"
 msgstr ""
 
-#: player.c:577
+#: player.c:620
+msgid "Huffman data overrun"
+msgstr ""
+
+#: player.c:621
 msgid "incompatible block_type for MS"
 msgstr ""
 
-#: player.c:638
+#: player.c:682
 #, c-format
 msgid "frame %lu: %s"
 msgstr ""
 
-#: player.c:722
+#: player.c:770
 msgid "not enough memory to allocate input buffer"
 msgstr ""
 
-#: player.c:778
+#: player.c:831
 msgid "stdin"
 msgstr ""
 
-#: player.c:807
+#: player.c:864
 #, c-format
-msgid "1 frame decoded (%s)\n"
+msgid "%lu frames decoded (%s), %+.1f dB peak amplitude, %lu clipped samples\n"
 msgstr ""
 
-#: player.c:809
-#, c-format
-msgid "%lu frames decoded (%s)\n"
-msgstr ""
-
-#: player.c:902
+#: player.c:978
 msgid "not enough memory to allocate sample buffer"
 msgstr ""
 
-#: player.c:949
+#: player.c:1036
 msgid "not enough memory to allocate filters"
 msgstr ""
 
-#: player.c:967
+#: player.c:1054
 msgid "lead-in"
 msgstr ""
 
 #: audio_oss.c:148
 msgid "no supported audio format available"
-msgstr ""
-
-#: audio_oss.c:159
-msgid "required number of channels not available"
-msgstr ""
-
-#: audio_oss.c:170
-msgid "sample speed not available"
 msgstr ""
 
 #: audio_win32.c:57
@@ -584,19 +605,19 @@ msgstr ""
 msgid "failed to create synchronization object"
 msgstr ""
 
-#: audio_win32.c:213
+#: audio_win32.c:214
 msgid "wait abandoned"
 msgstr ""
 
-#: audio_win32.c:217
+#: audio_win32.c:218
 msgid "wait timeout"
 msgstr ""
 
-#: audio_win32.c:222
+#: audio_win32.c:223
 msgid "wait failed"
 msgstr ""
 
-#: audio_win32.c:321
+#: audio_win32.c:324
 msgid "failed to close synchronization object"
 msgstr ""
 

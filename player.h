@@ -1,6 +1,6 @@
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: player.h,v 1.2 2000/10/25 21:51:40 rob Exp $
+ * $Id: player.h,v 1.4 2001/01/21 00:18:10 rob Exp $
  */
 
 # ifndef PLAYER_H
@@ -52,8 +52,8 @@ enum player_channel {
   PLAYER_CHANNEL_DEFAULT = 0,
   PLAYER_CHANNEL_LEFT    = 1,
   PLAYER_CHANNEL_RIGHT   = 2,
-  PLAYER_CHANNEL_MONO,
-  PLAYER_CHANNEL_STEREO
+  PLAYER_CHANNEL_MONO    = 3,
+  PLAYER_CHANNEL_STEREO  = 4
 };
 
 struct player {
@@ -61,6 +61,12 @@ struct player {
 
   int flags;
   int repeat;
+
+  struct playlist {
+    char const **entries;
+    int length;
+    int current;
+  } playlist;
 
   mad_timer_t global_start;
   mad_timer_t global_stop;
@@ -84,9 +90,11 @@ struct player {
   struct output {
     enum audio_mode mode;
 
+    mad_fixed_t attenuate;
     struct filter *filters;
 
-    unsigned int channels;
+    unsigned int channels_in;
+    unsigned int channels_out;
     enum player_channel select;
 
     unsigned int speed_in;
@@ -116,6 +124,8 @@ struct player {
     unsigned long vbr_rate;
 
     signed long nsecs;
+
+    struct audio_stats audio;
   } stats;
 };
 

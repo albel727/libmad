@@ -1,6 +1,6 @@
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_wave.c,v 1.4 2000/11/16 10:51:04 rob Exp $
+ * $Id: audio_wave.c,v 1.6 2001/01/21 00:18:09 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -167,7 +167,8 @@ int play(struct audio_play *play)
   unsigned int len;
 
   len = audio_pcm_s16le(data, play->nsamples,
-			play->samples[0], play->samples[1], play->mode);
+			play->samples[0], play->samples[1], play->mode,
+			play->stats);
 
   if (fwrite(data, play->samples[1] ? 4 : 2,
 	     play->nsamples, outfile) != play->nsamples) {

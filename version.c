@@ -1,6 +1,6 @@
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: version.c,v 1.8 2000/11/16 10:51:04 rob Exp $
+ * $Id: version.c,v 1.9 2001/01/21 00:18:10 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -39,7 +39,7 @@ void copyright(FILE *stream)
 
 void ver_banner(FILE *stream)
 {
-  fprintf(stream, _("MPEG Audio Decoder version %s"), MAD_VERSION);
+  fprintf(stream, _("MPEG Audio Decoder %s"), MAD_VERSION);
   fputs(" - ", stream);
   copyright(stream);
 

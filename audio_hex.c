@@ -1,6 +1,6 @@
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_hex.c,v 1.12 2000/10/25 21:51:39 rob Exp $
+ * $Id: audio_hex.c,v 1.14 2001/01/21 00:18:09 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -72,11 +72,11 @@ int play(struct audio_play *play)
   case AUDIO_MODE_ROUND:
     while (len--) {
       fprintf(outfile, "%06lX\n",
-	      audio_linear_round(24, *left++) & 0x00ffffffL);
+	      audio_linear_round(24, *left++, play->stats) & 0x00ffffffL);
 
       if (right) {
 	fprintf(outfile, "%06lX\n",
-		audio_linear_round(24, *right++) & 0x00ffffffL);
+		audio_linear_round(24, *right++, play->stats) & 0x00ffffffL);
       }
     }
     break;
@@ -87,11 +87,13 @@ int play(struct audio_play *play)
 
       while (len--) {
 	fprintf(outfile, "%06lX\n",
-		audio_linear_dither(24, *left++, &left_err) & 0x00ffffffL);
+		audio_linear_dither(24, *left++, &left_err, play->stats) &
+		0x00ffffffL);
 
 	if (right) {
 	  fprintf(outfile, "%06lX\n",
-		  audio_linear_dither(24, *right++, &right_err) & 0x00ffffffL);
+		  audio_linear_dither(24, *right++, &right_err, play->stats) &
+		  0x00ffffffL);
 	}
       }
     }

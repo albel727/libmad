@@ -1,6 +1,6 @@
 ##
 ## mad - MPEG audio decoder
-## Copyright (C) 2000 Robert Leslie
+## Copyright (C) 2000-2001 Robert Leslie
 ##
 ## This program is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 ## If you would like to negotiate alternate licensing terms, you may do
 ## so by contacting the author: Robert Leslie <rob@mars.org>
 ##
-## $Id: Makefile.am,v 1.5 2000/11/20 04:56:56 rob Exp $
+## $Id: Makefile.am,v 1.7 2001/01/21 00:18:09 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
@@ -47,14 +47,13 @@ common_sources =  \
 
 madplay_SOURCES =  \
 	$(common_sources) $(default_audio)  \
-	resample.c filter.c id3.c id3v2.c player.c madplay.c  \
-	resample.h filter.h id3.h id3v2.h player.h  \
-	getopt.c getopt1.c getopt.h id3genre.dat
+	resample.c filter.c equalizer.c id3.c id3v2.c player.c madplay.c  \
+	resample.h filter.h equalizer.h id3.h id3v2.h player.h  \
+	id3genre.dat getopt.c getopt1.c getopt.h
 
 EXTRA_madplay_SOURCES =  \
 	$(extra_audio)  \
-	id3v2.gperf  \
-	equalizer.c equalizer.h
+	id3v2.gperf
 
 madtime_SOURCES =	$(common_sources) madtime.c
 minimad_SOURCES =	minimad.c
@@ -83,12 +82,9 @@ BUILT_SOURCES =		id3v2.c
 
 CLEANFILES =		$(EXTRA_PROGRAMS) *.exe gmon.out
 
-id3v2.c: id3v2.gperf
-	gperf -tCTonD -K id -N id3v2_hash -s -3 -k '*'  \
-		id3v2.gperf | sed -e '/\$$''Id: /s/\$$//g' >$@
-
-dist-hook:
-	rm -f $(distdir)/libmad/mad.h
+$(srcdir)/id3v2.c: $(srcdir)/id3v2.gperf
+	gperf -tCTonD -K id -N id3v2_hash -s -3 -k '*' $< |  \
+	sed -e '/\$$''Id: /s/\$$//g' >$@
 
 profile: madplay gmon.out
 	gprof madplay | less
@@ -101,4 +97,4 @@ gmon.out: madplay
 
 again: clean all
 
-.PHONY: dist-hook profile again
+.PHONY: profile again

@@ -115,10 +115,10 @@ extra_audio =  	audio_empeg.c audio_hex.c audio_oss.c audio_sun.c audio_win32.c
 common_sources =  	version.c version.h global.h
 
 
-madplay_SOURCES =  	$(common_sources) $(default_audio)  	resample.c filter.c id3.c id3v2.c player.c madplay.c  	resample.h filter.h id3.h id3v2.h player.h  	getopt.c getopt1.c getopt.h id3genre.dat
+madplay_SOURCES =  	$(common_sources) $(default_audio)  	resample.c filter.c equalizer.c id3.c id3v2.c player.c madplay.c  	resample.h filter.h equalizer.h id3.h id3v2.h player.h  	id3genre.dat getopt.c getopt1.c getopt.h
 
 
-EXTRA_madplay_SOURCES =  	$(extra_audio)  	id3v2.gperf  	equalizer.c equalizer.h
+EXTRA_madplay_SOURCES =  	$(extra_audio)  	id3v2.gperf
 
 
 madtime_SOURCES = $(common_sources) madtime.c
@@ -173,8 +173,8 @@ mad123_LDADD = $(LDADD)
 mad123_DEPENDENCIES =  @LIBOBJS@ libmad/libmad.la
 mad123_LDFLAGS = 
 madplay_OBJECTS =  version.o audio.o audio_raw.o audio_wave.o \
-audio_snd.o audio_null.o resample.o filter.o id3.o id3v2.o player.o \
-madplay.o getopt.o getopt1.o
+audio_snd.o audio_null.o resample.o filter.o equalizer.o id3.o id3v2.o \
+player.o madplay.o getopt.o getopt1.o
 madplay_LDFLAGS = 
 SCRIPTS =  $(bin_SCRIPTS)
 
@@ -533,7 +533,6 @@ distdir: $(DISTFILES)
 	      || exit 1; \
 	  fi; \
 	done
-	$(MAKE) $(AM_MAKEFLAGS) top_distdir="$(top_distdir)" distdir="$(distdir)" dist-hook
 
 info-am:
 info: info-recursive
@@ -628,12 +627,9 @@ installdirs mostlyclean-generic distclean-generic clean-generic \
 maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
 
-id3v2.c: id3v2.gperf
-	gperf -tCTonD -K id -N id3v2_hash -s -3 -k '*'  \
-		id3v2.gperf | sed -e '/\$$''Id: /s/\$$//g' >$@
-
-dist-hook:
-	rm -f $(distdir)/libmad/mad.h
+$(srcdir)/id3v2.c: $(srcdir)/id3v2.gperf
+	gperf -tCTonD -K id -N id3v2_hash -s -3 -k '*' $< |  \
+	sed -e '/\$$''Id: /s/\$$//g' >$@
 
 profile: madplay gmon.out
 	gprof madplay | less
@@ -646,7 +642,7 @@ gmon.out: madplay
 
 again: clean all
 
-.PHONY: dist-hook profile again
+.PHONY: profile again
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

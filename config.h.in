@@ -1,7 +1,7 @@
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: config.h.in,v 1.40 2000/11/18 12:43:23 rob Exp $
+ * $Id: config.h.in,v 1.45 2001/01/21 00:45:51 rob Exp $
  */
 
 # ifndef CONFIG_H
@@ -127,6 +127,9 @@
 
 /* Define if you have the getpagesize function.  */
 #undef HAVE_GETPAGESIZE
+
+/* Define if you have the madvise function.  */
+#undef HAVE_MADVISE
 
 /* Define if you have the munmap function.  */
 #undef HAVE_MUNMAP

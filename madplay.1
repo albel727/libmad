@@ -1,6 +1,6 @@
 \"
 \" mad - MPEG audio decoder
-\" Copyright (C) 2000 Robert Leslie
+\" Copyright (C) 2000-2001 Robert Leslie
 \"
 \" This program is free software; you can redistribute it and/or modify
 \" it under the terms of the GNU General Public License as published by
@@ -16,9 +16,9 @@
 \" along with this program; if not, write to the Free Software
 \" Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 \"
-\" $Id: madplay.1,v 1.12 2000/11/16 10:51:04 rob Exp $
+\" $Id: madplay.1,v 1.14 2001/01/21 00:18:09 rob Exp $
 \"
-.TH MADPLAY 1 "26 October 2000" "MAD" "MPEG Audio Decoder"
+.TH MADPLAY 1 "16 January 2001" "MAD" "MPEG Audio Decoder"
 .SH NAME
 madplay \- decode and play MPEG audio stream(s)
 .SH SYNOPSIS
@@ -37,16 +37,16 @@ madplay \- decode and play MPEG audio stream(s)
 .B madplay
 is a command-line front-end to the MAD library.
 .PP
-MAD is a high-quality MPEG audio decoder. It currently supports MPEG-1 as well
-as the MPEG-2 extension to Lower Sampling Frequencies. All three audio layers
-(Layer\ I, Layer\ II, and Layer\ III a.k.a. MP3) are fully implemented.
+MAD is a high-quality MPEG audio decoder. It currently supports MPEG-1 and the
+MPEG-2 extension to Lower Sampling Frequencies, as well as the so-called
+MPEG\ 2.5 format. All three audio layers (Layer\ I, Layer\ II, and Layer\ III
+a.k.a. MP3) are fully implemented.
 .PP
 Among the special features of MAD are 24-bit PCM resolution and 100%
 fixed-point (integer) computation.
 .PP
 MAD does not yet support MPEG-2 multichannel audio (although it should be
-backward compatible with such streams) or AAC, nor does it support the
-so-called MPEG\ 2.5 format.
+backward compatible with such streams) nor does it currently support AAC.
 .PP
 By default
 .B
@@ -98,13 +98,25 @@ Gradually fade-in the audio from each file over
 If not specified, the default duration is
 .B 0:05
 (five seconds.)
+.TP
+\fB\-a\fR or \fB\-\-attenuate=\fIdecibels\fR or \fB\-\-amplify=\fIdecibels\fR
+Attenuate or amplify the signal by
+.I decibels
+(dB).
+The signal is attenuated if the decibel value is negative; it is amplified if
+the value is positive.
+The decibel value must be in the range \-175 to +18.
+The value may be fractional, e.g. \-1.5.
+A value of 0 will leave the signal unchanged.
+Each step of 6\ dB will approximately halve (in the negative direction) or
+double (in the positive direction) the strength of the signal.
 .SS "Channel Selection"
 .PP
 For dual channel streams, an output channel should be selected. If one is not
 selected, the first (left) channel will be used.
 .PP
-For stereo streams, choosing an output channel will cause the output to become
-monaural.
+For stereo streams, making a channel selection other than stereo will cause
+the output to become monaural.
 .TP
 .BR \-1 " or " \-\-left
 Output the first (left) channel only.
@@ -114,6 +126,9 @@ Output the second (right) channel only.
 .TP
 .BR \-m " or " \-\-mono
 Mix the left and right channels together.
+.TP
+.BR \-S " or " \-\-stereo
+Force stereo output, even if the stream is single or dual channel.
 .SS "Playback"
 .TP
 \fB\-s\fR or \fB\-\-start=\fItime\fR
@@ -157,7 +172,7 @@ Display a license message and exit.
 Display a usage message and exit.
 .SH "Output Formats"
 Other than playing on the native audio device, the following output formats
-are also supported:
+are supported:
 .TP
 .B raw
 binary signed 16-bit host-endian linear PCM, stereo interleaved

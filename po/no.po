@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: mad 0.12.0a\n"
-"POT-Creation-Date: 2000-11-18 07:42-0500\n"
+"POT-Creation-Date: 2001-01-20 19:35-0500\n"
 "PO-Revision-Date: 2000-10-27 03:21-04:00\n"
 "Last-Translator: Christoffer Nicolaisen <chrn@start.no>\n"
 "Language-Team: Norwegian <chrn@start.no>\n"
@@ -18,8 +18,8 @@ msgid "Copyright (C) %s %s"
 msgstr "Copyright © %s %s"
 
 #: version.c:42
-#, c-format
-msgid "MPEG Audio Decoder version %s"
+#, fuzzy, c-format
+msgid "MPEG Audio Decoder %s"
 msgstr "MPEG Audio Decoder versjon %s"
 
 #: version.c:56
@@ -119,22 +119,22 @@ msgstr "%s: valget `-W %s' er tvetydig\n"
 msgid "%s: option `-W %s' doesn't allow an argument\n"
 msgstr "%s: valget `-W %s' tillater ikke argumenter\n"
 
-#: madplay.c:91
+#: madplay.c:97
 #, c-format
 msgid "Usage: %s [OPTIONS] FILE [...]\n"
 msgstr "Bruk: %s [VALG] FIL [...]\n"
 
-#: madplay.c:94
+#: madplay.c:100
 #, c-format
 msgid "Try `%s --help' for more information.\n"
 msgstr "Forsøk `%s --help' for mer informasjon.\n"
 
-#: madplay.c:98
+#: madplay.c:104
 msgid "Decode and play MPEG audio FILE(s).\n"
 msgstr "Dekoder og spiller av MPEG audio FIL(er).\n"
 
 #. the following usage text should agree with the option names
-#: madplay.c:102
+#: madplay.c:108
 msgid ""
 "\n"
 "Verbosity:\n"
@@ -142,19 +142,19 @@ msgstr ""
 "\n"
 "Varselsnivå:\n"
 
-#: madplay.c:103
+#: madplay.c:109
 msgid "  -v, --verbose              show status while decoding\n"
 msgstr "  -v, --verbose              vis status mens dekodingen foregår\n"
 
-#: madplay.c:104
+#: madplay.c:110
 msgid "  -q, --quiet                be quiet but show warnings\n"
 msgstr "  -q, --quiet                vær stille men vis advarsler\n"
 
-#: madplay.c:105
+#: madplay.c:111
 msgid "  -Q, --very-quiet           be quiet and do not show warnings\n"
 msgstr "  -Q, --very-quiet           vær stille og ikke vis noen advarsler\n"
 
-#: madplay.c:107
+#: madplay.c:113
 msgid ""
 "\n"
 "Audio output:\n"
@@ -162,7 +162,7 @@ msgstr ""
 "\n"
 "Audio ut:\n"
 
-#: madplay.c:108
+#: madplay.c:114
 msgid ""
 "  -o, --output=[TYPE:]PATH   send output to PATH with format TYPE (see "
 "below)\n"
@@ -170,18 +170,18 @@ msgstr ""
 "  -o, --output=[TYPE:]STI    send sluttprodukt (output) til STI med format\n"
 "                               TYPE (se under)\n"
 
-#: madplay.c:110
+#: madplay.c:116
 msgid "  -d, --no-dither            do not dither output PCM samples\n"
 msgstr "  -d, --no-dither            ingen utjevning av PCM-samples\n"
 
-#: madplay.c:112
+#: madplay.c:118
 #, c-format
 msgid "      --fade-in[=DURATION]   fade-in songs over DURATION (default %s)\n"
 msgstr ""
 "      --fade-in[=VARIGHET]   toner sangene inn i løpet av VARIGHET\n"
 "                               (standardtid %s)\n"
 
-#: madplay.c:116
+#: madplay.c:122
 #, c-format
 msgid ""
 "      --fade-out[=DURATION]  fade-out songs over DURATION (default %s)\n"
@@ -189,18 +189,26 @@ msgstr ""
 "      --fade-out[=VARIGHET]  toner sangene ut i løpet av VARIGHET\n"
 "                               (standardtid %s)\n"
 
-#: madplay.c:118
+#: madplay.c:124
 msgid "  -g, --gap=DURATION         set inter-song gap to DURATION\n"
 msgstr ""
 "  -g, --gap=VARIGHET         sett tidsrommet mellom sangene til VARIGHET\n"
 
-#: madplay.c:119
+#: madplay.c:125
 msgid "  -x, --cross-fade           cross-fade songs (use with negative gap)\n"
 msgstr ""
 "  -x, --cross-fade           kryss-fade sangene (brukes med negativt "
 "tidsrom)\n"
 
-#: madplay.c:123
+#: madplay.c:128
+msgid "  -a, --attenuate=DECIBELS   attenuate signal by DECIBELS (-)\n"
+msgstr ""
+
+#: madplay.c:129
+msgid "  -a, --amplify=DECIBELS     amplify signal by DECIBELS (+)\n"
+msgstr ""
+
+#: madplay.c:131
 msgid ""
 "\n"
 "Channel selection:\n"
@@ -208,22 +216,27 @@ msgstr ""
 "\n"
 "Kanalvalg:\n"
 
-#: madplay.c:124
+#: madplay.c:132
 msgid "  -1, --left                 output first (left) channel only\n"
 msgstr "  -1, --left                 kun første kanal (venstre) ut\n"
 
-#: madplay.c:125
+#: madplay.c:133
 msgid "  -2, --right                output second (right) channel only\n"
 msgstr "  -2, --right                kun andre kanal (høyre) ut\n"
 
-#: madplay.c:127
+#: madplay.c:135
 msgid ""
 "  -m, --mono                 mix left and right channels for monaural "
 "output\n"
 msgstr ""
 "  -m, --mono                 bland venstre og høyre kanal for mono lyd ut\n"
 
-#: madplay.c:131
+#: madplay.c:137
+#, fuzzy
+msgid "  -S, --stereo               force stereo output\n"
+msgstr "  -d, --no-dither            ingen utjevning av PCM-samples\n"
+
+#: madplay.c:140
 msgid ""
 "\n"
 "Experimental:\n"
@@ -231,7 +244,7 @@ msgstr ""
 "\n"
 "Eksperimentell:\n"
 
-#: madplay.c:132
+#: madplay.c:141
 msgid ""
 "      --external-mix         output pre-synthesis samples for external "
 "mixer\n"
@@ -239,11 +252,11 @@ msgstr ""
 "      --external-mix         send ut før-synthetiske samples for ekstern "
 "mikser\n"
 
-#: madplay.c:134
+#: madplay.c:143
 msgid "      --experimental         enable experimental filter\n"
 msgstr "      --experimental         tillat eksperimentelle filter\n"
 
-#: madplay.c:137
+#: madplay.c:146
 msgid ""
 "\n"
 "Playback:\n"
@@ -251,25 +264,25 @@ msgstr ""
 "\n"
 "Avspilling:\n"
 
-#: madplay.c:138
+#: madplay.c:147
 msgid "  -s, --start=TIME           skip to begin at TIME (HH:MM:SS.DDD)\n"
 msgstr "  -s, --start=TID            hopp frem til TID (TIM:MIN:SEK.DDD)\n"
 
-#: madplay.c:140
+#: madplay.c:149
 msgid "  -t, --time=DURATION        play only for DURATION (HH:MM:SS.DDD)\n"
 msgstr ""
 "  -t, --time=VARIGHET        spill kun av i VARIGHET (TIM:MIN:SEK.DDD)\n"
 
-#: madplay.c:142
+#: madplay.c:151
 msgid "  -z, --shuffle              randomize file list\n"
 msgstr "  -z, --shuffle              spill av tilfeldige filer\n"
 
-#: madplay.c:143
+#: madplay.c:152
 msgid "  -r, --repeat[=MAX]         play files MAX times, or indefinitely\n"
 msgstr ""
 "  -r, --repeat[=MAKSIMUM]    avspill filer MAKSIMUM ganger, eller uendelig\n"
 
-#: madplay.c:146
+#: madplay.c:155
 msgid ""
 "\n"
 "Miscellaneous:\n"
@@ -277,19 +290,19 @@ msgstr ""
 "\n"
 "Diverse:\n"
 
-#: madplay.c:147
+#: madplay.c:156
 msgid "  -V, --version              display version number and exit\n"
 msgstr "  -V, --version              vis versjon og avslutt\n"
 
-#: madplay.c:148
+#: madplay.c:157
 msgid "      --license              show copyright/license message and exit\n"
 msgstr "      --license              vis copyright/lisensliste og avslutt\n"
 
-#: madplay.c:150
+#: madplay.c:159
 msgid "  -h, --help                 display this help and exit\n"
 msgstr "  -h, --help                 vis denne hjelpen og avslutt\n"
 
-#: madplay.c:152
+#: madplay.c:161
 msgid ""
 "\n"
 "Supported output format types:\n"
@@ -297,85 +310,95 @@ msgstr ""
 "\n"
 "Støttede formater til utsending (output):\n"
 
-#: madplay.c:153
+#: madplay.c:162
 msgid "  raw     binary signed 16-bit host-endian linear PCM\n"
 msgstr "  raw     binærsignert 16-bit verts-basert lineært PCM\n"
 
-#: madplay.c:154
+#: madplay.c:163
 msgid "  wave    Microsoft RIFF/WAVE, 16-bit PCM format (*.wav)\n"
 msgstr "  wave    Microsoft RIFF/WAVE, 16-bit PCM format (*.wav)\n"
 
-#: madplay.c:155
+#: madplay.c:164
 msgid "  snd     Sun/NeXT audio, 8-bit ISDN mu-law (*.au, *.snd)\n"
 msgstr "  snd     Sun/NeXT audio, 8-bit ISDN mu-law (*.au, *.snd)\n"
 
-#: madplay.c:157
+#: madplay.c:166
 msgid "  hex     hexadecimal signed 24-bit linear PCM\n"
 msgstr "  hex     hexadesimalsignert 24-bit lineært PCM\n"
 
-#: madplay.c:159
+#: madplay.c:168
 msgid "  null    no output (decode only)\n"
 msgstr "  null    ingen utsending (output), kun dekoding\n"
 
-#: madplay.c:295
+#: madplay.c:311
 #, c-format
 msgid "invalid %s specification \"%s\""
 msgstr "ugyldig %s spesifikasjon \"%s\""
 
-#: madplay.c:298
+#: madplay.c:314
 #, c-format
 msgid "%s must be positive"
 msgstr "%s må være positivt"
 
-#: madplay.c:339
+#: madplay.c:359
+#, fuzzy, c-format
+msgid "invalid decibel specification \"%s\""
+msgstr "ugyldig %s spesifikasjon \"%s\""
+
+#: madplay.c:362
+#, c-format
+msgid "decibel value must be in the range %+d to %+d"
+msgstr ""
+
+#: madplay.c:410
 msgid "gap time"
 msgstr "tidsrom"
 
-#: madplay.c:350
+#: madplay.c:421
 msgid "fade-in time"
 msgstr "inntoningstid"
 
-#: madplay.c:357
+#: madplay.c:428
 msgid "fade-out time"
 msgstr "uttoningstid"
 
-#: madplay.c:372
+#: madplay.c:443
 msgid "multiple output destinations not supported"
 msgstr "flere simultane utsendingsmål (output) støttes ikke"
 
-#: madplay.c:378
+#: madplay.c:449
 #, c-format
 msgid "unknown output format type for \"%s\""
 msgstr "ukjent utsendingsformat for \"%s\""
 
-#: madplay.c:395
+#: madplay.c:466
 #, c-format
 msgid "invalid repeat count \"%s\""
 msgstr "ugyldig repetisjonstelling \"%s\""
 
-#: madplay.c:400
+#: madplay.c:471
 msgid "start time"
 msgstr "starttid"
 
-#: madplay.c:405
+#: madplay.c:480
 msgid "playing time"
 msgstr "avspllingstid"
 
-#: madmix.c:266 madplay.c:415
+#: madplay.c:490
 #, c-format
 msgid "`%s --license' for licensing information.\n"
 msgstr "`%s --license' for lisensinformasjon.\n"
 
-#: madmix.c:265 madplay.c:416
+#: madmix.c:265 madplay.c:491
 #, c-format
 msgid "Build options: %s\n"
 msgstr "Sett opp valg: %s\n"
 
-#: madplay.c:474
+#: madplay.c:549
 msgid "cross-fade ignored without gap"
 msgstr "kryss-fade blir ignorert uten tidsrom"
 
-#: madplay.c:476
+#: madplay.c:551
 msgid "cross-fade ignored without negative gap"
 msgstr "kryss-fade blir ignorert uten tidsrom"
 
@@ -403,222 +426,221 @@ msgstr "TOTAL"
 msgid "Usage: %s input1 [input2 ...]"
 msgstr "Bruk: %s input1 [input2 ...]"
 
-#: madmix.c:291
+#: madmix.c:285
 #, c-format
 msgid "%s: unknown output format type"
 msgstr "%s: unkjent format for utsending (output)"
 
-#: madmix.c:317
+#: madmix.c:311
 msgid "not enough memory to allocate mixing buffers"
 msgstr "Ikke nok minne til å samle miksebuffere"
 
-#: madmix.c:321
+#: madmix.c:315
 #, c-format
 msgid "mixing %d streams\n"
 msgstr "mikser %d strømmer\n"
 
-#: player.c:319
+#: player.c:334
 msgid "I"
 msgstr "I"
 
-#: player.c:319
+#: player.c:334
 msgid "II"
 msgstr "II"
 
-#: player.c:319
+#: player.c:334
 msgid "III"
 msgstr "III"
 
-#: player.c:323
+#: player.c:338
 msgid "single channel"
 msgstr "enkel kanal"
 
-#: player.c:323
+#: player.c:338
 msgid "dual channel"
 msgstr "dobbel kanal"
 
-#: player.c:323
+#: player.c:338
 msgid "joint stereo"
 msgstr "delt stereo"
 
-#: player.c:323
+#: player.c:338
 msgid "stereo"
 msgstr "stereo"
 
-#: player.c:370
+#: player.c:385
 msgid " (LR)"
 msgstr " (LR)"
 
-#: player.c:374
+#: player.c:389
 msgid " (MS)"
 msgstr " (MS)"
 
-#: player.c:378
+#: player.c:393
 msgid " (I)"
 msgstr " (I)"
 
-#: player.c:382
+#: player.c:397
 msgid " (MS+I)"
 msgstr " (MS+I)"
 
-#: player.c:387
+#: player.c:402
 #, c-format
 msgid "%s Layer %s, %s%u kbps%s, %u Hz, %s%s, %s"
 msgstr "%s Lag %s, %s%u kbps%s, %u Hz, %s%s, %s"
 
-#: player.c:389
+#: player.c:404
 msgid "VBR (avg "
 msgstr "VBR (snitt "
 
-#: player.c:392
+#: player.c:407
 msgid ")"
 msgstr ")"
 
-#: player.c:394
+#: player.c:409
 msgid "CRC"
 msgstr "CRC"
 
-#: player.c:394
+#: player.c:409
 msgid "no CRC"
 msgstr "ingen CRC"
 
-#: player.c:427
+#: player.c:452
 msgid "no channel selected for dual channel; using first"
 msgstr "ingen kanal valgt for dobbel kanal, bruker første"
 
-#: player.c:460
+#: player.c:488
+msgid "mono output not available; forcing stereo"
+msgstr ""
+
+#: player.c:490
+msgid "stereo output not available; using first channel (use -m to mix)"
+msgstr ""
+
+#: player.c:497
 #, c-format
 msgid "sample frequency %u Hz not available; closest %u Hz"
 msgstr "samplefrekvens %u Hz er ikke tilgjengelig; nærmeste er %u Hz"
 
-#: player.c:484
+#: player.c:521
 msgid "not enough memory to allocate resampling buffer"
 msgstr "ikke nok minne til å samle resamplingsbuffere"
 
-#: player.c:493
+#: player.c:530
 #, c-format
 msgid "cannot resample %u Hz to %u Hz"
 msgstr "kan ikke resample %u Hz til %u Hz"
 
-#: player.c:502
+#: player.c:539
 #, c-format
 msgid "resampling %u Hz to %u Hz"
 msgstr "resampler %u Hz til %u Hz"
 
-#: player.c:561
+#: player.c:604
 msgid "not enough memory"
 msgstr "ikke nok minne"
 
-#: player.c:562
+#: player.c:605
 msgid "lost synchronization"
 msgstr "mistet synkroniseringen"
 
-#: player.c:563
+#: player.c:606
 msgid "reserved header layer value"
 msgstr "header layer value reservert"
 
-#: player.c:564
+#: player.c:607
 msgid "forbidden bitrate value"
 msgstr "forbudt verdi for bitrate"
 
-#: player.c:565
+#: player.c:608
 msgid "reserved sample frequency value"
 msgstr "reservert samplefrekvensverdi"
 
-#: player.c:566
+#: player.c:609
 msgid "reserved emphasis value"
 msgstr "reservert trykkverdi"
 
-#: player.c:567
+#: player.c:610
 msgid "CRC check failed"
 msgstr "sjekk av CRC mislyktes"
 
-#: player.c:568
+#: player.c:611
 msgid "forbidden bit allocation value"
 msgstr "bitsamlingsverdi forbudt"
 
-#: player.c:569
+#: player.c:612
 msgid "bad scalefactor index"
 msgstr "ugyldig skalafaktorindeks"
 
-#: player.c:570
+#: player.c:613
 msgid "bad frame length"
 msgstr "ugyldig framelengde"
 
-#: player.c:571
+#: player.c:614
 msgid "bad big_values count"
 msgstr "ugyldig telling av big_values"
 
-#: player.c:572
+#: player.c:615
 msgid "reserved block_type"
 msgstr "reservert block_type"
 
-#: player.c:573
+#: player.c:616
 msgid "bad main_data_begin pointer"
 msgstr "ugyldig peking til main_data_begin"
 
-#: player.c:574
+#: player.c:617
 msgid "bad main data length"
 msgstr "ugyldig lengde på hoveddata"
 
-#: player.c:575
+#: player.c:618
 msgid "bad audio data length"
 msgstr "ugyldig lengde på lyddata"
 
-#: player.c:576
+#: player.c:619
 msgid "bad Huffman table select"
 msgstr "ugyldig valg av Huffmann-tabell"
 
-#: player.c:577
+#: player.c:620
+msgid "Huffman data overrun"
+msgstr ""
+
+#: player.c:621
 msgid "incompatible block_type for MS"
 msgstr "inkompatibel block_type for MS"
 
-#: player.c:638
+#: player.c:682
 #, c-format
 msgid "frame %lu: %s"
 msgstr "frame %lu: %s"
 
-#: player.c:722
+#: player.c:770
 msgid "not enough memory to allocate input buffer"
 msgstr "ikke nok minne til å kunne samle inn-buffer"
 
-#: player.c:778
+#: player.c:831
 msgid "stdin"
 msgstr "stdin"
 
-#: player.c:807
+#: player.c:864
 #, c-format
-msgid "1 frame decoded (%s)\n"
-msgstr "1 frame dekodet (%s)\n"
+msgid "%lu frames decoded (%s), %+.1f dB peak amplitude, %lu clipped samples\n"
+msgstr ""
 
-#: player.c:809
-#, c-format
-msgid "%lu frames decoded (%s)\n"
-msgstr "%lu frames dekodet (%s)\n"
-
-#: player.c:902
+#: player.c:978
 msgid "not enough memory to allocate sample buffer"
 msgstr "ikke nok minne til å kunne samle sample-buffer"
 
-#: player.c:949
+#: player.c:1036
 msgid "not enough memory to allocate filters"
 msgstr "ikke nok minne til å kunne samle filtere"
 
-#: player.c:967
+#: player.c:1054
 msgid "lead-in"
 msgstr "lead-in"
 
 #: audio_oss.c:148
 msgid "no supported audio format available"
 msgstr "ingen støttede lydformater tilgjengelige"
-
-#: audio_oss.c:159
-msgid "required number of channels not available"
-msgstr "antall påkrevde kanaler ikke tilgjengelig"
-
-#: audio_oss.c:170
-msgid "sample speed not available"
-msgstr "samplefart ikke tilgjengelig"
 
 #: audio_win32.c:57
 msgid "error getting error text"
@@ -628,19 +650,19 @@ msgstr "det oppsto en feil i henting av feiltekst"
 msgid "failed to create synchronization object"
 msgstr "mislyktes i å skape synkroniseringsobjekt"
 
-#: audio_win32.c:213
+#: audio_win32.c:214
 msgid "wait abandoned"
 msgstr "vent forlatt"
 
-#: audio_win32.c:217
+#: audio_win32.c:218
 msgid "wait timeout"
 msgstr "vent tidsavbrudd"
 
-#: audio_win32.c:222
+#: audio_win32.c:223
 msgid "wait failed"
 msgstr "vent mislyktes"
 
-#: audio_win32.c:321
+#: audio_win32.c:324
 msgid "failed to close synchronization object"
 msgstr "mislyktes i å lukke synkroniseringsobjekt"
 
@@ -1812,3 +1834,15 @@ msgstr "Pop"
 #: id3genre.dat:184
 msgid "Synthpop"
 msgstr ""
+
+#~ msgid "1 frame decoded (%s)\n"
+#~ msgstr "1 frame dekodet (%s)\n"
+
+#~ msgid "%lu frames decoded (%s)\n"
+#~ msgstr "%lu frames dekodet (%s)\n"
+
+#~ msgid "required number of channels not available"
+#~ msgstr "antall påkrevde kanaler ikke tilgjengelig"
+
+#~ msgid "sample speed not available"
+#~ msgstr "samplefart ikke tilgjengelig"

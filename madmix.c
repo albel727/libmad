@@ -1,6 +1,6 @@
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madmix.c,v 1.10 2000/11/16 10:51:04 rob Exp $
+ * $Id: madmix.c,v 1.12 2001/01/21 00:18:09 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -263,12 +263,6 @@ int main(int argc, char *argv[])
     if (strcmp(argv[1], "--version") == 0) {
       printf("%s - %s\n", mad_version, mad_copyright);
       printf(_("Build options: %s\n"), mad_build);
-      fprintf(stderr, _("`%s --license' for licensing information.\n"),
-	      argv[0]);
-      return 0;
-    }
-    if (strcmp(argv[1], "--license") == 0) {
-      printf("\n%s\n\n%s\n", mad_copyright, mad_license);
       return 0;
     }
     if (strcmp(argv[1], "--author") == 0) {

@@ -1,6 +1,6 @@
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: in_mad.c,v 1.5 2000/11/20 04:58:13 rob Exp $
+ * $Id: in_mad.c,v 1.8 2001/01/21 00:18:16 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -33,6 +33,7 @@
 # include <stdarg.h>
 # include <string.h>
 # include <locale.h>
+# include <math.h>
 
 # include "resource.h"
 # include "messages.h"
@@ -44,6 +45,13 @@
 
 # define WM_WA_MPEG_EOF		(WM_USER + 2)
 # define WM_MAD_SCAN_FINISHED	(WM_USER + 3)
+
+# define GWL_MAD_LEGEND_COLOR	GWL_USERDATA
+# define GWL_MAD_JSPIE_MS	(0 * 4)
+# define GWL_MAD_JSPIE_MS_I	(1 * 4)
+# define GWL_MAD_JSPIE_I	(2 * 4)
+
+# define GWL_MAD_JSPIE_FRAMES	GWL_USERDATA
 
 # define PCM_CHUNK		576
 
@@ -57,30 +65,60 @@ struct input {
   } handle;
 };
 
+enum channel {
+  CHANNEL_STEREO  = 0,
+  CHANNEL_MONO    = 1,
+  CHANNEL_LEFT    = 2,
+  CHANNEL_RIGHT   = 3,
+  CHANNEL_REVERSE = 4
+};
+
+struct stats {
+  int vbr;
+  unsigned int bitrate;
+  unsigned long frames;
+  unsigned long vbr_rate;
+  unsigned long clipped;
+  mad_fixed_t clipping;
+  unsigned long sync_errors;
+  unsigned long crc_errors;
+  unsigned long other_errors;
+  unsigned long ms_joint;
+  unsigned long i_joint;
+  unsigned long ms_i_joint;
+};
+
 static struct state {
-  char path[MAX_PATH];	/* currently playing path/URL */
-  struct input input;	/* input source */
-  DWORD size;		/* file size in bytes, or bytes until next metadata */
-  int length;		/* total playing time in ms */
-  int bitrate;		/* average bitrate in kbps */
-  int position;		/* current playing position in ms */
-  int paused;		/* are we paused? */
-  int seek;		/* seek target in ms, or -1 */
-  int stop;		/* stop flag */
-} state = { "", { INPUT_FILE, { INVALID_HANDLE_VALUE } },
-	    0, 0, 0, 0, 0, -1, 0 };
+  int serial;			/* serial number */
+  char path[MAX_PATH];		/* currently playing path/URL */
+  struct input input;		/* input source */
+  DWORD size;			/* file size in bytes */
+  int length;			/* total playing time in ms */
+  int bitrate;			/* average bitrate in kbps */
+  int position;			/* current playing position in ms */
+  int paused;			/* are we paused? */
+  int seek;			/* seek target in ms, or -1 */
+  int stop;			/* stop flag */
+  enum channel channel;		/* channel selection */
+  mad_fixed_t attenuation;	/* attenuation factor */
+  int equalizer;		/* using equalizer */
+  mad_fixed_t eqfactor[32];	/* equalizer settings */
+  struct stats stats;		/* statistics */
+} state;
 
 # define REGISTRY_KEY		"Software\\Winamp\\MAD Plug-in"
 
-static DWORD conf_enabled;	/* plug-in enabled? */
-static DWORD conf_priority;	/* decoder thread priority -2..+2 */
-static DWORD conf_resolution;	/* bits per output sample */
-static char  conf_titlefmt[64];	/* title format */
-static DWORD conf_lengthcalc;	/* full (slow) length calculation? */
-static DWORD conf_avgbitrate;	/* display average bitrate? */
+static DWORD conf_enabled;		/* plug-in enabled? */
+static char  conf_titlefmt[96];		/* title format */
+static DWORD conf_channel;		/* channel selection */
+static DWORD conf_priority;		/* decoder thread priority -2..+2 */
+static DWORD conf_resolution;		/* bits per output sample */
+static DWORD conf_autoattenuation;	/* auto clipping attenuation? */
+static DWORD conf_attsensitivity;	/* auto attenuation sensitivity */
+static DWORD conf_lengthcalc;		/* full (slow) length calculation? */
+static DWORD conf_avgbitrate;		/* display average bitrate? */
 
-# define DEFAULT_TITLEFMT	"%1 - %2"
-# define ALTERNATE_TITLEFMT	"%7"
+# define DEFAULT_TITLEFMT	"%?1<%1 - >%?2<%2|%7>"
 
 static HKEY registry = INVALID_HANDLE_VALUE;
 
@@ -88,6 +126,11 @@ static HANDLE decode_thread = INVALID_HANDLE_VALUE;
 static HANDLE length_thread = INVALID_HANDLE_VALUE;
 
 static HINTERNET internet = INVALID_HANDLE_VALUE;
+
+# define JSPIE_MS_COLOR		0x00b0b0e0L
+# define JSPIE_MS_I_COLOR	0x00f0a0f0L
+# define JSPIE_I_COLOR		0x00e0b0b0L
+# define JSPIE_LR_COLOR		0x00d0d0d0L
 
 # define DEBUG(str)	MessageBox(module.hMainWindow, (str), "Debug",  \
 				   MB_ICONEXCLAMATION | MB_OK);
@@ -177,65 +220,245 @@ void apply_config(void)
 }
 
 static
+int peek_registry(char const *name, DWORD type, void *ptr, DWORD size)
+{
+  DWORD reg_type;
+
+  if (registry == INVALID_HANDLE_VALUE ||
+      RegQueryValueEx(registry, name, 0,
+		      &reg_type, ptr, &size) != ERROR_SUCCESS ||
+      reg_type != type)
+    return -1;
+
+  return 0;
+}
+
+static
+int poke_registry(char const *name, DWORD type, void *ptr, DWORD size)
+{
+  if (registry == INVALID_HANDLE_VALUE ||
+      RegSetValueEx(registry, name, 0, type, ptr, size) != ERROR_SUCCESS)
+    return -1;
+
+  return 0;
+}
+
+# define LOAD_CONF_DWORD(name, default)  \
+    (peek_registry((#name), REG_DWORD,  \
+		    &(conf_##name), sizeof(conf_##name)) == -1 ?  \
+     ((conf_##name) = (default)) : (conf_##name))
+
+# define LOAD_CONF_SZ(name, default)  \
+    (peek_registry((#name), REG_SZ,  \
+		    (conf_##name), sizeof(conf_##name)) == -1 ?  \
+     strcpy((conf_##name), (default)) : (conf_##name))
+
+# define SAVE_CONF_DWORD(name)  \
+    (poke_registry((#name), REG_DWORD, &(conf_##name), sizeof(conf_##name)))
+
+# define SAVE_CONF_SZ(name)  \
+    (poke_registry((#name), REG_SZ, (conf_##name), sizeof(conf_##name)))
+
+static
+void draw_ellipse(HDC dc, RECT const *area, COLORREF color)
+{
+  HBRUSH brush, old_brush;
+
+  brush = CreateSolidBrush(color);
+  old_brush = SelectObject(dc, brush);
+
+  Ellipse(dc, area->left, area->top, area->right, area->bottom);
+
+  SelectObject(dc, old_brush);
+  DeleteObject(brush);
+}
+
+static
+void draw_wedge(HDC dc, RECT const *area,
+		double angle_start, double angle_stop, COLORREF color)
+{
+  int midx, midy, xfact, yfact;
+  int radial1x, radial1y, radial2x, radial2y;
+
+  midx  = (area->right  + area->left) / 2;
+  midy  = (area->bottom + area->top)  / 2;
+  xfact = (area->right  - area->left) / 2;
+  yfact = (area->bottom - area->top)  / 2;
+
+  radial1x = midx + xfact *  cos(angle_start) + 0.5;
+  radial1y = midy + yfact * -sin(angle_start) + 0.5;
+  radial2x = midx + xfact *  cos(angle_stop)  + 0.5;
+  radial2y = midy + yfact * -sin(angle_stop)  + 0.5;
+
+  if (angle_stop - angle_start >= 2 * M_PI ||
+      (abs(radial1x - radial2x) < 2 && abs(radial1y - radial2y) < 2)) {
+    if (angle_stop - angle_start > M_PI)
+      draw_ellipse(dc, area, color);
+
+    if (angle_stop - angle_start < 2 * M_PI) {
+      MoveToEx(dc, midx, midy, 0);
+      LineTo(dc, radial1x, radial1y);
+    }
+  }
+  else {
+    HBRUSH brush, old_brush;
+
+    brush = CreateSolidBrush(color);
+    old_brush = SelectObject(dc, brush);
+
+    Pie(dc, area->left, area->top, area->right, area->bottom,
+	radial1x, radial1y, radial2x, radial2y);
+
+    SelectObject(dc, old_brush);
+    DeleteObject(brush);
+  }
+}
+
+static CALLBACK
+LRESULT pie_wclass(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+{
+  switch (message) {
+  case WM_PAINT:
+    {
+      HDC dc;
+      PAINTSTRUCT ps;
+      RECT cr;
+      unsigned long ms_joint, ms_i_joint, i_joint, frames;
+
+      dc = BeginPaint(window, &ps);
+
+      GetClientRect(window, &cr);
+
+      ms_joint   = GetWindowLong(window, GWL_MAD_JSPIE_MS);
+      ms_i_joint = GetWindowLong(window, GWL_MAD_JSPIE_MS_I);
+      i_joint    = GetWindowLong(window, GWL_MAD_JSPIE_I);
+      frames     = GetWindowLong(window, GWL_MAD_JSPIE_FRAMES);
+
+      if ((ms_joint | ms_i_joint | i_joint) == 0 || frames == 0)
+	draw_ellipse(dc, &cr, JSPIE_LR_COLOR);
+      else {
+	double angle1 = 0, angle2 = 0;
+
+	if (ms_joint) {
+	  angle2 += 2 * M_PI * ms_joint / frames;
+	  draw_wedge(dc, &cr, angle1, angle2, JSPIE_MS_COLOR);
+
+	  angle1 = angle2;
+	}
+
+	if (ms_i_joint) {
+	  angle2 += 2 * M_PI * ms_i_joint / frames;
+	  draw_wedge(dc, &cr, angle1, angle2, JSPIE_MS_I_COLOR);
+
+	  angle1 = angle2;
+	}
+
+	if (i_joint) {
+	  angle2 += 2 * M_PI * i_joint / frames;
+	  draw_wedge(dc, &cr, angle1, angle2, JSPIE_I_COLOR);
+
+	  angle1 = angle2;
+	}
+
+	if (angle1 < 2 * M_PI)
+	  draw_wedge(dc, &cr, angle1, 2 * M_PI, JSPIE_LR_COLOR);
+      }
+
+      EndPaint(window, &ps);
+    }
+
+    return 0;
+
+  default:
+    return DefWindowProc(window, message, wparam, lparam);
+  }
+}
+
+static CALLBACK
+LRESULT legend_wclass(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+{
+  switch (message) {
+  case WM_PAINT:
+    {
+      HDC dc;
+      PAINTSTRUCT ps;
+      RECT cr;
+      HBRUSH brush;
+
+      dc = BeginPaint(window, &ps);
+
+      GetClientRect(window, &cr);
+
+      brush = CreateSolidBrush(GetWindowLong(window, GWL_MAD_LEGEND_COLOR));
+      FillRect(dc, &cr, brush);
+      DeleteObject(brush);
+
+      FrameRect(dc, &cr, GetStockObject(BLACK_BRUSH));
+
+      EndPaint(window, &ps);
+
+      return 0;
+    }
+
+  default:
+    return DefWindowProc(window, message, wparam, lparam);
+  }
+}
+
+static
 void do_init(void)
 {
+  WNDCLASSEX wclass;
+
+# if defined(OUR_EQ)
+  /* tell Winamp we will handle the equalization */
+  module.UsesOutputPlug |= 2;
+# endif
+
   InitCommonControls();
 
   if (RegCreateKeyEx(HKEY_CURRENT_USER, REGISTRY_KEY,
 		     0, "", REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, 0,
-		     &registry, 0) != ERROR_SUCCESS) {
+		     &registry, 0) != ERROR_SUCCESS)
     registry = INVALID_HANDLE_VALUE;
 
-    conf_enabled    = 1;
-    conf_priority   = 0;
+  LOAD_CONF_DWORD(enabled, 1);
+  LOAD_CONF_DWORD(channel, CHANNEL_STEREO);
+  LOAD_CONF_DWORD(priority, 0);
+  LOAD_CONF_DWORD(resolution, 16);
+  LOAD_CONF_DWORD(autoattenuation, 0);
+  LOAD_CONF_DWORD(attsensitivity, MAD_F(0x0c000000));
+  LOAD_CONF_DWORD(lengthcalc, 0);
+  LOAD_CONF_DWORD(avgbitrate, 1);
+
+  LOAD_CONF_SZ(titlefmt, DEFAULT_TITLEFMT);
+
+  if (conf_resolution !=  8 && conf_resolution != 16 &&
+      conf_resolution != 24 && conf_resolution != 32)
     conf_resolution = 16;
-    strcpy(conf_titlefmt, DEFAULT_TITLEFMT);
-    conf_lengthcalc = 0;
-    conf_avgbitrate = 1;
-  }
-  else {
-    DWORD type, size;
-
-    size = sizeof(conf_enabled);
-    if (RegQueryValueEx(registry, "enabled", 0,
-			&type, (BYTE *) &conf_enabled,
-			&size) != ERROR_SUCCESS || type != REG_DWORD)
-      conf_enabled = 1;
-
-    size = sizeof(conf_priority);
-    if (RegQueryValueEx(registry, "priority", 0,
-			&type, (BYTE *) &conf_priority,
-			&size) != ERROR_SUCCESS || type != REG_DWORD)
-      conf_priority = 0;
-
-    size = sizeof(conf_resolution);
-    if (RegQueryValueEx(registry, "resolution", 0,
-			&type, (BYTE *) &conf_resolution,
-			&size) != ERROR_SUCCESS || type != REG_DWORD ||
-	(conf_resolution !=  8 && conf_resolution != 16 &&
-	 conf_resolution != 24 && conf_resolution != 32))
-      conf_resolution = 16;
-
-    size = sizeof(conf_titlefmt);
-    if (RegQueryValueEx(registry, "titlefmt", 0,
-			&type, (BYTE *) &conf_titlefmt,
-			&size) != ERROR_SUCCESS || type != REG_SZ)
-      strcpy(conf_titlefmt, DEFAULT_TITLEFMT);
-
-    size = sizeof(conf_lengthcalc);
-    if (RegQueryValueEx(registry, "lengthcalc", 0,
-			&type, (BYTE *) &conf_lengthcalc,
-			&size) != ERROR_SUCCESS || type != REG_DWORD)
-      conf_lengthcalc = 0;
-
-    size = sizeof(conf_avgbitrate);
-    if (RegQueryValueEx(registry, "avgbitrate", 0,
-			&type, (BYTE *) &conf_avgbitrate,
-			&size) != ERROR_SUCCESS || type != REG_DWORD)
-      conf_avgbitrate = 1;
-  }
 
   apply_config();
+
+  wclass.cbSize        = sizeof(wclass);
+  wclass.style         = 0;
+  wclass.lpfnWndProc   = pie_wclass;
+  wclass.cbClsExtra    = 0;
+  wclass.cbWndExtra    = 3 * 4;
+  wclass.hInstance     = module.hDllInstance;
+  wclass.hIcon         = 0;
+  wclass.hCursor       = 0;
+  wclass.hbrBackground = (HBRUSH) COLOR_WINDOW;
+  wclass.lpszMenuName  = 0;
+  wclass.lpszClassName = "MAD_JSPIE";
+  wclass.hIconSm       = 0;
+
+  RegisterClassEx(&wclass);
+
+  wclass.lpfnWndProc   = legend_wclass;
+  wclass.cbWndExtra    = 0;
+  wclass.lpszClassName = "MAD_LEGEND";
+
+  RegisterClassEx(&wclass);
 }
 
 static
@@ -263,14 +486,34 @@ BOOL config_dialog(HWND dialog, UINT message,
     if (conf_enabled)
       CheckDlgButton(dialog, IDC_CONF_ENABLED, BST_CHECKED);
 
+    /* Title Format */
+
     SendDlgItemMessage(dialog, IDC_TITLE_FORMAT, EM_SETLIMITTEXT,
 		       sizeof(conf_titlefmt) - 1, 0);
     SetDlgItemText(dialog, IDC_TITLE_FORMAT, conf_titlefmt);
+
+    /* Channels */
+
+    switch (conf_channel) {
+    case CHANNEL_STEREO:  which = IDC_CHAN_STEREO; break;
+    case CHANNEL_MONO:    which = IDC_CHAN_MONO;   break;
+    case CHANNEL_LEFT:    which = IDC_CHAN_LEFT;   break;
+    case CHANNEL_RIGHT:   which = IDC_CHAN_RIGHT;  break;
+    case CHANNEL_REVERSE: which = IDC_CHAN_REVERSE; break;
+    default:
+      which = 0;
+    }
+    if (which)
+      CheckRadioButton(dialog, IDC_CHAN_STEREO, IDC_CHAN_REVERSE, which);
+
+    /* Priority */
 
     SendDlgItemMessage(dialog, IDC_PRIO_SLIDER,
 		       TBM_SETRANGE, FALSE, MAKELONG(2 - 2, 2 + 2));
     SendDlgItemMessage(dialog, IDC_PRIO_SLIDER,
 		       TBM_SETPOS, TRUE, 2 - conf_priority);
+
+    /* Resolution */
 
     switch (conf_resolution) {
     case  8: which = IDC_RES_8BITS;  break;
@@ -283,6 +526,23 @@ BOOL config_dialog(HWND dialog, UINT message,
     if (which)
       CheckRadioButton(dialog, IDC_RES_8BITS, IDC_RES_32BITS, which);
 
+    /* Output */
+
+    if (conf_autoattenuation)
+      CheckDlgButton(dialog, IDC_OUT_AUTOATTENUATION, BST_CHECKED);
+
+    SendDlgItemMessage(dialog, IDC_OUT_SENSITIVITY,
+		       TBM_SETRANGE, FALSE, MAKELONG(1, 8));
+    SendDlgItemMessage(dialog, IDC_OUT_SENSITIVITY,
+		       TBM_SETPOS, TRUE,
+		       conf_attsensitivity / MAD_F(0x02000000));
+
+    PostMessage(dialog, WM_COMMAND,
+		MAKELONG(IDC_OUT_AUTOATTENUATION, BN_CLICKED),
+		(LPARAM) GetDlgItem(dialog, IDC_OUT_AUTOATTENUATION));
+
+    /* Miscellaneous */
+
     if (!conf_lengthcalc)
       CheckDlgButton(dialog, IDC_MISC_FASTTIMECALC, BST_CHECKED);
     if (conf_avgbitrate)
@@ -292,21 +552,26 @@ BOOL config_dialog(HWND dialog, UINT message,
 
   case WM_COMMAND:
     switch (LOWORD(wparam)) {
+    case IDC_OUT_AUTOATTENUATION:
+      {
+	BOOL state;
+
+	state =
+	  IsDlgButtonChecked(dialog, IDC_OUT_AUTOATTENUATION) == BST_CHECKED ?
+	  TRUE : FALSE;
+
+	EnableWindow(GetDlgItem(dialog, IDC_OUT_SENSITIVITY), state);
+	EnableWindow(GetDlgItem(dialog, IDC_OUT_LABEL1),      state);
+	EnableWindow(GetDlgItem(dialog, IDC_OUT_LABEL2),      state);
+	EnableWindow(GetDlgItem(dialog, IDC_OUT_LABEL3),      state);
+      }
+      break;
+
     case IDOK:
       conf_enabled =
 	(IsDlgButtonChecked(dialog, IDC_CONF_ENABLED) == BST_CHECKED);
 
-      conf_priority = 2 -
-	SendDlgItemMessage(dialog, IDC_PRIO_SLIDER, TBM_GETPOS, 0, 0);
-
-      if (IsDlgButtonChecked(dialog, IDC_RES_8BITS) == BST_CHECKED)
-	conf_resolution =  8;
-      else if (IsDlgButtonChecked(dialog, IDC_RES_16BITS) == BST_CHECKED)
-	conf_resolution = 16;
-      else if (IsDlgButtonChecked(dialog, IDC_RES_24BITS) == BST_CHECKED)
-	conf_resolution = 24;
-      else if (IsDlgButtonChecked(dialog, IDC_RES_32BITS) == BST_CHECKED)
-	conf_resolution = 32;
+      /* Title Format */
 
       if (SendDlgItemMessage(dialog, IDC_TITLE_FORMAT,
 			     WM_GETTEXTLENGTH, 0, 0) == 0)
@@ -315,6 +580,45 @@ BOOL config_dialog(HWND dialog, UINT message,
 	GetDlgItemText(dialog, IDC_TITLE_FORMAT,
 		       conf_titlefmt, sizeof(conf_titlefmt));
       }
+
+      /* Channels */
+
+      if      (IsDlgButtonChecked(dialog, IDC_CHAN_STEREO)  == BST_CHECKED)
+	conf_channel = CHANNEL_STEREO;
+      else if (IsDlgButtonChecked(dialog, IDC_CHAN_MONO)    == BST_CHECKED)
+	conf_channel = CHANNEL_MONO;
+      else if (IsDlgButtonChecked(dialog, IDC_CHAN_LEFT)    == BST_CHECKED)
+	conf_channel = CHANNEL_LEFT;
+      else if (IsDlgButtonChecked(dialog, IDC_CHAN_RIGHT)   == BST_CHECKED)
+	conf_channel = CHANNEL_RIGHT;
+      else if (IsDlgButtonChecked(dialog, IDC_CHAN_REVERSE) == BST_CHECKED)
+	conf_channel = CHANNEL_REVERSE;
+
+      /* Priority */
+
+      conf_priority = 2 -
+	SendDlgItemMessage(dialog, IDC_PRIO_SLIDER, TBM_GETPOS, 0, 0);
+
+      /* Resolution */
+
+      if      (IsDlgButtonChecked(dialog, IDC_RES_8BITS)  == BST_CHECKED)
+	conf_resolution =  8;
+      else if (IsDlgButtonChecked(dialog, IDC_RES_16BITS) == BST_CHECKED)
+	conf_resolution = 16;
+      else if (IsDlgButtonChecked(dialog, IDC_RES_24BITS) == BST_CHECKED)
+	conf_resolution = 24;
+      else if (IsDlgButtonChecked(dialog, IDC_RES_32BITS) == BST_CHECKED)
+	conf_resolution = 32;
+
+      /* Output */
+
+      conf_autoattenuation =
+	(IsDlgButtonChecked(dialog, IDC_OUT_AUTOATTENUATION) == BST_CHECKED);
+
+      conf_attsensitivity = MAD_F(0x02000000) *
+	SendDlgItemMessage(dialog, IDC_OUT_SENSITIVITY, TBM_GETPOS, 0, 0);
+
+      /* Miscellaneous */
 
       conf_lengthcalc =
 	(IsDlgButtonChecked(dialog, IDC_MISC_FASTTIMECALC) != BST_CHECKED);
@@ -338,20 +642,16 @@ void show_config(HWND parent)
 {
   if (DialogBox(module.hDllInstance, MAKEINTRESOURCE(IDD_CONFIG),
 		parent, config_dialog) == IDOK) {
-    if (registry != INVALID_HANDLE_VALUE) {
-      RegSetValueEx(registry, "enabled", 0, REG_DWORD,
-		    (BYTE *) &conf_enabled, sizeof(conf_enabled));
-      RegSetValueEx(registry, "priority", 0, REG_DWORD,
-		    (BYTE *) &conf_priority, sizeof(conf_priority));
-      RegSetValueEx(registry, "resolution", 0, REG_DWORD,
-		    (BYTE *) &conf_resolution, sizeof(conf_resolution));
-      RegSetValueEx(registry, "titlefmt", 0, REG_SZ,
-		    (BYTE *) &conf_titlefmt, sizeof(conf_titlefmt));
-      RegSetValueEx(registry, "lengthcalc", 0, REG_DWORD,
-		    (BYTE *) &conf_lengthcalc, sizeof(conf_lengthcalc));
-      RegSetValueEx(registry, "avgbitrate", 0, REG_DWORD,
-		    (BYTE *) &conf_avgbitrate, sizeof(conf_avgbitrate));
-    }
+    SAVE_CONF_DWORD(enabled);
+    SAVE_CONF_DWORD(channel);
+    SAVE_CONF_DWORD(priority);
+    SAVE_CONF_DWORD(resolution);
+    SAVE_CONF_DWORD(autoattenuation);
+    SAVE_CONF_DWORD(attsensitivity);
+    SAVE_CONF_DWORD(lengthcalc);
+    SAVE_CONF_DWORD(avgbitrate);
+
+    SAVE_CONF_SZ(titlefmt);
 
     apply_config();
   }
@@ -603,9 +903,71 @@ int id3v2_tag(unsigned char const *buffer, unsigned long buflen,
   return (size > buflen) ? input_skip(input, size - buflen) : 0;
 }
 
+static
+void mono_filter(struct mad_frame *frame)
+{
+  if (frame->header.mode != MAD_MODE_SINGLE_CHANNEL) {
+    unsigned int ns, s, sb;
+    mad_fixed_t left, right;
+
+    ns = MAD_NSBSAMPLES(&frame->header);
+
+    for (s = 0; s < ns; ++s) {
+      for (sb = 0; sb < 32; ++sb) {
+	left  = frame->sbsample[0][s][sb];
+	right = frame->sbsample[1][s][sb];
+
+	frame->sbsample[0][s][sb] = (left + right) / 2;
+	/* frame->sbsample[1][s][sb] = 0; */
+      }
+    }
+
+    frame->header.mode = MAD_MODE_SINGLE_CHANNEL;
+  }
+}
+
+static
+void attenuate_filter(struct mad_frame *frame, mad_fixed_t scalefactor)
+{
+  unsigned int nch, ch, ns, s, sb;
+
+  nch = MAD_NCHANNELS(&frame->header);
+  ns  = MAD_NSBSAMPLES(&frame->header);
+
+  for (ch = 0; ch < nch; ++ch) {
+    for (s = 0; s < ns; ++s) {
+      for (sb = 0; sb < 32; ++sb) {
+	frame->sbsample[ch][s][sb] =
+	  mad_f_mul(frame->sbsample[ch][s][sb], scalefactor);
+      }
+    }
+  }
+}
+
+# if defined(OUR_EQ)
+static
+void equalizer_filter(struct mad_frame *frame, mad_fixed_t eqfactor[32])
+{
+  unsigned int nch, ch, ns, s, sb;
+
+  nch = MAD_NCHANNELS(&frame->header);
+  ns  = MAD_NSBSAMPLES(&frame->header);
+
+  for (ch = 0; ch < nch; ++ch) {
+    for (s = 0; s < ns; ++s) {
+      for (sb = 0; sb < 32; ++sb) {
+	frame->sbsample[ch][s][sb] =
+	  mad_f_mul(frame->sbsample[ch][s][sb], eqfactor[sb]);
+      }
+    }
+  }
+}
+# endif
+
 static inline
 signed long linear_dither(unsigned int bits, mad_fixed_t sample,
-			  mad_fixed_t *error)
+			  mad_fixed_t *error, unsigned long *clipped,
+			  mad_fixed_t *clipping)
 {
   mad_fixed_t quantized;
 
@@ -614,10 +976,20 @@ signed long linear_dither(unsigned int bits, mad_fixed_t sample,
 
   /* clip */
   quantized = sample;
-  if (sample >= MAD_F_ONE)
+  if (sample >= MAD_F_ONE) {
     quantized = MAD_F_ONE - 1;
-  else if (sample < -MAD_F_ONE)
+    ++*clipped;
+    if (sample - quantized > *clipping &&
+	mad_f_abs(*error) < (MAD_F_ONE >> (MAD_F_FRACBITS + 1 - bits)))
+      *clipping = sample - quantized;
+  }
+  else if (sample < -MAD_F_ONE) {
     quantized = -MAD_F_ONE;
+    ++*clipped;
+    if (quantized - sample > *clipping &&
+	mad_f_abs(*error) < (MAD_F_ONE >> (MAD_F_FRACBITS + 1 - bits)))
+      *clipping = quantized - sample;
+  }
 
   /* quantize */
   quantized &= ~((1L << (MAD_F_FRACBITS + 1 - bits)) - 1);
@@ -625,6 +997,7 @@ signed long linear_dither(unsigned int bits, mad_fixed_t sample,
   /* error */
   *error = sample - quantized;
 
+  /* scale */
   return quantized >> (MAD_F_FRACBITS + 1 - bits);
 }
 
@@ -632,7 +1005,8 @@ signed long linear_dither(unsigned int bits, mad_fixed_t sample,
 static
 unsigned int pack_pcm(unsigned char *data, unsigned int nsamples,
 		      mad_fixed_t const *left, mad_fixed_t const *right,
-		      int resolution)
+		      int resolution, unsigned long *clipped,
+		      mad_fixed_t *clipping)
 {
   static mad_fixed_t left_err, right_err;
   unsigned char const *start;
@@ -645,8 +1019,10 @@ unsigned int pack_pcm(unsigned char *data, unsigned int nsamples,
 
   if (right) {  /* stereo */
     while (nsamples--) {
-      sample0 = linear_dither(effective, *left++,  &left_err);
-      sample1 = linear_dither(effective, *right++, &right_err);
+      sample0 = linear_dither(effective, *left++, &left_err,
+			      clipped, clipping);
+      sample1 = linear_dither(effective, *right++, &right_err,
+			      clipped, clipping);
 
       switch (resolution) {
       case 8:
@@ -674,7 +1050,8 @@ unsigned int pack_pcm(unsigned char *data, unsigned int nsamples,
   }
   else {  /* mono */
     while (nsamples--) {
-      sample0 = linear_dither(effective, *left++, &left_err);
+      sample0 = linear_dither(effective, *left++, &left_err,
+			      clipped, clipping);
 
       switch (resolution) {
       case 8:
@@ -813,29 +1190,28 @@ unsigned int pack_pcm(void *data, unsigned int nsamples,
 }
 # endif
 
-struct stats {
-  int vbr;
-  unsigned int bitrate;
-  unsigned long vbr_frames;
-  unsigned long vbr_rate;
-};
-
 static
 void stats_init(struct stats *stats)
 {
-  stats->vbr        = 0;
-  stats->bitrate    = 0;
-  stats->vbr_frames = 0;
-  stats->vbr_rate   = 0;
+  stats->vbr          = 0;
+  stats->bitrate      = 0;
+  stats->frames       = 0;
+  stats->vbr_rate     = 0;
+  stats->clipped      = 0;
+  stats->clipping     = 0;
+  stats->sync_errors  = 0;
+  stats->crc_errors   = 0;
+  stats->other_errors = 0;
+  stats->ms_joint     = 0;
+  stats->i_joint      = 0;
+  stats->ms_i_joint   = 0;
 }
 
 static
-int stats_update(struct stats *stats, unsigned long bitrate)
+int vbr_update(struct stats *stats, unsigned long bitrate)
 {
   bitrate /= 1000;
-
   stats->vbr_rate += bitrate;
-  stats->vbr_frames++;
 
   stats->vbr += (stats->bitrate && stats->bitrate != bitrate) ? 128 : -1;
   if (stats->vbr < 0)
@@ -846,15 +1222,20 @@ int stats_update(struct stats *stats, unsigned long bitrate)
   stats->bitrate = bitrate;
 
   return stats->vbr ?
-    ((stats->vbr_rate * 2) / stats->vbr_frames + 1) / 2 : stats->bitrate;
+    ((stats->vbr_rate * 2) / stats->frames + 1) / 2 : stats->bitrate;
 }
 
 static
 int do_error(struct mad_stream *stream, struct mad_frame *frame,
-	     struct input *input, int *last_error)
+	     struct input *input, int *last_error, struct stats *stats)
 {
+  int do_continue = 1;
+
   switch (stream->error) {
   case MAD_ERROR_BADCRC:
+    if (stats)
+      ++stats->crc_errors;
+
     if (last_error) {
       if (*last_error) {
 	if (frame)
@@ -863,6 +1244,8 @@ int do_error(struct mad_stream *stream, struct mad_frame *frame,
       else
 	*last_error = 1;
     }
+
+    do_continue = 0;
     break;
 
   case MAD_ERROR_LOSTSYNC:
@@ -883,14 +1266,19 @@ int do_error(struct mad_stream *stream, struct mad_frame *frame,
       /* ID3v1 tag */
       mad_stream_skip(stream, 128);
     }
+    else if (stats)
+      ++stats->sync_errors;
 
-    /* fall through */
+    break;
 
   default:
-    return 1;
+    if (stats)
+      ++stats->other_errors;
+
+    break;
   }
 
-  return 0;
+  return do_continue;
 }
 
 static
@@ -908,7 +1296,6 @@ DWORD WINAPI run_decode_thread(void *param)
   unsigned int input_size, input_length = 0, output_length = 0;
 
   mad_timer_t timer, duration;
-  struct stats stats;
   int avgbitrate, bitrate, last_bitrate = 0, seek_skip = 0, last_error = 0;
 
   input_size = 40000 /* 1 s at 320 kbps */ * 5;
@@ -924,7 +1311,7 @@ DWORD WINAPI run_decode_thread(void *param)
 
   timer = duration = mad_timer_zero;
 
-  stats_init(&stats);
+  stats_init(&state->stats);
 
   while (1) {
     if (input_length < input_size / 2) {
@@ -947,7 +1334,7 @@ DWORD WINAPI run_decode_thread(void *param)
       int skip;
 
       skip = 2;
-      while (skip) {
+      do {
 	if (mad_frame_decode(&frame, &stream) == 0) {
 	  mad_timer_add(&timer, frame.header.duration);
 	  if (--skip == 0)
@@ -956,6 +1343,7 @@ DWORD WINAPI run_decode_thread(void *param)
 	else if (!MAD_RECOVERABLE(stream.error))
 	  break;
       }
+      while (skip);
 
       module.outMod->Flush(seek_skip);
 
@@ -965,6 +1353,7 @@ DWORD WINAPI run_decode_thread(void *param)
     while (!state->stop) {
       char *output_ptr;
       int nch, bytes;
+      mad_fixed_t const *ch1, *ch2;
 
       if (state->seek != -1 && state->length >= 0) {
 	int new_position;
@@ -1005,14 +1394,31 @@ DWORD WINAPI run_decode_thread(void *param)
 	module.SetInfo(-1, -1, -1, 0);
 	last_bitrate = 0;
 
-	if (do_error(&stream, &frame, &state->input, &last_error))
+	if (do_error(&stream, &frame, &state->input,
+		     &last_error, &state->stats))
 	  continue;
       }
       else
 	last_error = 0;
 
+      ++state->stats.frames;
+
+      switch (frame.header.flags & (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO)) {
+      case MAD_FLAG_MS_STEREO:
+	++state->stats.ms_joint;
+	break;
+
+      case MAD_FLAG_I_STEREO:
+	++state->stats.i_joint;
+	break;
+
+      case (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO):
+	++state->stats.ms_i_joint;
+	break;
+      }
+
       avgbitrate = state->bitrate ?
-	state->bitrate : stats_update(&stats, frame.header.bitrate);
+	state->bitrate : vbr_update(&state->stats, frame.header.bitrate);
 
       bitrate = conf_avgbitrate ? avgbitrate : frame.header.bitrate / 1000;
 
@@ -1027,14 +1433,59 @@ DWORD WINAPI run_decode_thread(void *param)
 	last_bitrate = bitrate;
       }
 
+      if (state->channel == CHANNEL_MONO)
+	mono_filter(&frame);
+      if (state->attenuation != MAD_F_ONE)
+	attenuate_filter(&frame, state->attenuation);
+# if defined(OUR_EQ)
+      if (state->equalizer)
+	equalizer_filter(&frame, state->eqfactor);
+# endif
+
       mad_synth_frame(&synth, &frame);
 
       nch = MAD_NCHANNELS(&frame.header);
+      ch1 = synth.pcm.samples[0];
+      ch2 = synth.pcm.samples[1];
+
+      if (nch == 1)
+	ch2 = 0;
+      else {
+	switch (state->channel) {
+	case CHANNEL_STEREO:
+	  break;
+
+	case CHANNEL_MONO:
+	case CHANNEL_LEFT:
+	  nch = 1;
+	  ch2 = 0;
+	  break;
+
+	case CHANNEL_RIGHT:
+	  ch1 = ch2;
+	  ch2 = 0;
+	  break;
+
+	case CHANNEL_REVERSE:
+	  ch1 = ch2;
+	  ch2 = synth.pcm.samples[0];
+	  break;
+	}
+      }
 
       output_length +=
-	pack_pcm(output_buffer + output_length, synth.pcm.length,
-		 synth.pcm.samples[0], nch == 1 ? 0 : synth.pcm.samples[1],
-		 resolution);
+	pack_pcm(output_buffer + output_length,
+		 synth.pcm.length, ch1, ch2, resolution,
+		 &state->stats.clipped, &state->stats.clipping);
+
+      if (conf_autoattenuation && state->stats.clipping > 0) {
+	state->attenuation =
+	  mad_f_tofixed(mad_f_todouble(state->attenuation) /
+			mad_f_todouble(MAD_F_ONE +
+				       mad_f_mul(state->stats.clipping,
+						 conf_attsensitivity)));
+	state->stats.clipping = 0;
+      }
 
       output_ptr = output_buffer;
 
@@ -1141,7 +1592,7 @@ int scan_header(struct input *input, struct mad_header *dest)
 	if (!MAD_RECOVERABLE(stream.error))
 	  break;
 
-	if (do_error(&stream, 0, input, 0))
+	if (do_error(&stream, 0, input, 0, 0))
 	  continue;
       }
 
@@ -1204,14 +1655,16 @@ void scan_file(struct input *input, int *stop_flag,
 	if (!MAD_RECOVERABLE(stream.error))
 	  break;
 
-	if (do_error(&stream, 0, input, 0))
+	if (do_error(&stream, 0, input, 0, 0))
 	  continue;
       }
+
+      ++stats.frames;
 
       if (length)
 	mad_timer_add(&timer, header.duration);
       if (bitrate)
-	avgbitrate = stats_update(&stats, header.bitrate);
+	avgbitrate = vbr_update(&stats, header.bitrate);
     }
 
     if ((stop_flag && *stop_flag) || stream.error != MAD_ERROR_BUFLEN)
@@ -1258,13 +1711,24 @@ int decode_start(struct state *state, struct mad_header *header)
   int max_latency, nch, priority;
   DWORD thread_id;
 
-  state->bitrate  = 0;
-  state->position = 0;
-  state->paused   = 0;
-  state->seek     = -1;
-  state->stop     = 0;
+  state->bitrate     = 0;
+  state->position    = 0;
+  state->paused      = 0;
+  state->seek        = -1;
+  state->stop        = 0;
+  state->channel     = conf_channel;
+  state->attenuation = MAD_F_ONE;
 
-  nch = MAD_NCHANNELS(header);
+  switch (conf_channel) {
+  case CHANNEL_STEREO:
+  case CHANNEL_REVERSE:
+    nch = MAD_NCHANNELS(header);
+    break;
+
+  default:
+    nch = 1;
+    break;
+  }
 
   max_latency =
     module.outMod->Open(header->sfreq, nch, conf_resolution, -1, -1);
@@ -1295,21 +1759,21 @@ int decode_start(struct state *state, struct mad_header *header)
 			       0, &thread_id);
 
   switch (conf_priority) {
-  case -2:
-    priority = THREAD_PRIORITY_LOWEST;
+  case +2:
+    priority = THREAD_PRIORITY_HIGHEST;
     break;
-  case -1:
-    priority = THREAD_PRIORITY_BELOW_NORMAL;
+  case +1:
+    priority = THREAD_PRIORITY_ABOVE_NORMAL;
     break;
   case 0:
   default:
     priority = THREAD_PRIORITY_NORMAL;
     break;
-  case +1:
-    priority = THREAD_PRIORITY_ABOVE_NORMAL;
+  case -1:
+    priority = THREAD_PRIORITY_BELOW_NORMAL;
     break;
-  case +2:
-    priority = THREAD_PRIORITY_HIGHEST;
+  case -2:
+    priority = THREAD_PRIORITY_LOWEST;
     break;
   }
   SetThreadPriority(decode_thread, priority);
@@ -1364,7 +1828,12 @@ int play_file(struct state *state)
   if (file == INVALID_HANDLE_VALUE) {
     DWORD error;
 
-    show_error(0, "Error Opening File", error = GetLastError());
+    error = GetLastError();
+
+# if 0
+    show_error(0, "Error Opening File", error);
+# endif
+
     return (error == ERROR_FILE_NOT_FOUND) ? -1 : 1;
   }
 
@@ -1390,6 +1859,7 @@ int play_file(struct state *state)
 static
 int do_play(char *path)
 {
+  ++state.serial;
   strcpy(state.path, path);
 
   return is_stream(path) ? play_stream(&state) : play_file(&state);
@@ -1599,7 +2069,6 @@ struct fileinfo {
 
   struct {
     HWND dialog;
-    HANDLE scan_thread;
     int stop;
     int length;
     int bitrate;
@@ -1684,6 +2153,7 @@ void groupnumber(char *str, int num)
   }
 }
 
+# if 0
 static CALLBACK
 UINT mpeg_callback(HWND hwnd, UINT message, PROPSHEETPAGE *psp)
 {
@@ -1709,6 +2179,7 @@ UINT mpeg_callback(HWND hwnd, UINT message, PROPSHEETPAGE *psp)
 
   return 0;
 }
+# endif
 
 static CALLBACK
 BOOL mpeg_dialog(HWND dialog, UINT message,
@@ -1716,27 +2187,28 @@ BOOL mpeg_dialog(HWND dialog, UINT message,
 {
   static PROPSHEETPAGE *psp;
   static struct fileinfo *info;
+  static HANDLE scan_thread;
 
   switch (message) {
   case WM_INITDIALOG:
     {
       DWORD thread_id;
       char str[40];
-      int size;
+      double size;
       char *unit;
 
       psp  = (PROPSHEETPAGE *) lparam;
       info = (struct fileinfo *) psp->lParam;
 
-      info->mpeg.dialog      = dialog;
-      info->mpeg.stop        = 0;
-      info->mpeg.scan_thread =
-	CreateThread(0, 0, run_scan_thread, info, 0, &thread_id);
+      info->mpeg.dialog = dialog;
+      info->mpeg.stop   = 0;
+
+      scan_thread = CreateThread(0, 0, run_scan_thread, info, 0, &thread_id);
 
       SetDlgItemText(dialog, IDC_MPEG_LOCATION, info->dirname);
 
       size = info->size;
-      unit = " bytes";
+      unit = 0;
 
       if (size >= 1024) {
 	size /= 1024;
@@ -1758,17 +2230,30 @@ BOOL mpeg_dialog(HWND dialog, UINT message,
 	}
       }
 
-      sprintf(str, "%d%s", size, unit);
-
-      if (*unit != ' ') {
+      if (unit) {
+	sprintf(str, "%.1f%s", size, unit);
 	strcat(str, " (");
 	groupnumber(str + strlen(str), info->size);
 	strcat(str, " bytes)");
       }
+      else
+	sprintf(str, "%ld bytes", info->size);
 
       SetDlgItemText(dialog, IDC_MPEG_SIZE, str);
     }
-    return FALSE;
+    break;
+
+  case WM_DESTROY:
+    if (scan_thread != INVALID_HANDLE_VALUE) {
+      info->mpeg.stop = 1;
+
+      if (WaitForSingleObject(scan_thread, INFINITE) == WAIT_TIMEOUT)
+	TerminateThread(scan_thread, 0);
+
+      CloseHandle(scan_thread);
+      scan_thread = INVALID_HANDLE_VALUE;
+    }
+    break;
 
   case WM_MAD_SCAN_FINISHED:
     {
@@ -2006,7 +2491,7 @@ BOOL id3v1_dialog(HWND dialog, UINT message,
 
     SendDlgItemMessage(dialog, IDC_ID3V1_GENRE, CB_SETCURSEL, index, 0);
 
-    return FALSE;
+    break;
 
   case WM_NOTIFY:
     switch (((NMHDR *) lparam)->code) {
@@ -2115,7 +2600,137 @@ BOOL id3v2_dialog(HWND dialog, UINT message,
   case WM_INITDIALOG:
     psp  = (PROPSHEETPAGE *) lparam;
     info = (struct fileinfo *) psp->lParam;
-    return FALSE;
+
+    break;
+
+  case WM_NOTIFY:
+    switch (((NMHDR *) lparam)->code) {
+    case PSN_SETACTIVE:
+      return TRUE;
+
+    case PSN_KILLACTIVE:
+      SetWindowLong(dialog, DWL_MSGRESULT, FALSE);
+      return TRUE;
+
+    case PSN_APPLY:
+      return TRUE;
+    }
+    break;
+  }
+
+  return FALSE;
+}
+
+static CALLBACK
+BOOL stats_dialog(HWND dialog, UINT message,
+		  WPARAM wparam, LPARAM lparam)
+{
+  static PROPSHEETPAGE *psp;
+  static struct fileinfo *info;
+  static int serial;
+  static UINT timer;
+
+  enum {
+    db_scale = 6
+  };
+
+  switch (message) {
+  case WM_INITDIALOG:
+    psp  = (PROPSHEETPAGE *) lparam;
+    info = (struct fileinfo *) psp->lParam;
+
+    serial = state.serial;
+
+    SetWindowLong(GetDlgItem(dialog, IDC_STATS_LEGENDMS),
+		  GWL_MAD_LEGEND_COLOR, JSPIE_MS_COLOR);
+    SetWindowLong(GetDlgItem(dialog, IDC_STATS_LEGENDI),
+		  GWL_MAD_LEGEND_COLOR, JSPIE_I_COLOR);
+
+    SendDlgItemMessage(dialog, IDC_STATS_CLIPPING,
+		       PBM_SETRANGE, 0, MAKELPARAM(0, db_scale * 10));
+
+    timer = SetTimer(dialog, 103, 1000, 0);
+    PostMessage(dialog, WM_TIMER, timer, 0);
+
+    break;
+
+  case WM_TIMER:
+    if (wparam == timer) {
+      if (state.serial == serial) {
+	struct stats *stats = &state.stats;
+	HWND pie;
+	double db;
+	char str[10];
+
+	/* Frames */
+
+	SetDlgItemInt(dialog, IDC_STATS_DECODED, stats->frames, FALSE);
+
+	pie = GetDlgItem(dialog, IDC_STATS_JSPIE);
+	SetWindowLong(pie, GWL_MAD_JSPIE_MS,     stats->ms_joint);
+	SetWindowLong(pie, GWL_MAD_JSPIE_I,      stats->i_joint);
+	SetWindowLong(pie, GWL_MAD_JSPIE_MS_I,   stats->ms_i_joint);
+	SetWindowLong(pie, GWL_MAD_JSPIE_FRAMES, stats->frames);
+	InvalidateRect(pie, 0, FALSE);
+
+	/* Errors */
+
+	SetDlgItemInt(dialog, IDC_STATS_SYNCERR, stats->sync_errors,  FALSE);
+	SetDlgItemInt(dialog, IDC_STATS_CRCERR,  stats->crc_errors,   FALSE);
+	SetDlgItemInt(dialog, IDC_STATS_OTHERR,  stats->other_errors, FALSE);
+
+	/* Output */
+
+	db = 20 * log10(mad_f_todouble(state.attenuation));
+	sprintf(str, "%.1f dB", db);
+	SetDlgItemText(dialog, IDC_STATS_ATTENUATION, str);
+
+	SetDlgItemInt(dialog, IDC_STATS_CLIPPED, stats->clipped, FALSE);
+
+	db = 20 * log10(mad_f_todouble(MAD_F_ONE + stats->clipping));
+
+	SendDlgItemMessage(dialog, IDC_STATS_CLIPPING, PBM_SETPOS, db * 10, 0);
+
+	EnableWindow(GetDlgItem(dialog, IDC_STATS_ATTENUATE),
+		     stats->clipping > 0);
+	EnableWindow(GetDlgItem(dialog, IDC_STATS_RESET),
+		     state.attenuation != MAD_F_ONE);
+      }
+      else {
+	EnableWindow(GetDlgItem(dialog, IDC_STATS_ATTENUATE), FALSE);
+	EnableWindow(GetDlgItem(dialog, IDC_STATS_RESET),     FALSE);
+
+	KillTimer(dialog, timer);
+	timer = 0;
+      }
+
+      return TRUE;
+    }
+    break;
+
+  case WM_DESTROY:
+    if (timer)
+      KillTimer(dialog, timer);
+    break;
+
+  case WM_COMMAND:
+    switch (LOWORD(wparam)) {
+    case IDC_STATS_ATTENUATE:
+    case IDC_STATS_RESET:
+      if (LOWORD(wparam) == IDC_STATS_RESET)
+	state.attenuation = MAD_F_ONE;
+      else {
+	state.attenuation =
+	  mad_f_tofixed(mad_f_todouble(state.attenuation) /
+			mad_f_todouble(MAD_F_ONE + state.stats.clipping));
+      }
+      state.stats.clipped  = 0;
+      state.stats.clipping = 0;
+
+      PostMessage(dialog, WM_TIMER, timer, 0);
+      return TRUE;
+    }
+    break;
 
   case WM_NOTIFY:
     switch (((NMHDR *) lparam)->code) {
@@ -2155,7 +2770,8 @@ int propsheet_ro_init(HWND dialog, UINT message, LPARAM lparam)
   case PSCB_INITIALIZED:
     SetDlgItemText(dialog, IDCANCEL, "Close");
     EnableWindow(GetDlgItem(dialog, IDOK), FALSE);
-    SendDlgItemMessage(dialog, IDOK, BM_SETSTYLE, BS_PUSHBUTTON, FALSE);
+    SendDlgItemMessage(dialog, IDOK,
+		       BM_SETSTYLE, BS_PUSHBUTTON, MAKELPARAM(FALSE, 0));
     break;
   }
 
@@ -2181,7 +2797,7 @@ void proppage_init(PROPSHEETPAGE *page, int proppage_id,
 static
 int show_infobox(char *path, HWND parent)
 {
-  PROPSHEETPAGE psp[3];
+  PROPSHEETPAGE psp[4];
   PROPSHEETHEADER psh;
   struct fileinfo info;
   DWORD bytes;
@@ -2219,11 +2835,10 @@ int show_infobox(char *path, HWND parent)
   else
     info.basename = info.dirname;
 
-  info.mpeg.dialog      = 0;
-  info.mpeg.scan_thread = INVALID_HANDLE_VALUE;
-  info.mpeg.stop        = 0;
-  info.mpeg.length      = 0;
-  info.mpeg.bitrate     = 0;
+  info.mpeg.dialog  = 0;
+  info.mpeg.stop    = 0;
+  info.mpeg.length  = 0;
+  info.mpeg.bitrate = 0;
   mad_header_init(&info.mpeg.header);
 
   SetFilePointer(info.file, -sizeof(info.id3v1.tag.data), 0, FILE_END);
@@ -2237,10 +2852,10 @@ int show_infobox(char *path, HWND parent)
   info.id3v1.has = (id3v1_fromdata(&info.id3v1.tag) == 0);
   info.id3v2.has = 0;
 
-  proppage_init(&psp[0], IDD_PROPPAGE_MPEG,  mpeg_dialog,  (LPARAM) &info,
-		mpeg_callback);
+  proppage_init(&psp[0], IDD_PROPPAGE_MPEG,  mpeg_dialog,  (LPARAM) &info, 0);
   proppage_init(&psp[1], IDD_PROPPAGE_ID3V1, id3v1_dialog, (LPARAM) &info, 0);
   proppage_init(&psp[2], IDD_PROPPAGE_ID3V2, id3v2_dialog, (LPARAM) &info, 0);
+  proppage_init(&psp[2], IDD_PROPPAGE_STATS, stats_dialog, (LPARAM) &info, 0);
 
   psh.dwSize      = sizeof(psh);
   psh.dwFlags     = PSH_PROPSHEETPAGE | PSH_PROPTITLE | PSH_NOAPPLYNOW |
@@ -2249,7 +2864,7 @@ int show_infobox(char *path, HWND parent)
   psh.hInstance   = module.hDllInstance;
   psh.pszIcon     = 0;
   psh.pszCaption  = info.basename;
-  psh.nPages      = 2;  /* 3; */
+  psh.nPages      = (strcmp(path, state.path) == 0) ? 3 : 2;
   psh.nStartPage  = info.id3v2.has ? 2 : (info.id3v1.has ? 1 : 0);
   psh.ppsp        = psp;
   psh.pfnCallback = (info.attributes & FILE_ATTRIBUTE_READONLY) ?
@@ -2260,6 +2875,119 @@ int show_infobox(char *path, HWND parent)
   CloseHandle(info.file);
 
   return 0;
+}
+
+static
+void unnest(char const **ptr, int elsepart)
+{
+  unsigned int nest = 1;
+
+  while (**ptr) {
+    switch (*(*ptr)++) {
+    case '|':
+      if (elsepart && nest == 1)
+	return;
+      continue;
+
+    case '>':
+      if (--nest == 0) {
+	if (elsepart)
+	  --*ptr;
+	return;
+      }
+      continue;
+
+    case '%':
+      switch (**ptr) {
+      case '?':
+	++nest;
+	while (**ptr && **ptr != '<')
+	  ++*ptr;
+	continue;
+
+      default:
+	++*ptr;
+      case 0:
+	continue;
+      }
+    }
+  }
+}
+
+static
+char const *title_escape(int escape, struct id3v1 const *tag,
+			 char const *source, char buffer[])
+{
+  char *ptr = buffer;
+  char const *copy;
+
+  switch (escape) {
+  case '0':  /* track */
+    if (tag->track > 0) {
+      if (tag->track >= 100)
+	*ptr++ = '0' + tag->track / 100;
+      if (1 || tag->track >= 10)
+	*ptr++ = '0' + (tag->track % 100) / 10;
+      *ptr++ = '0' + tag->track % 10;
+    }
+    break;
+
+  case '1':  /* artist */
+    return tag->artist;
+
+  case '3':  /* album */
+    return tag->album;
+
+  case '4':  /* year */
+    return tag->year;
+
+  case '5':  /* comment */
+    return tag->comment;
+
+  case '6':  /* genre */
+    if (tag->genre >= 0 && tag->genre < NGENRES)
+      return genre_str[tag->genre];
+
+    break;
+
+  case '2':  /* title */
+    return tag->title;
+
+  case '7':  /* file name */
+    copy = strrchr(source, '\\');
+    if (copy)
+      ++copy;
+    else
+      copy = source;
+
+    strcpy(buffer, copy);
+    ptr = strrchr(buffer, '.');
+
+    break;
+
+  case '8':  /* file path */
+    strcpy(buffer, source);
+    ptr = strrchr(buffer, '\\');
+
+    break;
+
+  case '9':  /* file extension */
+    copy = strrchr(source, '.');
+    if (copy) {
+      strcpy(buffer, ++copy);
+      ptr = 0;
+    }
+
+    break;
+
+  default:
+    return 0;
+  }
+
+  if (ptr)
+    *ptr = 0;
+
+  return buffer;
 }
 
 static
@@ -2295,16 +3023,14 @@ void get_fileinfo(char *path, char *title, int *length)
     }
   }
 
-  if (title && is_stream(source)) {
+  if (title && is_stream(source))
     strcpy(title, source);
-    return;
-  }
-
-  if (title) {
+  else if (title) {
     struct id3v1 tag;
     DWORD bytes;
     char const *in;
     char *out, *bound;
+    unsigned int nest = 0;
 
     if (file == INVALID_HANDLE_VALUE) {
       file = CreateFile(source, GENERIC_READ,
@@ -2323,113 +3049,85 @@ void get_fileinfo(char *path, char *title, int *length)
     if (bytes != sizeof(tag.data))
       memset(tag.data, 0, sizeof(tag.data));
 
-    if (id3v1_fromdata(&tag) == -1)
-      in = ALTERNATE_TITLEFMT;
-    else
-      in = conf_titlefmt;
+    id3v1_fromdata(&tag);
 
+    in    = conf_titlefmt;
     out   = title;
     bound = out + (MAX_PATH - 10 - 1);  /* ?? */
 
     while (*in && out < bound) {
-      char buffer[MAX_PATH], *ptr;
-      char const *copy;
+      char buffer[MAX_PATH];
+      char const *ptr;
 
-      if (*in != '%') {
+      switch (*in) {
+      case '%':
+	++in;
+	break;
+
+      case '|':
+      case '>':
+	if (nest > 0) {
+	  unnest(&in, 0);
+	  --nest;
+	  continue;
+	}
+	/* else fall through */
+
+      default:
 	*out++ = *in++;
 	continue;
       }
 
-      ++in;
-      switch (*in++) {
-      case '%':
+      /* handle % escape sequence */
+
+      switch (*in) {
+      case 0:
 	*out++ = '%';
 	continue;
 
-      case '0':  /* track */
-	if (tag.track == 0)
-	  *out++ = '?';
-	else {
-	  if (tag.track >= 100)
-	    *out++ = '0' + tag.track / 100;
-	  if (/* tag.track >= 10 && */ out < bound)
-	    *out++ = '0' + (tag.track % 100) / 10;
-	  if (out < bound)
-	    *out++ = '0' + tag.track % 10;
-	}
+      case '%': case '|':
+      case '<': case '>':
+	*out++ = *in++;
 	continue;
 
-      case '1':  /* artist */
-	copy = tag.artist;
-	break;
+      case '?':
+	ptr = title_escape(*++in, &tag, source, buffer);
 
-      case '2':  /* title */
-	copy = tag.title;
-	break;
+	while (*in && *in != '<')
+	  ++in;
+	if (*in == '<')
+	  ++in;
 
-      case '3':  /* album */
-	copy = tag.album;
-	break;
+	if (ptr == 0)
+	  unnest(&in, 0);
+	else {
+	  ++nest;
+	  if (*ptr == 0)
+	    unnest(&in, 1);
+	}
 
-      case '4':  /* year */
-	copy = tag.year;
-	break;
-
-      case '5':  /* comment */
-	copy = tag.comment;
-	break;
-
-      case '6':  /* genre */
-	copy = (tag.genre >= 0 && tag.genre < NGENRES) ?
-	  genre_str[tag.genre] : "?";
-	break;
-
-      case '7':  /* file name */
-	ptr = strrchr(source, '\\');
-	if (ptr)
-	  ++ptr;
-	else
-	  ptr = source;
-
-	strcpy(buffer, ptr);
-
-	ptr = strrchr(buffer, '.');
-	if (ptr)
-	  *ptr = 0;
-
-	copy = buffer;
-	break;
-
-      case '8':  /* file path */
-	strcpy(buffer, source);
-
-	ptr = strrchr(buffer, '\\');
-	if (ptr)
-	  *ptr = 0;
-
-	copy = buffer;
-	break;
-
-      case '9':  /* file extension */
-	copy = strrchr(source, '.');
-	if (copy)
-	  ++copy;
-	else
-	  copy = "?";
-	break;
+	continue;
 
       default:
-	*out++ = '%';
-	if (out < bound)
-	  *out++ = in[-1];
+	ptr = title_escape(*in, &tag, source, buffer);
+
+	if (ptr) {
+	  ++in;
+
+	  if (*ptr == 0)
+	    ptr = "?";
+
+	  while (*ptr && out < bound)
+	    *out++ = *ptr++;
+	}
+	else {
+	  *out++ = '%';
+	  if (out < bound)
+	    *out++ = *in++;
+	}
+
 	continue;
       }
-
-      if (*copy == 0)
-	copy = "?";
-
-      while (*copy && out < bound)
-	*out++ = *copy++;
     }
 
     *out = 0;
@@ -2439,10 +3137,45 @@ void get_fileinfo(char *path, char *title, int *length)
     CloseHandle(file);
 }
 
+# if defined(OUR_EQ)
+static
+double eq_decibels(int value)
+{
+  /* 0-63, 0 == +20 dB, 31 == 0 dB, 63 == -20 dB */
+
+  return (value == 31) ? 0.0 : 20.0 - (20.0 / 31.5) * value;
+}
+
+static
+mad_fixed_t eq_factor(double db)
+{
+  if (db > 18)
+    db = 18;
+
+  return mad_f_tofixed(pow(10, db / 20));
+}
+# endif
+
 static
 void set_eq(int on, char data[10], int preamp)
 {
-  /* this is apparently never called */
+# if defined(OUR_EQ)
+  double base;
+  static unsigned char const map[32] = {
+    0, 1, 2, 3, 4, 5, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8,
+    8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9
+  };
+  int i;
+
+  /* 60, 170, 310, 600, 1k, 3k, 6k, 12k, 14k, 16k */
+
+  base = eq_decibels(preamp);
+
+  for (i = 0; i < 32; ++i)
+    state.eqfactor[i] = eq_factor(base + eq_decibels(data[map[i]]));
+
+  state.equalizer = on;
+# endif
 }
 
 static

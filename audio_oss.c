@@ -1,6 +1,6 @@
 /*
  * mad - MPEG audio decoder
- * Copyright (C) 2000 Robert Leslie
+ * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_oss.c,v 1.18 2000/11/18 12:38:27 rob Exp $
+ * $Id: audio_oss.c,v 1.20 2001/01/21 00:18:09 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -66,7 +66,7 @@
 static int sfd;
 static unsigned int (*audio_pcm)(unsigned char *, unsigned int,
 				 mad_fixed_t const *, mad_fixed_t const *,
-				 enum audio_mode);
+				 enum audio_mode, struct audio_stats *);
 
 static
 int init(struct audio_init *init)
@@ -86,7 +86,7 @@ int init(struct audio_init *init)
 static
 int config(struct audio_config *config)
 {
-  int format, channels, speed;
+  int format;
 
   if (ioctl(sfd, SNDCTL_DSP_SYNC, 0) == -1) {
     audio_error = ":ioctl(SNDCTL_DSP_SYNC)";
@@ -149,26 +149,14 @@ int config(struct audio_config *config)
     return -1;
   }
 
-  channels = config->channels;
-  if (ioctl(sfd, SNDCTL_DSP_CHANNELS, &channels) == -1) {
+  if (ioctl(sfd, SNDCTL_DSP_CHANNELS, &config->channels) == -1) {
     audio_error = ":ioctl(SNDCTL_DSP_CHANNELS)";
     return -1;
   }
 
-  if (channels != config->channels) {
-    audio_error = _("required number of channels not available");
-    return -1;
-  }
-
-  speed = config->speed;
-  if (ioctl(sfd, SNDCTL_DSP_SPEED, &speed) == -1) {
+  if (ioctl(sfd, SNDCTL_DSP_SPEED, &config->speed) == -1) {
     audio_error = ":ioctl(SNDCTL_DSP_SPEED)";
     return -1;
-  }
-
-  if (speed != config->speed) {
-    audio_error = _("sample speed not available");
-    config->speed = speed;
   }
 
   return 0;
@@ -204,7 +192,7 @@ int play(struct audio_play *play)
   unsigned int len;
 
   len = audio_pcm(data, play->nsamples,
-		  play->samples[0], play->samples[1], play->mode);
+		  play->samples[0], play->samples[1], play->mode, play->stats);
 
   return output(data, len);
 }

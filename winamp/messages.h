@@ -1,4 +1,4 @@
- /* -*- Text -*- */
+ /* -*- Fundamental -*- */
  /* Warnings */
 //
 //  Values are 32 bit values layed out as follows:

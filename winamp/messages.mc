@@ -1,4 +1,4 @@
-; /* -*- Text -*- */
+; /* -*- Fundamental -*- */
 
 SeverityNames=(Success=0x0:STATUS_SEVERITY_SUCCESS
                Informational=0x1:STATUS_SEVERITY_INFORMATIONAL
