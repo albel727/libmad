@@ -16,32 +16,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: version.h,v 1.24 2003/05/27 22:40:37 rob Exp $
+ * $Id: layer3.h,v 1.9 2003/05/27 22:40:36 rob Exp $
  */
 
-# ifndef LIBMAD_VERSION_H
-# define LIBMAD_VERSION_H
+# ifndef LIBMAD_LAYER3_H
+# define LIBMAD_LAYER3_H
 
-# define MAD_VERSION_MAJOR	0
-# define MAD_VERSION_MINOR	15
-# define MAD_VERSION_PATCH	0
-# define MAD_VERSION_EXTRA	" (beta)"
+# include "stream.h"
+# include "frame.h"
 
-# define MAD_VERSION_STRINGIZE(str)	#str
-# define MAD_VERSION_STRING(num)	MAD_VERSION_STRINGIZE(num)
-
-# define MAD_VERSION		MAD_VERSION_STRING(MAD_VERSION_MAJOR) "."  \
-				MAD_VERSION_STRING(MAD_VERSION_MINOR) "."  \
-				MAD_VERSION_STRING(MAD_VERSION_PATCH)  \
-				MAD_VERSION_EXTRA
-
-# define MAD_PUBLISHYEAR	"2000-2003"
-# define MAD_AUTHOR		"Underbit Technologies, Inc."
-# define MAD_EMAIL		"info@underbit.com"
-
-extern char const mad_version[];
-extern char const mad_copyright[];
-extern char const mad_author[];
-extern char const mad_build[];
+int mad_layer_III(struct mad_stream *, struct mad_frame *);
 
 # endif

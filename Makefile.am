@@ -1,6 +1,6 @@
 ##
-## mad - MPEG audio decoder
-## Copyright (C) 2000-2001 Robert Leslie
+## libmad - MPEG audio decoder library
+## Copyright (C) 2000-2003 Underbit Technologies, Inc.
 ##
 ## This program is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -16,107 +16,125 @@
 ## along with this program; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
-## If you would like to negotiate alternate licensing terms, you may do
-## so by contacting the author: Robert Leslie <rob@mars.org>
-##
-## $Id: Makefile.am,v 1.22 2001/11/09 00:40:38 rob Exp $
+## $Id: Makefile.am,v 1.21 2003/06/01 09:50:32 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
 
-if BUILD_WINAMP
-winamp = winamp
-else
-winamp =
-endif
+SUBDIRS =		
+DIST_SUBDIRS =		msvc++
 
-if BUILD_LIBZ
-libz = libz
-ldadd_libz = -Llibz -lz
-else
-libz =
-ldadd_libz = -lz
-endif
+lib_LTLIBRARIES =	libmad.la
+include_HEADERS =	mad.h
 
-SUBDIRS =		intl po $(libz) libid3tag libmad $(winamp)
-DIST_SUBDIRS =		intl po   libz  libid3tag libmad   winamp  msvc++
+EXTRA_PROGRAMS =	minimad
 
-bin_PROGRAMS =		madplay
-bin_SCRIPTS =		abxtest
-EXTRA_PROGRAMS =	madtime minimad madmix mad123
-
-man_MANS =		madplay.1 abxtest.1
-
-EXTRA_DIST =  \
-	$(man_MANS) $(bin_SCRIPTS)  \
-	CHANGES COPYRIGHT CREDITS README TODO VERSION
-
-default_audio =  \
-	audio.c audio.h  \
-	audio_cdda.c audio_aiff.c audio_wave.c audio_snd.c audio_raw.c  \
-	audio_null.c
-
-extra_audio =  \
-	audio_oss.c audio_empeg.c audio_sun.c audio_win32.c  \
-	audio_hex.c audio_esd.c
-
-common_sources =  \
-	version.c version.h global.h
-
-madplay_SOURCES =  \
-	$(common_sources) $(default_audio) madplay.c  \
-	resample.c filter.c equalizer.c xing.c player.c  \
-	resample.h filter.h equalizer.h xing.h player.h  \
-	getopt.c getopt1.c getopt.h
-
-EXTRA_madplay_SOURCES =  \
-	$(extra_audio)
-
-madtime_SOURCES =	$(common_sources) madtime.c
 minimad_SOURCES =	minimad.c
-mad123_SOURCES =	mad123.c
+minimad_INCLUDES =	
+minimad_LDADD =		libmad.la
 
-madmix_SOURCES =	$(common_sources) madmix.c $(default_audio)
-EXTRA_madmix_SOURCES =	$(extra_audio)
+EXTRA_DIST =		mad.h.sed  \
+			CHANGES COPYRIGHT CREDITS README TODO VERSION
 
-audio =			@AUDIO@
+exported_headers =	version.h fixed.h bit.h timer.h stream.h frame.h  \
+			synth.h decoder.h
 
-localedir =		$(datadir)/locale
-INCLUDES =		-Ilibmad -I$(srcdir)/libid3tag -Iintl  \
-			-DLOCALEDIR=\"$(localedir)\"
+headers =		$(exported_headers)  \
+			global.h layer12.h layer3.h huffman.h
 
-depend_libmad =		libmad/libmad.la
-depend_libid3tag =	libid3tag/libid3tag.la
+data_includes =		D.dat imdct_s.dat qc_table.dat rq_table.dat  \
+			sf_table.dat
 
-ldadd_libmad =		$(depend_libmad)
-ldadd_libid3tag =	$(depend_libid3tag) $(ldadd_libz)
+libmad_la_SOURCES =	version.c fixed.c bit.c timer.c stream.c frame.c  \
+			synth.c decoder.c layer12.c layer3.c huffman.c  \
+			$(headers) $(data_includes)
 
-depend =		@LIBOBJS@ @INTLLIBS@
-ldadd =			$(depend)
+EXTRA_libmad_la_SOURCES =	imdct_l_arm.S #synth_mmx.S
 
-DEPENDENCIES =		$(depend) $(depend_libmad)
-LDADD =			$(ldadd)  $(ldadd_libmad)
+libmad_la_DEPENDENCIES =	@ASO_OBJS@
+libmad_la_LIBADD =		@ASO_OBJS@
 
-madplay_DEPENDENCIES =	$(audio) $(DEPENDENCIES) $(depend_libid3tag)
-madplay_LDADD =		$(audio) $(LDADD)        $(ldadd_libid3tag)
+INCLUDES =		$(FPM) $(ASO)
 
-madmix_DEPENDENCIES =	$(audio) $(DEPENDENCIES)
-madmix_LDADD =		$(audio) $(LDADD)
+BUILT_SOURCES =		mad.h
+CLEANFILES =		mad.h
 
-CLEANFILES =		$(EXTRA_PROGRAMS) *.exe gmon.out
+## From the libtool documentation on library versioning:
+##
+## CURRENT
+##      The most recent interface number that this library implements.
+##
+## REVISION
+##      The implementation number of the CURRENT interface.
+##
+## AGE
+##      The difference between the newest and oldest interfaces that this
+##      library implements.  In other words, the library implements all the
+##      interface numbers in the range from number `CURRENT - AGE' to
+##      `CURRENT'.
+##
+##    If two libraries have identical CURRENT and AGE numbers, then the
+## dynamic linker chooses the library with the greater REVISION number.
+##
+##   1. Start with version information of `0:0:0' for each libtool library.
+##
+##   2. Update the version information only immediately before a public
+##      release of your software.  More frequent updates are unnecessary,
+##      and only guarantee that the current interface number gets larger
+##      faster.
+##
+##   3. If the library source code has changed at all since the last
+##      update, then increment REVISION (`C:R:A' becomes `C:r+1:A').
+##
+##   4. If any interfaces have been added, removed, or changed since the
+##      last update, increment CURRENT, and set REVISION to 0.
+##
+##   5. If any interfaces have been added since the last public release,
+##      then increment AGE.
+##
+##   6. If any interfaces have been removed since the last public release,
+##      then set AGE to 0.
+
+version_current =	2
+version_revision =	0
+version_age =		2
+
+version_info =		$(version_current):$(version_revision):$(version_age)
+
+libmad_la_LDFLAGS =	-version-info $(version_info)
+
+mad.h: config.status config.h Makefile.am  \
+		$(srcdir)/COPYRIGHT $(srcdir)/mad.h.sed $(exported_headers)
+	(sed -e '1s|.*|/*|' -e '1b' -e '$$s|.*| */|' -e '$$b'  \
+		-e 's/^.*/ *&/' $(srcdir)/COPYRIGHT; echo;  \
+	echo "# ifdef __cplusplus";  \
+	echo 'extern "C" {';  \
+	echo "# endif"; echo;  \
+	if [ ".$(FPM)" != "." ]; then  \
+		echo ".$(FPM)" | sed -e 's|^\.-D|# define |'; echo;  \
+	fi;  \
+	sed -ne 's/^# *define  *\(HAVE_.*_ASM\).*/# define \1/p'  \
+		config.h; echo;  \
+	sed -ne 's/^# *define  *OPT_\(SPEED\|ACCURACY\).*/# define OPT_\1/p'  \
+		config.h; echo;  \
+	sed -ne 's/^# *define  *\(SIZEOF_.*\)/# define \1/p'  \
+		config.h; echo;  \
+	for header in $(exported_headers); do  \
+		echo;  \
+		sed -n -f $(srcdir)/mad.h.sed $(srcdir)/$$header;  \
+	done; echo;  \
+	echo "# ifdef __cplusplus";  \
+	echo '}';  \
+	echo "# endif") >$@
 
 libtool: $(LIBTOOL_DEPS)
 	$(SHELL) ./config.status --recheck
 
-profile: madplay gmon.out
-	gprof madplay | less
-
-gmon.out: madplay test/profile.mpg
-	./madplay -vo pcm:/dev/null test/profile.mpg || rm -f gmon.out
-
 .c.s:
 	$(COMPILE) -S $<
 
-again: clean all
+again:
+	$(MAKE) clean
+	$(MAKE)
 
-.PHONY: profile again
+.PHONY: again

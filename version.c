@@ -1,6 +1,6 @@
 /*
- * mad - MPEG audio decoder
- * Copyright (C) 2000-2001 Robert Leslie
+ * libmad - MPEG audio decoder library
+ * Copyright (C) 2000-2003 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: version.c,v 1.10 2001/10/18 05:12:25 rob Exp $
+ * $Id: version.c,v 1.14 2003/05/27 22:40:37 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -25,49 +25,67 @@
 
 # include "global.h"
 
-# include <stdio.h>
-
 # include "version.h"
-# include "mad.h"
 
-static
-void copyright(FILE *stream)
-{
-  fprintf(stream, "%s %s %s\n",
-	  _("Copyright (C)"), MAD_PUBLISHYEAR, MAD_AUTHOR);
-}
+char const mad_version[]   = "MPEG Audio Decoder " MAD_VERSION;
+char const mad_copyright[] = "Copyright (C) " MAD_PUBLISHYEAR " " MAD_AUTHOR;
+char const mad_author[]    = MAD_AUTHOR " <" MAD_EMAIL ">";
 
-void ver_banner(FILE *stream)
-{
-  fprintf(stream, "%s %s - ", _("MPEG Audio Decoder"), MAD_VERSION);
-  copyright(stream);
+char const mad_build[] = ""
+# if defined(DEBUG)
+  "DEBUG "
+# elif defined(NDEBUG)
+  "NDEBUG "
+# endif
 
-  fflush(stream);
-}
+# if defined(EXPERIMENTAL)
+  "EXPERIMENTAL "
+# endif
 
-void ver_license(FILE *stream)
-{
-  fputc('\n', stream);
-  copyright(stream);
+# if defined(FPM_64BIT)
+  "FPM_64BIT "
+# elif defined(FPM_INTEL)
+  "FPM_INTEL "
+# elif defined(FPM_ARM)
+  "FPM_ARM "
+# elif defined(FPM_MIPS)
+  "FPM_MIPS "
+# elif defined(FPM_SPARC)
+  "FPM_SPARC "
+# elif defined(FPM_PPC)
+  "FPM_PPC "
+# elif defined(FPM_DEFAULT)
+  "FPM_DEFAULT "
+# endif
 
-  fputc('\n', stream);
-  fprintf(stream,
-  _("This program is free software; you can redistribute it and/or modify it\n"
-    "under the terms of the GNU General Public License as published by the\n"
-    "Free Software Foundation; either version 2 of the License, or (at your\n"
-    "option) any later version.\n\n"
+# if defined(ASO_IMDCT)
+  "ASO_IMDCT "
+# endif
+# if defined(ASO_INTERLEAVE1)
+  "ASO_INTERLEAVE1 "
+# endif
+# if defined(ASO_INTERLEAVE2)
+  "ASO_INTERLEAVE2 "
+# endif
+# if defined(ASO_ZEROCHECK)
+  "ASO_ZEROCHECK "
+# endif
 
-    "This program is distributed in the hope that it will be useful, but\n"
-    "WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-    "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU\n"
-    "General Public License for more details.\n\n"
+# if defined(OPT_SPEED)
+  "OPT_SPEED "
+# elif defined(OPT_ACCURACY)
+  "OPT_ACCURACY "
+# endif
 
-    "You should have received a copy of the GNU General Public License along\n"
-    "with this program; if not, write to the Free Software Foundation, Inc.,\n"
-    "59 Temple Place, Suite 330, Boston, MA 02111-1307 USA\n\n"
+# if defined(OPT_SSO)
+  "OPT_SSO "
+# endif
 
-    "If you would like to negotiate alternate licensing terms, you may do so\n"
-    "by contacting the author: %s <%s>\n"), MAD_AUTHOR, MAD_EMAIL);
+# if defined(OPT_DCTO)  /* never defined here */
+  "OPT_DCTO "
+# endif
 
-  fputc('\n', stream);
-}
+# if defined(OPT_STRICT)
+  "OPT_STRICT "
+# endif
+;

@@ -1,6 +1,6 @@
 ##
-## mad - MPEG audio decoder
-## Copyright (C) 2000-2001 Robert Leslie
+## libmad - MPEG audio decoder library
+## Copyright (C) 2000-2003 Underbit Technologies, Inc.
 ##
 ## This program is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -16,13 +16,9 @@
 ## along with this program; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
-## If you would like to negotiate alternate licensing terms, you may do
-## so by contacting the author: Robert Leslie <rob@mars.org>
-##
-## $Id: Makefile.am,v 1.6 2001/10/29 09:15:17 rob Exp $
+## $Id: Makefile.am,v 1.2 2003/05/29 04:39:38 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS =
-DIST_SUBDIRS =		libmad libid3tag libz madplay
+EXTRA_DIST =		mad.h config.h libmad.dsp
