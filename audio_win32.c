@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_win32.c,v 1.22 2000/05/11 04:17:30 rob Exp $
+ * $Id: audio_win32.c,v 1.25 2000/05/28 19:52:54 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -30,8 +30,9 @@
 # include "audio.h"
 
 static HWAVEOUT wave_handle;
+static int opened;
 
-# define NBUFFERS  3
+# define NBUFFERS	16
 
 static struct buffer {
   WAVEHDR wave_header;
@@ -58,10 +59,10 @@ int init(struct audio_init *init)
 {
   int i;
 
-  wave_handle = 0;
+  opened = 0;
 
   for (i = 0; i < NBUFFERS; ++i) {
-    output[i].event_handle = CreateEvent(0, FALSE /* auto reset */,
+    output[i].event_handle = CreateEvent(0, FALSE /* manual reset */,
 					 TRUE /* initial state */, 0);
     if (output[i].event_handle == NULL) {
       while (i--)
@@ -145,23 +146,24 @@ int open_dev(HWAVEOUT *handle, unsigned short channels, unsigned int speed)
       }
 
       waveOutClose(*handle);
-      *handle = 0;
 
       return -1;
     }
   }
 
+  opened = 1;
+
   return 0;
 }
 
 static
-int close_dev(HWAVEOUT *handle)
+int close_dev(HWAVEOUT handle)
 {
   MMRESULT error;
   int i;
 
   for (i = 0; i < NBUFFERS; ++i) {
-    error = waveOutUnprepareHeader(*handle, &output[i].wave_header,
+    error = waveOutUnprepareHeader(handle, &output[i].wave_header,
 				   sizeof(output[i].wave_header));
     if (error != MMSYSERR_NOERROR) {
       audio_error = error_text(error);
@@ -169,23 +171,31 @@ int close_dev(HWAVEOUT *handle)
     }
   }
 
-  error = waveOutClose(*handle);
+  error = waveOutClose(handle);
 
   if (error != MMSYSERR_NOERROR) {
     audio_error = error_text(error);
     return -1;
   }
 
-  *handle = 0;
+  opened = 0;
 
   return 0;
 }
 
 static
-int flush(struct buffer *buffer)
+int wait(struct buffer *buffer)
 {
   switch (WaitForSingleObject(buffer->event_handle, INFINITE)) {
   case WAIT_OBJECT_0:
+    if (waveOutUnprepareHeader(wave_handle, &buffer->wave_header,
+			       sizeof(buffer->wave_header)) !=
+	MMSYSERR_NOERROR ||
+	waveOutPrepareHeader(wave_handle, &buffer->wave_header,
+			     sizeof(buffer->wave_header)) !=
+	MMSYSERR_NOERROR)
+      return -1;
+
     return 0;
 
   case WAIT_ABANDONED:
@@ -206,21 +216,24 @@ int flush(struct buffer *buffer)
 static
 int config(struct audio_config *config)
 {
-  if (wave_handle) {
+  if (opened) {
     int i;
 
     for (i = 0; i < NBUFFERS; ++i) {
-      if (flush(&output[i]) == -1)
+      if (wait(&output[i]) == -1)
 	return -1;
     }
 
-    if (close_dev(&wave_handle) == -1)
+    if (close_dev(wave_handle) == -1)
       return -1;
   }
 
   stereo = (config->channels == 2);
 
-  return open_dev(&wave_handle, config->channels, config->speed);
+  if (open_dev(&wave_handle, config->channels, config->speed) == -1)
+    return -1;
+
+  return 0;
 }
 
 static inline
@@ -248,7 +261,7 @@ int play(struct audio_play *play)
 
   /* wait for previous block to finish */
 
-  if (flush(&output[buffer]) == -1)
+  if (wait(&output[buffer]) == -1)
     return -1;
 
   /* prepare new block */
@@ -301,11 +314,11 @@ int finish(struct audio_finish *finish)
 
   if (wave_handle) {
     for (i = 0; i < NBUFFERS; ++i) {
-      if (flush(&output[i]) == -1)
+      if (wait(&output[i]) == -1)
 	result = -1;
     }
 
-    if (close_dev(&wave_handle) == -1)
+    if (close_dev(wave_handle) == -1)
       result = -1;
   }
 

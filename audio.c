@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.c,v 1.4 2000/03/26 20:16:59 rob Exp $
+ * $Id: audio.c,v 1.5 2000/05/24 05:06:24 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -29,7 +29,7 @@
 
 char const *audio_error;
 
-audio_ctlfunc_t audio_output(char const **path)
+audio_ctlfunc_t *audio_output(char const **path)
 {
   char const *ext;
 

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.h,v 1.9 2000/05/09 17:36:27 rob Exp $
+ * $Id: audio.h,v 1.11 2000/05/24 05:06:24 rob Exp $
  */
 
 # ifndef AUDIO_H
@@ -60,18 +60,18 @@ union audio_control {
 
 extern char const *audio_error;
 
-typedef int (*audio_ctlfunc_t)(union audio_control *);
+typedef int audio_ctlfunc_t(union audio_control *);
 
-audio_ctlfunc_t audio_output(char const **);
+audio_ctlfunc_t *audio_output(char const **);
 
-int audio_oss(union audio_control *);
-int audio_sun(union audio_control *);
-int audio_win32(union audio_control *);
+audio_ctlfunc_t audio_oss;
+audio_ctlfunc_t audio_sun;
+audio_ctlfunc_t audio_win32;
 
-int audio_wav(union audio_control *);
-int audio_raw(union audio_control *);
-int audio_hex(union audio_control *);
-int audio_null(union audio_control *);
+audio_ctlfunc_t audio_wav;
+audio_ctlfunc_t audio_raw;
+audio_ctlfunc_t audio_hex;
+audio_ctlfunc_t audio_null;
 
 # endif
 

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.22 2000/05/11 04:42:47 rob Exp $
+ * $Id: madplay.c,v 1.25 2000/06/03 23:07:41 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -67,7 +67,7 @@ struct audio {
     struct mad_timer timer;
 
     int vbr;
-    unsigned int bitrate, vbr_frames, vbr_rate;
+    unsigned long bitrate, vbr_frames, vbr_rate;
     unsigned long nsecs;
   } stats;
 
@@ -242,7 +242,6 @@ char const *error_str(int error)
   switch (error) {
   case MAD_ERR_NOMEM:		return "not enough memory";
   case MAD_ERR_LOSTSYNC:	return "lost synchronization";
-  case MAD_ERR_BADID:		return "bad header ID field";
   case MAD_ERR_BADLAYER:	return "reserved header layer value";
   case MAD_ERR_BADBITRATE:	return "forbidden bitrate value";
   case MAD_ERR_BADSAMPLEFREQ:	return "reserved sample frequency value";
