@@ -19,7 +19,7 @@
 ## If you would like to negotiate alternate licensing terms, you may do
 ## so by contacting the author: Robert Leslie <rob@mars.org>
 ##
-## $Id: Makefile.am,v 1.7 2001/01/21 00:18:09 rob Exp $
+## $Id: Makefile.am,v 1.9 2001/02/09 07:30:27 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
@@ -75,8 +75,8 @@ madmix_LDADD =		$(AUDIO) $(LDADD)
 localedir =		$(datadir)/locale
 INCLUDES =		-Ilibmad -Iintl -DLOCALEDIR=\"$(localedir)\"
 
-CFLAGS =	-Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
-LDFLAGS =	@LDFLAGS@ $(PROFILER)
+#CFLAGS =	-Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
+#LDFLAGS =	@LDFLAGS@ $(PROFILER)
 
 BUILT_SOURCES =		id3v2.c
 
@@ -85,6 +85,9 @@ CLEANFILES =		$(EXTRA_PROGRAMS) *.exe gmon.out
 $(srcdir)/id3v2.c: $(srcdir)/id3v2.gperf
 	gperf -tCTonD -K id -N id3v2_hash -s -3 -k '*' $< |  \
 	sed -e '/\$$''Id: /s/\$$//g' >$@
+
+libtool: $(LIBTOOL_DEPS)
+	$(SHELL) ./config.status --recheck
 
 profile: madplay gmon.out
 	gprof madplay | less

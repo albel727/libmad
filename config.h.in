@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: config.h.in,v 1.45 2001/01/21 00:45:51 rob Exp $
+ * $Id: acconfig.h,v 1.13 2001/01/21 00:18:09 rob Exp $
  */
 
 # ifndef CONFIG_H

@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: mad 0.12.0a\n"
-"POT-Creation-Date: 2001-01-20 19:35-0500\n"
+"POT-Creation-Date: 2001-01-21 07:49-0500\n"
 "PO-Revision-Date: 2000-11-03 23:54-05:00\n"
 "Last-Translator: Gabriel Bouvigne <bouvigne@mp3-tech.org>\n"
 "Language-Team: French <bouvigne@mp3-tech.org>\n"
@@ -409,11 +409,11 @@ msgstr "`%s --license' pour les informations de licence.\n"
 msgid "Build options: %s\n"
 msgstr "Options de conpilation: %s\n"
 
-#: madplay.c:549
+#: madplay.c:551
 msgid "cross-fade ignored without gap"
 msgstr "transition ignorée sans délai"
 
-#: madplay.c:551
+#: madplay.c:553
 msgid "cross-fade ignored without negative gap"
 msgstr "transition ignorée avec délai"
 
@@ -432,7 +432,7 @@ msgstr "%8.1f MB  %c%3u kbps  %s  %s\n"
 msgid "Usage: %s [-s] FILE [...]\n"
 msgstr "Usage: %s [-s] FICHIER [...]\n"
 
-#: madtime.c:246
+#: madtime.c:248
 msgid "TOTAL"
 msgstr "TOTAL"
 

@@ -17,12 +17,12 @@ dnl You should have received a copy of the GNU General Public License
 dnl along with this program; if not, write to the Free Software
 dnl Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 dnl
-AC_REVISION([$Id: configure.in,v 1.37 2001/01/21 00:18:09 rob Exp $])dnl
+AC_REVISION([$Id: configure.in,v 1.40 2001/02/09 07:30:27 rob Exp $])dnl
 
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(libmad/decoder.h)
-AM_INIT_AUTOMAKE(mad, 0.12.3b)
+AM_INIT_AUTOMAKE(mad, 0.12.4b)
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SUBDIRS(libmad)
@@ -39,8 +39,12 @@ AC_PROG_INSTALL
 
 AC_ISC_POSIX
 
+dnl Support for libtool.
+
 AC_DISABLE_SHARED
 AM_PROG_LIBTOOL
+
+AC_SUBST(LIBTOOL_DEPS)
 
 dnl Internationalization support.
 
@@ -52,40 +56,33 @@ dnl Compiler options.
 
 AC_PROG_GCC_TRADITIONAL
 
-ARCH=""
-DEBUGGER=""
-OPTIMIZER=""
-PROFILER=""
-
-AC_SUBST(ARCH)
-AC_SUBST(DEBUGGER)
-AC_SUBST(OPTIMIZER)
-AC_SUBST(PROFILER)
-
-if test "$GCC" = yes
-then
-    case "$host" in
-	i386-*)      ARCH="" ;;
-	i?86-*)      ARCH="-m486" ;;
-	arm-empeg-*) ARCH="-march=armv4 -mtune=strongarm1100" ;;
-	armv4*-*)    ARCH="-march=armv4 -mtune=strongarm" ;;
-	mips*-*)     ARCH="" ;;
-		     # -mips3 -mcpu=vr4100
-    esac
-fi
+arch=""
+debug=""
+optimize=""
+profile=""
 
 set -- $CFLAGS
-CFLAGS=""
+CFLAGS="-Wall"
 
 while test $# -gt 0
 do
     case "$1" in
-	-g)
-	    DEBUGGER="-g"
+	-Wall)
 	    shift
 	    ;;
-	-O*)
-	    OPTIMIZER="-O2"
+	-g)
+	    debug="-g"
+	    shift
+	    ;;
+	-m*)
+	    arch="$arch $1"
+	    shift
+	    ;;
+	-fomit-frame-pointer)
+	    shift
+	    ;;
+	-O*|-f*)
+	    optimize="$1"
 	    shift
 	    ;;
 	*)
@@ -95,10 +92,26 @@ do
     esac
 done
 
-if test -n "$OPTIMIZER" && test "$GCC" = yes
+if test "$GCC" = yes
 then
-    : #? OPTIMIZER="$OPTIMIZER -funroll-loops"
-    : #? OPTIMIZER="$OPTIMIZER -finline-functions"
+    if test -z "$arch"
+    then
+	case "$host" in
+	    i386-*)           ;;
+	    i?86-*)           arch="-m486" ;;
+	    arm*-empeg-*)     arch="-march=armv4 -mtune=strongarm1100" ;;
+	    armv4*-*)         arch="-march=armv4 -mtune=strongarm" ;;
+	    powerpc-*)        ;;
+	    mips*-agenda-*)   arch="-mcpu=vr4100" ;;
+	    mips*-luxsonor-*) arch="-mips1 -mcpu=r3000 -Wa,-m4010" ;;
+	esac
+    fi
+
+    if test -n "$optimize"
+    then
+	: #? optimize="$optimize -funroll-loops"
+	: #? optimize="$optimize -finline-functions"
+    fi
 fi
 
 dnl Checks for header files.
@@ -198,11 +211,14 @@ AC_ARG_ENABLE(accuracy,
     [  --enable-accuracy       optimize for accuracy over speed])
 AC_ARG_ENABLE(fpm,
     [  --enable-fpm=<arch>     use <arch>-specific fixed-point math routines
-                          (one of: intel, arm, mips, sparc, 64bit, approx)])
+                          (one of: intel, arm, mips, sparc, ppc,
+                           64bit, default)])
 AC_ARG_ENABLE(sso,
     [  --enable-sso            use subband synthesis optimization])
 AC_ARG_ENABLE(aso,
     [  --enable-aso            use architecture-specific optimizations])
+AC_ARG_ENABLE(strict-iso,
+    [  --enable-strict-iso     use strict ISO/IEC interpretations])
 
 dnl madplay options...
 
@@ -210,7 +226,7 @@ AC_MSG_CHECKING(whether to enable profiling)
 AC_ARG_ENABLE(profiling,
     [  --enable-profiling      generate profiling code], [
     case "$enableval" in
-	yes) PROFILER="-pg" ;;
+	yes) profile="-pg" ;;
     esac
 ])
 AC_MSG_RESULT(${enable_profiling-no})
@@ -223,19 +239,19 @@ AC_ARG_ENABLE(debugging,
 	yes)
 	    AC_DEFINE(DEBUG)
 	    AUDIO="$AUDIO audio_hex.o"
-	    OPTIMIZER=""
+	    optimize=""
 	    ;;
 	no)
-	    if test -n "$PROFILER"
+	    if test -n "$profile"
 	    then
     AC_MSG_ERROR(--enable-profiling and --disable-debugging are incompatible)
 	    fi
 
 	    AC_DEFINE(NDEBUG)
-	    DEBUGGER=""
+	    debug=""
 	    if test "$GCC" = yes
 	    then
-		OPTIMIZER="$OPTIMIZER -fomit-frame-pointer"
+		optimize="$optimize -fomit-frame-pointer"
 	    fi
 	    ;;
     esac
@@ -267,6 +283,11 @@ case "$host" in
 esac
 
 dnl Create output files.
+
+test -n "$arch"     && CFLAGS="$CFLAGS $arch"
+test -n "$debug"    && CFLAGS="$CFLAGS $debug"
+test -n "$optimize" && CFLAGS="$CFLAGS $optimize"
+test -n "$profile"  && CFLAGS="$CFLAGS $profile" LDFLAGS="$LDFLAGS $profile"
 
 AC_OUTPUT(Makefile intl/Makefile po/Makefile.in  \
 	  winamp/Makefile winamp/in_mad.psc)

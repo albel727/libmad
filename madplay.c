@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.46 2001/01/21 00:18:09 rob Exp $
+ * $Id: madplay.c,v 1.47 2001/02/01 23:15:38 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -529,9 +529,11 @@ int main(int argc, char *argv[])
 
   /* internationalization support */
 
+# if defined(ENABLE_NLS)
   setlocale(LC_ALL, "");
   bindtextdomain(PACKAGE, LOCALEDIR);
   textdomain(PACKAGE);
+# endif
 
   /* initialize and get options */
 

@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: mad 0.12.0a\n"
-"POT-Creation-Date: 2001-01-20 19:35-0500\n"
+"POT-Creation-Date: 2001-01-21 07:49-0500\n"
 "PO-Revision-Date: 2000-11-03 23:52-05:00\n"
 "Last-Translator: Mario Horvat <marioh@ugrad.unimelb.edu.au>\n"
 "Language-Team: Croatian <marioh@ugrad.unimelb.edu.au>\n"
@@ -389,11 +389,11 @@ msgstr "`%s --licenca' za informacije o licenci.\n"
 msgid "Build options: %s\n"
 msgstr "Opcije za kompajliranje: %s\n"
 
-#: madplay.c:549
+#: madplay.c:551
 msgid "cross-fade ignored without gap"
 msgstr "unakrsno-mjesanje ignorirano bez razmaka"
 
-#: madplay.c:551
+#: madplay.c:553
 msgid "cross-fade ignored without negative gap"
 msgstr "unakrsno-mjesanje ignorirano bez negativnog razmaka"
 
@@ -412,7 +412,7 @@ msgstr "%8.1f MB  %c%3u kbps  %s  %s\n"
 msgid "Usage: %s [-s] FILE [...]\n"
 msgstr "Koristenje: %s [-s] DATOTEKA [...]\n"
 
-#: madtime.c:246
+#: madtime.c:248
 msgid "TOTAL"
 msgstr "TOTAL"
 

@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: mad 0.12.0a\n"
-"POT-Creation-Date: 2001-01-20 19:35-0500\n"
+"POT-Creation-Date: 2001-01-21 07:49-0500\n"
 "PO-Revision-Date: 2000-11-03 23:49-05:00\n"
 "Last-Translator: Damian Brizuela <damianweb@yahoo.com>\n"
 "Language-Team: Spanish <damianweb@yahoo.com>\n"
@@ -409,11 +409,11 @@ msgstr "`%s --license' para informacion de licencia.\n"
 msgid "Build options: %s\n"
 msgstr "Generar opciones: %s\n"
 
-#: madplay.c:549
+#: madplay.c:551
 msgid "cross-fade ignored without gap"
 msgstr "ignorado al cruzar volumenes entre canciones sin tener espacio(GAP)"
 
-#: madplay.c:551
+#: madplay.c:553
 msgid "cross-fade ignored without negative gap"
 msgstr ""
 "ignorado al cruzar volumenes entre canciones sin tener espacio(GAP)negativo"
@@ -433,7 +433,7 @@ msgstr "%8.1f MB  %c%3u kbps  %s  %s\n"
 msgid "Usage: %s [-s] FILE [...]\n"
 msgstr "Modo de uso: %s [-s] ARCHIVO [...]\n"
 
-#: madtime.c:246
+#: madtime.c:248
 msgid "TOTAL"
 msgstr "TOTAL"
 

@@ -87,6 +87,10 @@ Frequently Asked Questions
 Changes
 =======
 
+  Changes since 0.12.3b:
+    - many performance improvements
+    - alias reduction is now performed on mixed short blocks
+
   Changes since 0.12.2b:
     - added decoding statistics to file info dialog
     - title formatting is greatly enhanced, and includes the ability to

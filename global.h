@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: global.h,v 1.2 2001/01/21 00:18:09 rob Exp $
+ * $Id: global.h,v 1.3 2001/02/01 23:15:37 rob Exp $
  */
 
 # ifndef GLOBAL_H
@@ -57,9 +57,6 @@ int strncasecmp(char const *, char const *, unsigned long);
 #  include <libintl.h>
 # else
 #  define gettext(text)				text
-#  define setlocale(category, locale)		/* nothing */
-#  define bindtextdomain(package, directory)	/* nothing */
-#  define textdomain(domain)			/* nothing */
 # endif
 
 # endif

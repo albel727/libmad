@@ -59,22 +59,19 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 host_alias = @host_alias@
 host_triplet = @host@
-ARCH = @ARCH@
 AS = @AS@
 ASO = @ASO@
 CC = @CC@
-DEBUGGER = @DEBUGGER@
 DLLTOOL = @DLLTOOL@
 FPM = @FPM@
 IMDCT_L = @IMDCT_L@
 LIBTOOL = @LIBTOOL@
+LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 OBJDUMP = @OBJDUMP@
-OPTIMIZER = @OPTIMIZER@
 PACKAGE = @PACKAGE@
-PROFILER = @PROFILER@
 RANLIB = @RANLIB@
 VERSION = @VERSION@
 
@@ -100,8 +97,9 @@ EXTRA_libmad_la_SOURCES = imdct_l_arm.S
 libmad_la_DEPENDENCIES = @IMDCT_L@
 libmad_la_LIBADD = @IMDCT_L@
 
-CFLAGS = -Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
-LDFLAGS = @LDFLAGS@ $(PROFILER)
+#CFLAGS =	-Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
+#LDFLAGS =	@LDFLAGS@ $(PROFILER)
+
 INCLUDES = $(FPM) $(ASO)
 
 BUILT_SOURCES = mad.h
@@ -120,9 +118,11 @@ LTLIBRARIES =  $(lib_LTLIBRARIES)
 
 DEFS = @DEFS@ -I. -I$(srcdir) -I.
 CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 libmad_la_OBJECTS =  version.lo fixed.lo bit.lo timer.lo stream.lo \
 frame.lo synth.lo decoder.lo layer12.lo layer3.lo huffman.lo
+CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
@@ -130,7 +130,7 @@ LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
 HEADERS =  $(include_HEADERS)
 
 DIST_COMMON =  ./stamp-h.in Makefile.am Makefile.in acconfig.h \
-aclocal.m4 config.h.in configure configure.in
+acinclude.m4 aclocal.m4 config.h.in configure configure.in
 
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
@@ -150,7 +150,7 @@ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) \
 	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
-$(ACLOCAL_M4):  configure.in 
+$(ACLOCAL_M4):  configure.in  acinclude.m4
 	cd $(srcdir) && $(ACLOCAL)
 
 config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
@@ -439,6 +439,8 @@ mad.h: Makefile.am config.status config.h  \
 	if [ ".$(FPM)" != "." ]; then  \
 		echo ".$(FPM)" | sed -e 's|^\.-D|# define |'; echo;  \
 	fi;  \
+	sed -ne 's/^# *define  *\(HAVE_.*_ASM\).*/# define \1/p'  \
+		config.h; echo;  \
 	sed -ne 's/^# *define  *OPT_\(SPEED\|ACCURACY\).*/# define OPT_\1/p'  \
 		config.h; echo;  \
 	sed -ne 's/^# *define  *\(SIZEOF_.*\)/# define \1/p'  \
@@ -447,6 +449,9 @@ mad.h: Makefile.am config.status config.h  \
 		echo;  \
 		sed -n -f $(srcdir)/mad.h.sed $(srcdir)/$$header; echo;  \
 	done) | cat -s >$@
+
+libtool: $(LIBTOOL_DEPS)
+	$(SHELL) ./config.status --recheck
 
 .c.s:
 	$(COMPILE) -S $<

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: in_mad.c,v 1.8 2001/01/21 00:18:16 rob Exp $
+ * $Id: in_mad.c,v 1.9 2001/02/01 23:16:14 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -132,8 +132,8 @@ static HINTERNET internet = INVALID_HANDLE_VALUE;
 # define JSPIE_I_COLOR		0x00e0b0b0L
 # define JSPIE_LR_COLOR		0x00d0d0d0L
 
-# define DEBUG(str)	MessageBox(module.hMainWindow, (str), "Debug",  \
-				   MB_ICONEXCLAMATION | MB_OK);
+# define DEBUG_STR(x)		MessageBox(module.hMainWindow, (x), "Debug",  \
+					   MB_ICONEXCLAMATION | MB_OK);
 
 static
 void show_error(HWND owner, char *title, DWORD error, ...)
@@ -969,26 +969,29 @@ signed long linear_dither(unsigned int bits, mad_fixed_t sample,
 			  mad_fixed_t *error, unsigned long *clipped,
 			  mad_fixed_t *clipping)
 {
-  mad_fixed_t quantized;
+  mad_fixed_t quantized, check;
 
   /* dither */
   sample += *error;
 
   /* clip */
   quantized = sample;
-  if (sample >= MAD_F_ONE) {
-    quantized = MAD_F_ONE - 1;
-    ++*clipped;
-    if (sample - quantized > *clipping &&
-	mad_f_abs(*error) < (MAD_F_ONE >> (MAD_F_FRACBITS + 1 - bits)))
-      *clipping = sample - quantized;
-  }
-  else if (sample < -MAD_F_ONE) {
-    quantized = -MAD_F_ONE;
-    ++*clipped;
-    if (quantized - sample > *clipping &&
-	mad_f_abs(*error) < (MAD_F_ONE >> (MAD_F_FRACBITS + 1 - bits)))
-      *clipping = quantized - sample;
+  check = (sample >> MAD_F_FRACBITS) + 1;
+  if (check & ~1) {
+    if (sample >= MAD_F_ONE) {
+      quantized = MAD_F_ONE - 1;
+      ++*clipped;
+      if (sample - quantized > *clipping &&
+	  mad_f_abs(*error) < (MAD_F_ONE >> (MAD_F_FRACBITS + 1 - bits)))
+	*clipping = sample - quantized;
+    }
+    else if (sample < -MAD_F_ONE) {
+      quantized = -MAD_F_ONE;
+      ++*clipped;
+      if (quantized - sample > *clipping &&
+	  mad_f_abs(*error) < (MAD_F_ONE >> (MAD_F_FRACBITS + 1 - bits)))
+	*clipping = quantized - sample;
+    }
   }
 
   /* quantize */

@@ -59,13 +59,11 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 host_alias = @host_alias@
 host_triplet = @host@
-ARCH = @ARCH@
 AS = @AS@
 CATALOGS = @CATALOGS@
 CATOBJEXT = @CATOBJEXT@
 CC = @CC@
 DATADIRNAME = @DATADIRNAME@
-DEBUGGER = @DEBUGGER@
 DLLTOOL = @DLLTOOL@
 GENCAT = @GENCAT@
 GMOFILES = @GMOFILES@
@@ -78,16 +76,15 @@ INTLDEPS = @INTLDEPS@
 INTLLIBS = @INTLLIBS@
 INTLOBJS = @INTLOBJS@
 LIBTOOL = @LIBTOOL@
+LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LN_S = @LN_S@
 MAKEINFO = @MAKEINFO@
 MKINSTALLDIRS = @MKINSTALLDIRS@
 MSGFMT = @MSGFMT@
 OBJDUMP = @OBJDUMP@
-OPTIMIZER = @OPTIMIZER@
 PACKAGE = @PACKAGE@
 POFILES = @POFILES@
 POSUB = @POSUB@
-PROFILER = @PROFILER@
 RANLIB = @RANLIB@
 USE_INCLUDED_LIBINTL = @USE_INCLUDED_LIBINTL@
 USE_NLS = @USE_NLS@
@@ -141,8 +138,8 @@ madmix_LDADD = $(AUDIO) $(LDADD)
 localedir = $(datadir)/locale
 INCLUDES = -Ilibmad -Iintl -DLOCALEDIR=\"$(localedir)\"
 
-CFLAGS = -Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
-LDFLAGS = @LDFLAGS@ $(PROFILER)
+#CFLAGS =	-Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
+#LDFLAGS =	@LDFLAGS@ $(PROFILER)
 
 BUILT_SOURCES = id3v2.c
 
@@ -156,6 +153,7 @@ PROGRAMS =  $(bin_PROGRAMS)
 
 DEFS = @DEFS@ -I. -I$(srcdir) -I.
 CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 madtime_OBJECTS =  version.o madtime.o
 madtime_LDADD = $(LDADD)
@@ -178,6 +176,7 @@ player.o madplay.o getopt.o getopt1.o
 madplay_LDFLAGS = 
 SCRIPTS =  $(bin_SCRIPTS)
 
+CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
@@ -187,9 +186,9 @@ MANS = $(man_MANS)
 
 NROFF = nroff
 DIST_COMMON =  README ./stamp-h.in ABOUT-NLS COPYING INSTALL Makefile.am \
-Makefile.in TODO acconfig.h aclocal.m4 config.guess config.h.in \
-config.sub configure configure.in install-sh ltconfig ltmain.sh missing \
-mkinstalldirs strcasecmp.c strncasecmp.c
+Makefile.in TODO acconfig.h acinclude.m4 aclocal.m4 config.guess \
+config.h.in config.sub configure configure.in install-sh ltconfig \
+ltmain.sh missing mkinstalldirs strcasecmp.c strncasecmp.c
 
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
@@ -209,7 +208,7 @@ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) \
 	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
-$(ACLOCAL_M4):  configure.in 
+$(ACLOCAL_M4):  configure.in  acinclude.m4
 	cd $(srcdir) && $(ACLOCAL)
 
 config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
@@ -630,6 +629,9 @@ maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 $(srcdir)/id3v2.c: $(srcdir)/id3v2.gperf
 	gperf -tCTonD -K id -N id3v2_hash -s -3 -k '*' $< |  \
 	sed -e '/\$$''Id: /s/\$$//g' >$@
+
+libtool: $(LIBTOOL_DEPS)
+	$(SHELL) ./config.status --recheck
 
 profile: madplay gmon.out
 	gprof madplay | less

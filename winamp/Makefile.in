@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: Makefile.in,v 1.8 2001/01/21 03:10:52 rob Exp $
+# $Id: Makefile.in,v 1.9 2001/02/09 09:37:56 rob Exp $
 #
 
 SHELL =		@SHELL@
@@ -79,6 +79,8 @@ clean:
 distclean: clean
 	rm -f Makefile in_mad.psc
 
+maintainer-clean:
+
 again: clean all
 
 distdir = $(PACKAGE)-$(VERSION)
@@ -113,5 +115,5 @@ installcheck:
 tags:
 
 .PHONY: all pimp
-.PHONY: clean distclean again distdir
+.PHONY: clean distclean maintainer-clean again distdir
 .PHONY: dvi check install installcheck tags

@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2001-01-20 19:35-0500\n"
+"POT-Creation-Date: 2001-01-21 07:49-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -349,11 +349,11 @@ msgstr ""
 msgid "Build options: %s\n"
 msgstr ""
 
-#: madplay.c:549
+#: madplay.c:551
 msgid "cross-fade ignored without gap"
 msgstr ""
 
-#: madplay.c:551
+#: madplay.c:553
 msgid "cross-fade ignored without negative gap"
 msgstr ""
 
@@ -372,7 +372,7 @@ msgstr ""
 msgid "Usage: %s [-s] FILE [...]\n"
 msgstr ""
 
-#: madtime.c:246
+#: madtime.c:248
 msgid "TOTAL"
 msgstr ""
 
