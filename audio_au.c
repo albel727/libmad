@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_wave.c,v 1.2 2000/09/24 17:49:25 rob Exp $
+ * $Id: audio_au.c,v 1.2 2000/09/24 18:21:32 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -29,12 +29,27 @@
 # include "mad.h"
 # include "audio.h"
 
+# define AUDIO_FILE_MAGIC	0x2e736e64L	/* ".snd" */
+# define AUDIO_UNKNOWN_SIZE	(~0)		/* (unsigned) -1 */
+# define AUDIO_ENCODING_MULAW_8	1		/* 8-bit ISDN mu-law */
+
 static FILE *outfile;
 
-static unsigned long riff_len, chunk_len;
-static long prev_chunk;
+static unsigned long data_len;
+static long prev_header;
 
-# define WAVE_FORMAT_PCM	0x0001
+/*
+ * NAME:	int32()
+ * DESCRIPTION:	store 32-bit big-endian integer
+ */
+static
+void int32(unsigned char *ptr, unsigned long num)
+{
+  *ptr++ = (num >> 24) & 0xff;
+  *ptr++ = (num >> 16) & 0xff;
+  *ptr++ = (num >>  8) & 0xff;
+  *ptr++ = (num >>  0) & 0xff;
+}
 
 static
 int init(struct audio_init *init)
@@ -49,41 +64,10 @@ int init(struct audio_init *init)
   else
     outfile = stdout;
 
-  /* RIFF header and (WAVE) data type identifier */
-
-  if (fwrite("RIFF\0\0\0\0WAVE", 8 + 4, 1, outfile) != 1) {
-    audio_error = ":fwrite";
-    return -1;
-  }
-
-  riff_len   = 4;
-  prev_chunk = 0;
+  data_len    = 0;
+  prev_header = 0;
 
   return 0;
-}
-
-/*
- * NAME:	int32()
- * DESCRIPTION:	store 32-bit little-endian integer
- */
-static
-void int32(unsigned char *ptr, unsigned long num)
-{
-  *ptr++ = (num >>  0) & 0xff;
-  *ptr++ = (num >>  8) & 0xff;
-  *ptr++ = (num >> 16) & 0xff;
-  *ptr++ = (num >> 24) & 0xff;
-}
-
-/*
- * NAME:	int16
- * DESCRIPTION:	store 16-bit little-endian integer
- */
-static
-void int16(unsigned char *ptr, unsigned int num)
-{
-  *ptr++ = (num >> 0) & 0xff;
-  *ptr++ = (num >> 8) & 0xff;
 }
 
 static
@@ -104,56 +88,35 @@ int patch_length(long address, unsigned long length)
   return 0;
 }
 
-# define close_chunk()	patch_length(prev_chunk + 4, chunk_len)
+# define close_data()	patch_length(prev_header - 16, data_len)
 
 static
 int config(struct audio_config *config)
 {
-  unsigned char chunk[24];
-  unsigned int block_al;
-  unsigned long bytes_ps;
+  unsigned char header[24];
 
-  if (prev_chunk)
-    close_chunk();
+  if (prev_header)
+    close_data();
 
-  /* "fmt " chunk */
+  /* Sun/NeXT audio file header */
 
-  block_al = config->channels * (16 / 8);
-  bytes_ps = config->speed * block_al;
+  int32(&header[0],  AUDIO_FILE_MAGIC);		/* magic */
+  int32(&header[4],  sizeof(header));		/* hdr_size */
+  int32(&header[8],  AUDIO_UNKNOWN_SIZE);	/* data_size */
+  int32(&header[12], AUDIO_ENCODING_MULAW_8);	/* encoding */
+  int32(&header[16], config->speed);		/* sample_rate */
+  int32(&header[20], config->channels);		/* channels */
 
-  memcpy(&chunk[0], "fmt ", 4);
-  int32(&chunk[4], 16);
-
-  int16(&chunk[8],  WAVE_FORMAT_PCM);	/* wFormatTag */
-  int16(&chunk[10], config->channels);	/* wChannels */
-  int32(&chunk[12], config->speed);	/* dwSamplesPerSec */
-  int32(&chunk[16], bytes_ps);		/* dwAvgBytesPerSec */
-  int16(&chunk[20], block_al);		/* wBlockAlign */
-
-  /* PCM-format-specific */
-
-  int16(&chunk[22], 16);		/* wBitsPerSample */
-
-  if (fwrite(chunk, sizeof(chunk), 1, outfile) != 1) {
+  if (fwrite(header, sizeof(header), 1, outfile) != 1) {
     audio_error = ":fwrite";
     return -1;
   }
 
-  /* save current file position for later patching */
+  prev_header = ftell(outfile);
+  if (prev_header == -1)
+    prev_header = 0;
 
-  prev_chunk = ftell(outfile);
-  if (prev_chunk == -1)
-    prev_chunk = 0;
-
-  /* "data" chunk */
-
-  if (fwrite("data\0\0\0\0", 8, 1, outfile) != 1) {
-    audio_error = ":fwrite";
-    return -1;
-  }
-
-  chunk_len = 0;
-  riff_len += 24 + 8;
+  data_len = 0;
 
   return 0;
 }
@@ -161,20 +124,19 @@ int config(struct audio_config *config)
 static
 int play(struct audio_play *play)
 {
-  unsigned char data[MAX_NSAMPLES * 2 * 2];
+  unsigned char data[MAX_NSAMPLES];
   unsigned int len;
 
-  len = audio_pcm_s16le(data, play->nsamples,
+  len = audio_pcm_mulaw(data, play->nsamples,
 			play->samples[0], play->samples[1], play->mode);
 
-  if (fwrite(data, play->samples[1] ? 4 : 2,
+  if (fwrite(data, play->samples[1] ? 2 : 1,
 	     play->nsamples, outfile) != play->nsamples) {
     audio_error = ":fwrite";
     return -1;
   }
 
-  chunk_len += len;
-  riff_len  += len;
+  data_len += len;
 
   return 0;
 }
@@ -182,10 +144,8 @@ int play(struct audio_play *play)
 static
 int finish(struct audio_finish *finish)
 {
-  if (prev_chunk)
-    close_chunk();
-
-  patch_length(4, riff_len);
+  if (prev_header)
+    close_data();
 
   if (outfile != stdout &&
       fclose(outfile) == EOF) {
@@ -196,7 +156,7 @@ int finish(struct audio_finish *finish)
   return 0;
 }
 
-int audio_wave(union audio_control *control)
+int audio_au(union audio_control *control)
 {
   audio_error = 0;
 

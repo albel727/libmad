@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: id3.c,v 1.6 2000/09/10 22:04:18 rob Exp $
+ * $Id: id3.c,v 1.7 2000/09/24 17:49:25 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -131,31 +131,31 @@ void id3_v1_show(int (*message)(char const *, ...),
 }
 
 /*
- * NAME:	int2()
+ * NAME:	int16()
  * DESCRIPTION:	decode 16-bit big-endian value
  */
 static
-unsigned int int2(unsigned char const *ptr)
+unsigned int int16(unsigned char const *ptr)
 {
   return (ptr[0] << 8) | (ptr[1] << 0);
 }
 
 /*
- * NAME:	int3()
+ * NAME:	int24()
  * DESCRIPTION:	decode 24-bit big-endian value
  */
 static
-unsigned long int3(unsigned char const *ptr)
+unsigned long int24(unsigned char const *ptr)
 {
   return (ptr[0] << 16) | (ptr[1] << 8) | (ptr[2] << 0);
 }
 
 /*
- * NAME:	int4()
+ * NAME:	int32()
  * DESCRIPTION: decode 32-bit big-endian value
  */
 static
-unsigned long int4(unsigned char const *ptr)
+unsigned long int32(unsigned char const *ptr)
 {
   return (ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | (ptr[3] << 0);
 }
@@ -342,7 +342,7 @@ int id3_v2_read(int (*message)(char const *, ...),
     unsigned int ext_flags;
     unsigned long padding;
 
-    count = int4(ptr);
+    count = int32(ptr);
 
     ptr += 4;
 
@@ -351,8 +351,8 @@ int id3_v2_read(int (*message)(char const *, ...),
 	ext_flag_crc = 0x8000
       };
 
-      ext_flags = int2(&ptr[0]);
-      padding   = int4(&ptr[2]);
+      ext_flags = int16(&ptr[0]);
+      padding   = int32(&ptr[2]);
 
       ptr   += 6;
       count -= 6;
@@ -366,7 +366,7 @@ int id3_v2_read(int (*message)(char const *, ...),
 	  count >= 4 && end - ptr >= count) {
 	unsigned long crc;
 
-	crc = int4(ptr);
+	crc = int32(ptr);
 
 	ptr   += 4;
 	count -= 4;
@@ -409,7 +409,7 @@ int id3_v2_read(int (*message)(char const *, ...),
       memcpy(id, ptr, len = 3);
       id[3] = 0;
 
-      size        = int3(&ptr[3]);
+      size        = int24(&ptr[3]);
       frame_flags = 0;
 
       ptr += 6;
@@ -421,8 +421,8 @@ int id3_v2_read(int (*message)(char const *, ...),
       memcpy(id, ptr, len = 4);
       id[4] = 0;
 
-      size        = int4(&ptr[4]);
-      frame_flags = int2(&ptr[8]);
+      size        = int32(&ptr[4]);
+      frame_flags = int16(&ptr[8]);
 
       ptr += 10;
     }

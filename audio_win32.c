@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_win32.c,v 1.34 2000/09/12 06:18:59 rob Exp $
+ * $Id: audio_win32.c,v 1.35 2000/09/24 02:30:50 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -323,10 +323,13 @@ int audio_win32(union audio_control *control)
   switch (control->command) {
   case audio_cmd_init:
     return init(&control->init);
+
   case audio_cmd_config:
     return config(&control->config);
+
   case audio_cmd_play:
     return play(&control->play);
+
   case audio_cmd_finish:
     return finish(&control->finish);
   }

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: acconfig.h,v 1.9 2000/09/17 18:49:32 rob Exp $
+ * $Id: acconfig.h,v 1.10 2000/09/24 17:49:25 rob Exp $
  */
 
 /*****************************************************************************
@@ -44,5 +44,9 @@
 
 # if defined(DEBUG) && defined(NDEBUG)
 #  error "cannot define both DEBUG and NDEBUG"
+# endif
+
+# ifdef DEBUG
+#  include <stdio.h>
 # endif
 

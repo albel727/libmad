@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.38 2000/09/17 18:49:32 rob Exp $
+ * $Id: madplay.c,v 1.39 2000/09/24 17:49:25 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -50,7 +50,7 @@
 # include "resample.h"
 # include "id3.h"
 
-# define MPEG_BUFSZ	32000
+# define MPEG_BUFSZ	40000
 
 struct audio {
   int fd;
@@ -274,7 +274,7 @@ char const *error_str(int error)
 
 /*
  * NAME:	decode_input()
- * DESCRIPTION:	load input stream buffer with data
+ * DESCRIPTION:	load input stream buffer with (more) data
  */
 static
 int decode_input(void *data, struct mad_stream *stream)
@@ -291,7 +291,8 @@ int decode_input(void *data, struct mad_stream *stream)
 
       if (fstat(audio->fd, &stat) == -1)
 	return MAD_DECODER_BREAK;
-      else if (stat.st_size <= audio->len)
+
+      if (stat.st_size <= audio->len)
 	return MAD_DECODER_STOP;
 
       /* file size changed; update mmap */
@@ -362,17 +363,17 @@ int decode_output(void *data,
     ch1 = synth->pcmout[0];
     ch2 = 0;
   }
-  else if (frame->mode == MAD_MODE_DUAL_CHANNEL || audio->select) {
+  else if (frame->mode == MAD_MODE_DUAL_CHANNEL || audio->select > 0) {
     nchannels = 1;
 
     if (audio->select == 0) {
       if (audio->quiet < 2)
 	error("output", "no channel selected for dual channel; using first");
 
-      audio->select = 1;
+      audio->select = -1;
     }
 
-    ch1 = synth->pcmout[audio->select - 1];
+    ch1 = synth->pcmout[abs(audio->select) - 1];
     ch2 = 0;
   }
   else {
@@ -398,8 +399,14 @@ int decode_output(void *data,
     audio->speed_in  = frame->sfreq;
     audio->speed_out = control.config.speed;
 
+    if (audio->speed_in != audio->speed_out &&
+	audio->quiet < 1) {
+      error("output", "sample frequency %u Hz not available; closest %u Hz",
+	    frame->sfreq, control.config.speed);
+    }
+
     /* check whether resampling is necessary */
-    if (audio->speed_out == audio->speed_in) {
+    if (abs(audio->speed_out - audio->speed_in) < 3L * audio->speed_in / 100) {
       if (audio->resampled) {
 	resample_finish(&audio->resample[0]);
 	resample_finish(&audio->resample[1]);
@@ -409,11 +416,6 @@ int decode_output(void *data,
       }
     }
     else {
-      if (audio->quiet < 1) {
-	error("output", "sample frequency %u Hz not available; closest %u Hz",
-	      frame->sfreq, control.config.speed);
-      }
-
       if (audio->resampled) {
 	resample_finish(&audio->resample[0]);
 	resample_finish(&audio->resample[1]);
@@ -668,6 +670,16 @@ static
 int filter_experiment(void *data, struct mad_frame *frame)
 {
   struct audio *audio = data;
+  static int toggle;
+
+  toggle = !toggle;
+
+  if (toggle)
+    mad_frame_mute(frame);
+
+  return MAD_DECODER_CONTINUE;
+
+# if 0
   unsigned int ns, s;
   static mad_fixed_t this, last;
   static signed long trend;
@@ -697,6 +709,7 @@ int filter_experiment(void *data, struct mad_frame *frame)
     gen_stats(frame, &audio->stats);
 
   return MAD_DECODER_IGNORE;
+# endif
 }
 # endif
 
@@ -844,6 +857,61 @@ int audio_finish(int (*audio)(union audio_control *))
   return 0;
 }
 
+# ifdef EXPERIMENTAL
+/*
+ * NAME:	parse_time()
+ * DESCRIPTION:	parse a time specification string
+ */
+static
+int parse_time(struct mad_timer *timer, char const *str)
+{
+  unsigned long decimal, seconds, fraction, fracpart;
+
+  decimal = seconds = fraction = fracpart = 0;
+
+  while (*str && *str != '.') {
+    switch (*str) {
+    case '0': case '1': case '2': case '3': case '4':
+    case '5': case '6': case '7': case '8': case '9':
+      decimal = 10 * decimal + (*str++ - '0');
+      break;
+
+    case ':':
+      seconds = 60 * (seconds + decimal);
+      decimal = 0;
+      ++str;
+      break;
+
+    default:
+      return -1;
+    }
+  }
+
+  seconds += decimal;
+
+  if (*str++ == '.') {
+    fracpart = 1;
+
+    while (*str) {
+      switch (*str) {
+      case '0': case '1': case '2': case '3': case '4':
+      case '5': case '6': case '7': case '8': case '9':
+	fraction = 10 * fraction + (*str++ - '0');
+	fracpart = 10 * fracpart;
+	break;
+
+      default:
+	return -1;
+      }
+    }
+  }
+
+  mad_timer_set(timer, seconds, fraction, fracpart);
+
+  return 0;
+}
+# endif
+
 /*
  * NAME:	usage()
  * DESCRIPTION:	display usage message and exit
@@ -876,6 +944,7 @@ void usage(char const *argv0)
 	  "Supported output format types:\n"
 	  "\tRAW\tbinary signed 16-bit little-endian linear PCM\n"
 	  "\tWAVE\tMicrosoft RIFF/WAVE, 16-bit PCM format\n"
+	  "\tAU\tSun/NeXT audio, 8-bit ISDN mu-law\n"
 # ifdef DEBUG
 	  "\tHEX\thexadecimal signed 24-bit linear PCM\n"
 # endif
@@ -924,6 +993,7 @@ int main(int argc, char *argv[])
   while ((opt = getopt(argc, argv, "vqQ"
 		       "m12d"
 # ifdef EXPERIMENTAL
+		       "s:t:"
 		       "xe"
 # endif
 		       "o:")) != -1) {
@@ -950,7 +1020,7 @@ int main(int argc, char *argv[])
 
     case '1':
     case '2':
-      select = opt - '1' + 1;
+      select = opt - '0';
       if (filter == filter_mono)
 	filter = 0;
       break;
@@ -960,6 +1030,30 @@ int main(int argc, char *argv[])
       break;
 
 # ifdef EXPERIMENTAL
+    case 's':
+    case 't':
+      {
+	struct mad_timer timer;
+
+	mad_timer_init(&timer);
+
+	if (parse_time(&timer, optarg) == -1)
+	  error("timer", "invalid time specification \"%s\"", optarg);
+	else {
+	  char time_str[19];
+
+	  mad_timer_str(&timer, time_str, "%u:%02u:%02u.%1u", MAD_TIMER_HOURS);
+	  printf("Parsed   = %s\n", time_str);
+	  printf("Fraction = %lu / %lu\n",
+		 timer.fraction, MAD_TIMER_FRACPARTS);
+	}
+
+	mad_timer_finish(&timer);
+
+	return 9;
+      }
+      break;
+
     case 'x':
       filter = filter_mixer;
       break;

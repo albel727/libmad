@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_raw.c,v 1.8 2000/09/11 00:55:54 rob Exp $
+ * $Id: audio_raw.c,v 1.9 2000/09/24 02:30:31 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -89,10 +89,13 @@ int audio_raw(union audio_control *control)
   switch (control->command) {
   case audio_cmd_init:
     return init(&control->init);
+
   case audio_cmd_config:
     return config(&control->config);
+
   case audio_cmd_play:
     return play(&control->play);
+
   case audio_cmd_finish:
     return finish(&control->finish);
   }

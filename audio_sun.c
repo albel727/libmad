@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_sun.c,v 1.11 2000/09/11 00:55:54 rob Exp $
+ * $Id: audio_sun.c,v 1.13 2000/09/24 02:31:19 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -31,6 +31,12 @@
 
 # include "mad.h"
 # include "audio.h"
+
+# if defined(WORDS_BIGENDIAN)
+#  define audio_pcm_s16  audio_pcm_s16be
+# else
+#  define audio_pcm_s16  audio_pcm_s16le
+# endif
 
 # define AUDIO_DEVICE	"/dev/audio"
 
@@ -105,8 +111,8 @@ int play(struct audio_play *play)
   unsigned char data[MAX_NSAMPLES * 2 * 2];
   unsigned int len;
 
-  len = audio_pcm_s16be(data, play->nsamples,
-			play->samples[0], play->samples[1], play->mode);
+  len = audio_pcm_s16(data, play->nsamples,
+		      play->samples[0], play->samples[1], play->mode);
 
   return output(data, len);
 }
@@ -131,10 +137,13 @@ int audio_sun(union audio_control *control)
   switch (control->command) {
   case audio_cmd_init:
     return init(&control->init);
+
   case audio_cmd_config:
     return config(&control->config);
+
   case audio_cmd_play:
     return play(&control->play);
+
   case audio_cmd_finish:
     return finish(&control->finish);
   }

@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: Makefile.in,v 1.30 2000/09/10 22:04:17 rob Exp $
+# $Id: Makefile.in,v 1.32 2000/09/24 17:49:25 rob Exp $
 #
 
 ## ENVIRONMENT ################################################################
@@ -67,7 +67,7 @@ LDFLAGS =	$(LDOPTS)
 
 TARGETS =	madplay
 AUDIO =		resample.o audio.o  \
-		audio_raw.o audio_wave.o audio_null.o @AUDIO@
+		audio_raw.o audio_wave.o audio_au.o audio_null.o @AUDIO@
 OBJS =		$(AUDIO) id3.o id3v2.o
 
 LIBMAD =	libmad/libmad.a
@@ -107,7 +107,7 @@ clean ::
 		(cd $$dir && $(MAKE) $@);  \
 	done
 
-	rm -f $(TARGETS) *.o *.a gmon.* core
+	rm -f $(TARGETS) *.o gmon.* core
 
 distclean :: clean
 	for dir in $(ACSUBDIRS); do  \
@@ -195,6 +195,7 @@ gmon.out: madplay
 ## DEPENDENCIES ###############################################################
 
 audio.o: audio.c config.h audio.h libmad/mad.h
+audio_au.o: audio_au.c config.h libmad/mad.h audio.h
 audio_empeg.o: audio_empeg.c config.h libmad/mad.h audio.h
 audio_hex.o: audio_hex.c config.h libmad/mad.h audio.h
 audio_null.o: audio_null.c config.h libmad/mad.h audio.h

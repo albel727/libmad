@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madmix.c,v 1.6 2000/09/17 18:49:32 rob Exp $
+ * $Id: madmix.c,v 1.7 2000/09/24 02:27:20 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -115,6 +115,7 @@ int do_output(int (*audio)(union audio_control *),
   control.play.nsamples   = synth->pcmlen;
   control.play.samples[0] = synth->pcmout[0];
   control.play.samples[1] = synth->pcmout[1];
+  control.play.mode       = AUDIO_MODE_DITHER;
 
   if (audio(&control) == -1) {
     error("output", audio_error);

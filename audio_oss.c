@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_oss.c,v 1.13 2000/09/11 00:55:54 rob Exp $
+ * $Id: audio_oss.c,v 1.15 2000/09/24 17:49:25 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -32,8 +32,20 @@
 # include "mad.h"
 # include "audio.h"
 
-# ifndef AFMT_S16_NE
-#  define AFMT_S16_NE  AFMT_S16_LE
+# if !defined(AFMT_S32_NE)
+#  if defined(WORDS_BIGENDIAN)
+#   define AFMT_S32_NE  AFMT_S32_BE
+#  else
+#   define AFMT_S32_NE  AFMT_S32_LE
+#  endif
+# endif
+
+# if !defined(AFMT_S16_NE)
+#  if defined(WORDS_BIGENDIAN)
+#   define AFMT_S16_NE  AFMT_S16_BE
+#  else
+#   define AFMT_S16_NE  AFMT_S16_LE
+#  endif
 # endif
 
 # define AUDIO_DEVICE	"/dev/dsp"
@@ -68,31 +80,30 @@ int config(struct audio_config *config)
     return -1;
   }
 
+# if (defined(AFMT_S32_LE) && AFMT_S32_NE == AFMT_S32_LE) ||  \
+     (defined(AFMT_S32_BE) && AFMT_S32_NE == AFMT_S32_BE)
+  format = AFMT_S32_NE;
+# else
   format = AFMT_S16_NE;
+# endif
+
   if (ioctl(sfd, SNDCTL_DSP_SETFMT, &format) == -1) {
     audio_error = ":ioctl(SNDCTL_DSP_SETFMT)";
     return -1;
   }
 
-  if (format != AFMT_S16_NE) {
-    /* 16-bit sample format not available; try 8-bit */
-
-    format = AFMT_U8;
-    if (ioctl(sfd, SNDCTL_DSP_SETFMT, &format) == -1) {
-      audio_error = ":ioctl(SNDCTL_DSP_SETFMT)";
-      return -1;
-    }
-
-    if (format != AFMT_U8) {
-      audio_error = "no supported audio format available";
-      return -1;
-    }
-  }
-
   switch (format) {
-  case AFMT_U8:
-    audio_pcm = audio_pcm_u8;
+# if defined(AFMT_S32_LE)
+  case AFMT_S32_LE:
+    audio_pcm = audio_pcm_s32le;
     break;
+# endif
+
+# if defined(AFMT_S32_BE)
+  case AFMT_S32_BE:
+    audio_pcm = audio_pcm_s32be;
+    break;
+# endif
 
   case AFMT_S16_LE:
     audio_pcm = audio_pcm_s16le;
@@ -101,6 +112,18 @@ int config(struct audio_config *config)
   case AFMT_S16_BE:
     audio_pcm = audio_pcm_s16be;
     break;
+
+  case AFMT_U8:
+    audio_pcm = audio_pcm_u8;
+    break;
+
+  case AFMT_MU_LAW:
+    audio_pcm = audio_pcm_mulaw;
+    break;
+
+  default:
+    audio_error = "no supported audio format available";
+    return -1;
   }
 
   channels = config->channels;
@@ -154,7 +177,7 @@ int output(unsigned char const *ptr, unsigned int len)
 static
 int play(struct audio_play *play)
 {
-  unsigned char data[MAX_NSAMPLES * 2 * 2];
+  unsigned char data[MAX_NSAMPLES * 4 * 2];
   unsigned int len;
 
   len = audio_pcm(data, play->nsamples,
@@ -183,10 +206,13 @@ int audio_oss(union audio_control *control)
   switch (control->command) {
   case audio_cmd_init:
     return init(&control->init);
+
   case audio_cmd_config:
     return config(&control->config);
+
   case audio_cmd_play:
     return play(&control->play);
+
   case audio_cmd_finish:
     return finish(&control->finish);
   }

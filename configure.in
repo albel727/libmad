@@ -17,7 +17,7 @@ dnl You should have received a copy of the GNU General Public License
 dnl along with this program; if not, write to the Free Software
 dnl Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 dnl
-AC_REVISION([$Id: configure.in,v 1.25 2000/09/17 18:49:32 rob Exp $])dnl
+AC_REVISION([$Id: configure.in,v 1.26 2000/09/20 01:02:49 rob Exp $])dnl
 
 dnl Process this file with autoconf to produce a configure script.
 
@@ -56,7 +56,7 @@ then
 	i386-*)      ARCH="" ;;
 	i?86-*)      ARCH="-m486" ;;
 	arm-empeg-*) ARCH="-march=armv4 -mtune=strongarm1100" ;;
-	arm-*)       ARCH="-march=armv4" ;;
+	arm-*)       ARCH="-march=armv4 -mtune=strongarm" ;;
 	mips-*)      ARCH="-mips3" ;;
 		     #-mcpu=vr4100
     esac
@@ -87,6 +87,7 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 
 AC_C_CONST
 AC_C_INLINE
+AC_C_BIGENDIAN
 
 dnl Checks for library functions.
 
