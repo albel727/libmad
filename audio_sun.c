@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_sun.c,v 1.7 2000/05/24 05:06:24 rob Exp $
+ * $Id: audio_sun.c,v 1.8 2000/07/08 18:34:06 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -29,7 +29,7 @@
 # include <sys/audioio.h>
 # include <errno.h>
 
-# include "libmad.h"
+# include "mad.h"
 # include "audio.h"
 
 # define AUDIO_DEVICE	"/dev/audio"

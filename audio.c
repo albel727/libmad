@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.c,v 1.5 2000/05/24 05:06:24 rob Exp $
+ * $Id: audio.c,v 1.6 2000/06/11 18:11:46 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -29,6 +29,10 @@
 
 char const *audio_error;
 
+/*
+ * NAME:	audio_output()
+ * DESCRIPTION: choose an audio output module from a specifier pathname
+ */
 audio_ctlfunc_t *audio_output(char const **path)
 {
   char const *ext;

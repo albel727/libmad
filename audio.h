@@ -16,13 +16,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.h,v 1.11 2000/05/24 05:06:24 rob Exp $
+ * $Id: audio.h,v 1.12 2000/07/08 18:34:06 rob Exp $
  */
 
 # ifndef AUDIO_H
 # define AUDIO_H
 
-# include "libmad.h"
+# include "mad.h"
 
 # define MAX_NSAMPLES	1152
 

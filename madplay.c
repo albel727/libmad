@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.25 2000/06/03 23:07:41 rob Exp $
+ * $Id: madplay.c,v 1.29 2000/07/08 18:34:06 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -31,8 +31,11 @@
 # include <sys/stat.h>
 # include <fcntl.h>
 # include <unistd.h>
-# include <getopt.h>
 # include <errno.h>
+
+# ifdef HAVE_GETOPT_H
+#  include <getopt.h>
+# endif
 
 # ifdef HAVE_MMAP
 #  include <sys/mman.h>
@@ -42,7 +45,7 @@
 #  define O_BINARY  0
 # endif
 
-# include "libmad.h"
+# include "mad.h"
 # include "audio.h"
 # include "id3.h"
 
@@ -67,7 +70,8 @@ struct audio {
     struct mad_timer timer;
 
     int vbr;
-    unsigned long bitrate, vbr_frames, vbr_rate;
+    unsigned int bitrate;
+    unsigned long vbr_frames, vbr_rate;
     unsigned long nsecs;
   } stats;
 
@@ -93,12 +97,8 @@ int message(char const *format, ...)
   len = strlen(format);
   newline = (format[len - 1] == '\n');
 
-  if (on_same_line) {
-    if (newline) {
-      if (len > 1)
-	fprintf(stderr, "\n");
-    }
-  }
+  if (on_same_line && newline && len > 1)
+    putc('\n', stderr);
 
   va_start(args, format);
   result = vfprintf(stderr, format, args);
@@ -109,13 +109,13 @@ int message(char const *format, ...)
 
     i = on_same_line - result;
     while (i--)
-      fprintf(stderr, " ");
+      putc(' ', stderr);
   }
 
   on_same_line = !newline ? result : 0;
 
   if (on_same_line) {
-    fprintf(stderr, "\r");
+    putc('\r', stderr);
     fflush(stderr);
   }
 
@@ -129,9 +129,9 @@ int message(char const *format, ...)
  * DESCRIPTION:	show an error using proper interaction with message()
  */
 static
-int error(char const *id, char const *format, ...)
+void error(char const *id, char const *format, ...)
 {
-  int err, result;
+  int err;
   va_list args;
 
   err = errno;
@@ -153,17 +153,13 @@ int error(char const *id, char const *format, ...)
       errno = err;
       perror(format + 1);
     }
-
-    result = 0;
   }
   else {
-    result  = vfprintf(stderr, format, args);
-    result += fprintf(stderr, "\n");
+    vfprintf(stderr, format, args);
+    putc('\n', stderr);
   }
 
   va_end(args);
-
-  return result;
 }
 
 static
@@ -171,7 +167,7 @@ char const *const layer_str[3] = { "I", "II", "III" };
 
 static
 char const *const mode_str[4] = {
-  "single channel", "dual channel", "stereo", "stereo"
+  "single channel", "dual channel", "joint stereo", "stereo"
 };
 
 /*
@@ -181,19 +177,22 @@ char const *const mode_str[4] = {
 static
 void gen_stats(struct mad_frame const *frame, struct stats *stats)
 {
-  if (stats->bitrate && frame->bitrate != stats->bitrate)
-    stats->vbr = 1;
+  unsigned int bitrate;
 
-  stats->vbr_rate += (stats->bitrate = frame->bitrate);
+  bitrate = frame->bitrate / 1000;
 
-  if (++stats->vbr_frames == 0)
-    stats->vbr = 0;  /* overflow; prevent division by 0 */
+  stats->vbr_rate += bitrate;
+  stats->vbr_frames++;
 
-  while (stats->vbr_rate   && stats->vbr_rate   % 2 == 0 &&
-	 stats->vbr_frames && stats->vbr_frames % 2 == 0) {
-    stats->vbr_rate   /= 2;
-    stats->vbr_frames /= 2;
-  }
+  stats->vbr += ((stats->bitrate && stats->bitrate != bitrate) ||
+		 (stats->vbr_frames &&
+		  stats->vbr_rate / stats->vbr_frames != bitrate)) ? 64 : -1;
+  if (stats->vbr < 0)
+    stats->vbr = 0;
+  else if (stats->vbr > 256)
+    stats->vbr = 256;
+
+  stats->bitrate = bitrate;
 
   if (mad_timer_seconds(&stats->timer) >= stats->nsecs) {
     char time_str[6];
@@ -204,17 +203,15 @@ void gen_stats(struct mad_frame const *frame, struct stats *stats)
     mad_timer_str(&stats->timer, time_str, "%02u:%02u", MAD_TIMER_MINUTES);
 
     if (frame->mode == MAD_MODE_JOINT_STEREO) {
-      switch (frame->flags & (MAD_FLAG_I_STEREO | MAD_FLAG_MS_STEREO)) {
+      switch (frame->flags & (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO)) {
       case MAD_FLAG_MS_STEREO:
-	joint_str = "M/S ";
+	joint_str = " (M/S)";
 	break;
-
       case MAD_FLAG_I_STEREO:
-	joint_str = "intensity ";
+	joint_str = " (I)";
 	break;
-
       case (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO):
-	joint_str = "M/S + intensity ";
+	joint_str = " (M/S+I)";
 	break;
       }
     }
@@ -222,17 +219,17 @@ void gen_stats(struct mad_frame const *frame, struct stats *stats)
     message(" %s Layer %s, %s%u Kbps%s, %u Hz, %s%s, %sCRC",
 	    time_str, layer_str[frame->layer - 1],
 	    stats->vbr ? "VBR (avg " : "",
-	    stats->vbr ? (stats->vbr_rate / stats->vbr_frames + 500) / 1000 :
-	    stats->bitrate / 1000,
+	    stats->vbr ? ((stats->vbr_rate * 2) / stats->vbr_frames + 1) / 2 :
+	    stats->bitrate,
 	    stats->vbr ? ")" : "",
-	    frame->sfreq, joint_str, mode_str[frame->mode],
+	    frame->sfreq, mode_str[frame->mode], joint_str,
 	    (frame->flags & MAD_FLAG_PROTECTION) ? "" : "no ");
   }
 }
 
 /*
  * NAME:	error_str()
- * DESCRIPTION:	return a string describing MAD error
+ * DESCRIPTION:	return a string describing a MAD error
  */
 static
 char const *error_str(int error)
@@ -256,7 +253,6 @@ char const *error_str(int error)
   case MAD_ERR_BADDATALEN:	return "bad main data length";
   case MAD_ERR_BADPART3LEN:	return "bad audio data length";
   case MAD_ERR_BADHUFFTABLE:	return "bad Huffman table select";
-  case MAD_ERR_BADHUFFDATA:	return "Huffman data value out of range";
   case MAD_ERR_BADSTEREO:	return "incompatible block_type for M/S";
 
   default:
@@ -459,10 +455,8 @@ void initialize(struct audio *audio, int fd, int verbose, int quiet,
   audio->quiet   = quiet;
 
   mad_decoder_init(&audio->decoder);
-  mad_decoder_input(&audio->decoder, decode_input, audio);
-  mad_decoder_filter(&audio->decoder, filter, audio);
-  mad_decoder_output(&audio->decoder, decode_output, audio);
-  mad_decoder_error(&audio->decoder, decode_error, audio);
+  mad_decoder_funcs(&audio->decoder, audio,
+		    decode_input, filter, decode_output, decode_error);
 
   audio->stats.framecount = 0;
   mad_timer_init(&audio->stats.timer);
@@ -519,6 +513,68 @@ int filter_mono(void *data, struct mad_frame *frame)
 
   return MAD_DECODER_CONTINUE;
 }
+
+# ifdef EXPERIMENTAL
+/*
+ * NAME:	filter->mixer()
+ * DESCRIPTION:	pre-empt decoding by dumping frame to independent mixer
+ */
+static
+int filter_mixer(void *data, struct mad_frame *frame)
+{
+  struct audio *audio = data;
+
+  if (fwrite(frame, sizeof(*frame), 1, stdout) != 1)
+    return MAD_DECODER_BREAK;
+
+  mad_timer_add(&audio->stats.timer, &frame->duration);
+  audio->stats.framecount++;
+
+  if (audio->verbose)
+    gen_stats(frame, &audio->stats);
+
+  return MAD_DECODER_IGNORE;
+}
+
+/*
+ * NAME:	filter->experiment()
+ * DESCRIPTION:	experimental filter
+ */
+static
+int filter_experiment(void *data, struct mad_frame *frame)
+{
+  struct audio *audio = data;
+  unsigned int ns, s;
+  static mad_fixed_t this, last;
+  static signed long trend;
+
+  ns = MAD_NUMSBSAMPLES(frame);
+
+  for (s = 0; s < ns; ++s) {
+    this = frame->sbsample[0][s][0];
+
+    if (this == last || abs(abs(this) - abs(last)) < abs(this))
+      ++trend;
+    else
+      --trend;
+
+    message("%12.9f\t%12.9f\t%ld\n",
+	    mad_f_todouble(this),
+	    mad_f_todouble(abs(this) - abs(last)),
+	    trend);
+
+    last = this;
+  }
+
+  mad_timer_add(&audio->stats.timer, &frame->duration);
+  audio->stats.framecount++;
+
+  if (audio->verbose)
+    gen_stats(frame, &audio->stats);
+
+  return MAD_DECODER_IGNORE;
+}
+# endif
 
 /*
  * NAME:	decode()
@@ -629,6 +685,7 @@ int decode(struct audio *audio)
  * NAME:	audio->init()
  * DESCRIPTION:	initialize the audio output module
  */
+static
 int audio_init(int (*audio)(union audio_control *), char const *path)
 {
   union audio_control control;
@@ -648,6 +705,7 @@ int audio_init(int (*audio)(union audio_control *), char const *path)
  * NAME:	audio->finish()
  * DESCRIPTION:	terminate the audio output module
  */
+static
 int audio_finish(int (*audio)(union audio_control *))
 {
   union audio_control control;
@@ -664,14 +722,14 @@ int audio_finish(int (*audio)(union audio_control *))
 
 /*
  * NAME:	usage()
- * DESCRIPTION:	display usage and exit
+ * DESCRIPTION:	display usage message and exit
  */
 static
 void usage(char const *argv0)
 {
-  fprintf(stderr,
-	  "Usage: %s [-m] [-v|-q|-Q] [-o [type:]file.out] file.mpg [...]\n",
-	  argv0);
+  fprintf(stderr, "Usage: "
+	  "%s [-m] [-v|-q|-Q] [-o [type:]file.out] file.mpg [...]\n", argv0);
+  exit(1);
 }
 
 /*
@@ -680,8 +738,7 @@ void usage(char const *argv0)
  */
 int main(int argc, char *argv[])
 {
-  int opt, verbose = 0, quiet = 0;
-  int i, result, fd;
+  int opt, i, fd, verbose = 0, quiet = 0, result = 0;
   int (*filter)(void *, struct mad_frame *) = 0;
   int (*output)(union audio_control *) = 0;
   char const *fname, *opath = 0;
@@ -691,7 +748,7 @@ int main(int argc, char *argv[])
     if (strcmp(argv[1], "--version") == 0 ||
 	strcmp(argv[1], "--copyright") == 0) {
       printf("%s - %s\n", mad_version, mad_copyright);
-      printf("`%s --license' for licensing information.\n", argv[0]);
+      fprintf(stderr, "`%s --license' for licensing information.\n", argv[0]);
       return 0;
     }
     if (strcmp(argv[1], "--license") == 0) {
@@ -704,7 +761,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  while ((opt = getopt(argc, argv, "mvqQo:")) != -1) {
+  while ((opt = getopt(argc, argv, "mvqQo:" "xe")) != -1) {
     switch (opt) {
     case 'm':
       filter = filter_mono;
@@ -730,30 +787,40 @@ int main(int argc, char *argv[])
 
       output = audio_output(&opath);
       if (output == 0)
-	error(0, "%s: no output module available; using default", opath);
+	error(0, "%s: undecided output module; using default", opath);
       break;
+
+# ifdef EXPERIMENTAL
+    case 'x':
+      filter = filter_mixer;
+      break;
+
+    case 'e':
+      filter = filter_experiment;
+      break;
+# endif
 
     default:
       usage(argv[0]);
-      return 1;
     }
   }
 
-  if (optind == argc) {
+  if (optind == argc)
     usage(argv[0]);
-    return 1;
-  }
 
-  if (output == 0)
-    output = audio_output(0);
+# ifdef EXPERIMENTAL
+  if (filter == filter_mixer)
+    output = 0;
+  else
+# endif
+    if (output == 0)
+      output = audio_output(0);
 
   if (!quiet)
     message("%s - %s\n", mad_version, mad_copyright);
 
-  if (audio_init(output, opath) == -1)
+  if (output && audio_init(output, opath) == -1)
     return 2;
-
-  result = 0;
 
   for (i = optind; i < argc; ++i) {
     if (strcmp(argv[i], "-") == 0) {
@@ -792,7 +859,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  if (audio_finish(output) == -1)
+  if (output && audio_finish(output) == -1)
     result = 6;
 
   return result;

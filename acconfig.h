@@ -16,16 +16,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: acconfig.h,v 1.5 2000/03/19 06:43:38 rob Exp $
+ * $Id: acconfig.h,v 1.7 2000/08/02 05:48:45 rob Exp $
  */
 
 /*****************************************************************************
  * Definitions selected automatically by `configure'                         *
  *****************************************************************************/
 @TOP@
-
-/* Define to enable a Layer III intensity stereo kluge. */
-#undef OPT_ISKLUGE
 
 /* Define to be the name of your default audio output module. */
 #define AUDIO_DEFAULT 0
@@ -35,6 +32,9 @@
 
 /* Define to enable diagnostic debugging support. */
 #undef DEBUG
+
+/* Define to enable experimental code. */
+#undef EXPERIMENTAL
 
 @BOTTOM@
 

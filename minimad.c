@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: minimad.c,v 1.2 2000/04/23 07:05:13 rob Exp $
+ * $Id: minimad.c,v 1.5 2000/07/08 18:34:06 rob Exp $
  */
 
 # include <stdio.h>
@@ -24,7 +24,7 @@
 # include <sys/stat.h>
 # include <sys/mman.h>
 
-# include "libmad.h"
+# include "mad.h"
 
 static void decode(unsigned char const *, unsigned long);
 
@@ -117,11 +117,13 @@ int output(void *data, struct mad_frame const *frame,
     /* output sample(s) in 16-bit signed little-endian PCM */
 
     sample = scale(*left_ch++);
-    printf("%c%c", sample & 0xff, (sample >> 8) & 0xff);
+    putchar(sample & 0xff);
+    putchar((sample >> 8) & 0xff);
 
     if (nchannels == 2) {
       sample = scale(*right_ch++);
-      printf("%c%c", sample & 0xff, (sample >> 8) & 0xff);
+      putchar(sample & 0xff);
+      putchar((sample >> 8) & 0xff);
     }
   }
 
@@ -157,9 +159,7 @@ void decode(unsigned char const *start, unsigned long length)
 
   /* configure input, output, and error functions */
 
-  mad_decoder_input(&decoder, input, &buffer);
-  mad_decoder_output(&decoder, output, &buffer);
-  mad_decoder_error(&decoder, error, &buffer);
+  mad_decoder_funcs(&decoder, &buffer, input, 0 /* filter */, output, error);
 
   /* start the decoder */
 

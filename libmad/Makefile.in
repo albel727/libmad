@@ -16,8 +16,31 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: Makefile.in,v 1.28 2000/08/02 05:48:45 rob Exp $
+# $Id: Makefile.in,v 1.2 2000/08/02 16:55:07 rob Exp $
 #
+
+## OPTIONS ####################################################################
+
+# Fixed Point Math multiply options:
+#
+# FPM_APPROX	use 32-bit approximation
+# FPM_64BIT	use 64-bit (long long) accuracy
+# FPM_INTEL	use Intel assembly
+# FPM_ARM	use ARM V4 assembly
+# FPM_MIPS	use MIPS assembly
+# FPM_SPARC	use SPARC V8 assembly
+# (default)	use slow explicit computation
+
+# set by --enable-fpm during configure
+FPM =		@FPM@
+
+# Subband Synthesis Optimization options:
+#
+# SSO_FAST	use fast approximation
+# (default)	use standard calculation
+
+# set by --enable-sso during configure
+SSO =		@SSO@
 
 ## ENVIRONMENT ################################################################
 
@@ -29,26 +52,23 @@ VPATH =		@srcdir@
 prefix =	@prefix@
 exec_prefix =	@exec_prefix@
 
-BINDEST =	@bindir@
 MANDEST =	@mandir@
 
 INCDEST =	@includedir@
 LIBDEST =	@libdir@
 
-MANEXT =	1
+MANEXT =	3
 
 INSTALL =	@INSTALL@
-BININSTALL =	@INSTALL_PROGRAM@ -m 755
 LIBINSTALL =	@INSTALL_DATA@
 
-ACSUBDIRS =	@subdirs@
-
-## COMPILATION ################################################################
-
 CC =		@CC@
-INCLUDES =	@CPPFLAGS@ -Ilibmad
-DEFINES =	@DEFS@
+INCLUDES =	@CPPFLAGS@
+DEFINES =	@DEFS@ $(FPM) $(SSO)
 LIBS =		@LIBS@
+
+AR =		ar
+RANLIB =	@RANLIB@
 
 ARCH =		@ARCH@
 DEBUGGER =	@DEBUGGER@
@@ -56,7 +76,7 @@ OPTIMIZER =	@OPTIMIZER@
 PROFILER =	@PROFILER@
 
 COPTS =		@CFLAGS@ -Wall $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
-LDOPTS =	@LDFLAGS@ $(PROFILER) -Llibmad
+LDOPTS =	@LDFLAGS@ $(PROFILER)
 
 ## FLAGS ######################################################################
 
@@ -65,77 +85,48 @@ LDFLAGS =	$(LDOPTS)
 
 ## OBJECTS ####################################################################
 
-TARGETS =	madplay
-AUDIO =		audio.o audio_null.o audio_wav.o audio_raw.o @AUDIO@
-OBJS =		id3.o id3v2.o $(AUDIO)
+TARGETS =	$(LIBMAD) $(INCMAD)
 
-LIBMAD =	libmad/libmad.a
-INCMAD =	libmad/mad.h
+LIBMAD =	libmad.a
+INCMAD =	mad.h
 
-DOCS1 =		madplay.1
+MADOBJS =	version.o fixed.o bit.o timer.o stream.o frame.o synth.o  \
+		decoder.o layer12.o layer3.o huffman.o
+MADINCLUDES =	version.h fixed.h bit.h timer.h stream.h frame.h synth.h  \
+		decoder.h
 
 ## GENERIC RULES ##############################################################
 
-all :: @MAKE_TARGETS@
-
-all_lib :: $(LIBMAD) $(INCMAD)
+all :: $(TARGETS)
 
 check :: all
 	@echo "No self-tests available."
 
-default :: $(TARGETS)
-
-install :: @INSTALL_TARGETS@
-
-install_default :: all
-	$(BININSTALL) $(TARGETS) "$(BINDEST)/."
-
-	for file in $(DOCS1); do  \
-		$(LIBINSTALL) $$file  \
-		"$(MANDEST)/man$(MANEXT)/`basename $$file .1`.$(MANEXT)";  \
-	done
-
-install_lib :: all_lib
+install :: all
 	$(LIBINSTALL) $(LIBMAD) "$(LIBDEST)/."
 	$(LIBINSTALL) $(INCMAD) "$(INCDEST)/."
 
 again :: clean all
 
 clean ::
-	for dir in $(ACSUBDIRS); do  \
-		(cd $$dir && $(MAKE) $@);  \
-	done
-
 	rm -f $(TARGETS) *.o *.a gmon.* core
 
 distclean :: clean
-	for dir in $(ACSUBDIRS); do  \
-		(cd $$dir && $(MAKE) $@);  \
-	done
-
+	rm -f mad.h
 	rm -f config.status config.cache config.log config.h
 	rm -f Makefile
 
 maintainer-clean :: distclean
-	for dir in . $(ACSUBDIRS); do  \
-		rm -f $$dir/config.h.in $$dir/configure;  \
-	done
+	rm -f config.h.in configure
 
-dist :: $(INCMAD) id3v2.c
-	for dir in . $(ACSUBDIRS); do  \
-		(cd $$dir && $(MAKE) config.h.in configure);  \
-	done
-
+dist :: $(INCMAD)
+	$(MAKE) config.h.in configure
 	$(MAKE) distclean
 
-depend :: $(INCMAD)
-	for dir in $(ACSUBDIRS); do  \
-		(cd $$dir && $(MAKE) $@);  \
-	done
-
+depend ::
 	( sed -n -e '1,/^## DEPEND/p' Makefile.in;  \
 	  echo;  \
-	  $(CC) -MM $(INCLUDES) $(DEFINES) *.c;  \
+	  $(CC) -MM $(DEFINES) *.c;  \
 	) > Makefile.in.new
 	mv -f Makefile.in.new Makefile.in
 
@@ -161,30 +152,19 @@ config.status: .stamp/configure .stamp/config.h.in Makefile.in
 
 ## BUILD RULES ################################################################
 
-$(LIBMAD) $(INCMAD) ::
-	cd libmad && $(MAKE)
+$(LIBMAD): $(MADOBJS)
+	$(AR) rc $@ $(MADOBJS)
+	$(RANLIB) $@
 
-id3v2.c: id3v2.gperf
-	gperf -tCTonD -K id -N id3v2_hash -s -3 -k '*'  \
-		id3v2.gperf | sed -e '/\$$''Id: /s/\$$//g' >$@
-
-madplay: $(LIBMAD) $(OBJS) madplay.o
-	$(CC) $(LDFLAGS) -o $@ madplay.o $(OBJS) -lmad $(LIBS)
-
-madtime: $(LIBMAD) madtime.o
-	$(CC) $(LDFLAGS) -o $@ madtime.o -lmad $(LIBS)
-
-madmix: $(LIBMAD) $(OBJS) madmix.o
-	$(CC) $(LDFLAGS) -o $@ madmix.o $(OBJS) -lmad $(LIBS)
-
-minimad: $(LIBMAD) minimad.o
-	$(CC) $(LDFLAGS) -o $@ minimad.o -lmad $(LIBS)
-
-profile :: madplay gmon.out
-	gprof madplay | less
-
-gmon.out: madplay
-	./madplay -vo pcm:/dev/null teststream.mpg
+$(INCMAD): Makefile mad.h.sed ../COPYRIGHT $(MADINCLUDES)
+	(sed -e '1s|.*|/*|' -e '1b' -e '$$s|.*| */|' -e '$$b'  \
+		-e 's/^.*/ *&/' ../COPYRIGHT;  \
+	echo;  \
+	if [ ".$(FPM)" != "." ]; then  \
+		echo ".$(FPM)" | sed -e 's|^\.-D|# define |'; echo;  \
+	fi;  \
+	grep SIZEOF config.h | sed -e 's/^#d/# d/'; echo;  \
+	sed -n -f mad.h.sed $(MADINCLUDES)) >$@
 
 .c.s:
 	$(CC) $(ARCH) $(OPTIMIZER) $(DEFINES) -S $<
@@ -193,17 +173,19 @@ gmon.out: madplay
 
 ## DEPENDENCIES ###############################################################
 
-audio.o: audio.c config.h audio.h libmad/mad.h
-audio_hex.o: audio_hex.c config.h libmad/mad.h audio.h
-audio_null.o: audio_null.c config.h libmad/mad.h audio.h
-audio_oss.o: audio_oss.c config.h libmad/mad.h audio.h
-audio_raw.o: audio_raw.c config.h libmad/mad.h audio.h
-audio_sun.o: audio_sun.c config.h libmad/mad.h audio.h
-audio_wav.o: audio_wav.c config.h libmad/mad.h audio.h
-audio_win32.o: audio_win32.c config.h libmad/mad.h audio.h
-id3.o: id3.c config.h id3v2.h id3.h
-id3v2.o: id3v2.c config.h id3.h id3v2.h
-madmix.o: madmix.c config.h libmad/mad.h audio.h
-madplay.o: madplay.c config.h libmad/mad.h audio.h id3.h
-madtime.o: madtime.c config.h libmad/mad.h
-minimad.o: minimad.c libmad/mad.h
+bit.o: bit.c config.h bit.h
+decoder.o: decoder.c config.h stream.h bit.h frame.h fixed.h timer.h \
+ synth.h decoder.h
+fixed.o: fixed.c config.h fixed.h
+frame.o: frame.c config.h bit.h stream.h frame.h fixed.h timer.h \
+ layer12.h layer3.h
+huffman.o: huffman.c config.h huffman.h
+layer12.o: layer12.c config.h fixed.h bit.h stream.h frame.h timer.h \
+ layer12.h sf_table.dat qc_table.dat
+layer3.o: layer3.c config.h fixed.h bit.h stream.h frame.h timer.h \
+ huffman.h layer3.h rq_table.dat imdct_s.dat
+stream.o: stream.c config.h bit.h stream.h
+synth.o: synth.c config.h fixed.h frame.h timer.h stream.h bit.h \
+ synth.h D.dat
+timer.o: timer.c config.h timer.h
+version.o: version.c config.h version.h

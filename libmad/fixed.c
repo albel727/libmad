@@ -16,56 +16,39 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_null.c,v 1.7 2000/07/08 18:34:06 rob Exp $
+ * $Id: fixed.c,v 1.1 2000/08/02 05:48:51 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
 # endif
 
-# include "mad.h"
-# include "audio.h"
+# include "fixed.h"
 
-/* this can be used as a template to create new output modules */
-
-static
-int init(struct audio_init *init)
+# if !defined(FPM_MACRO)
+mad_fixed_t mad_f_mul(mad_fixed_t x, mad_fixed_t y)
 {
-  return 0;
+  int neg;
+  unsigned long A, B, C, D;
+  mad_fixed_t prod;
+
+  /* this is accurate but extremely slow */
+
+  neg = (x < 0 && y > 0) ||
+        (x > 0 && y < 0);
+
+  if (x < 0)
+    x = -x;
+  if (y < 0)
+    y = -y;
+
+  A = (x >> 16) & 0xffff;
+  B = (x >>  0) & 0xffff;
+  C = (y >> 16) & 0xffff;
+  D = (y >>  0) & 0xffff;
+
+  prod = ((A * C) << 4) + ((A * D + B * C + ((B * D) >> 16)) >> 12);
+
+  return neg ? -prod : prod;
 }
-
-static
-int config(struct audio_config *config)
-{
-  return 0;
-}
-
-static
-int play(struct audio_play *play)
-{
-  return 0;
-}
-
-static
-int finish(struct audio_finish *finish)
-{
-  return 0;
-}
-
-int audio_null(union audio_control *control)
-{
-  audio_error = 0;
-
-  switch (control->command) {
-  case audio_cmd_init:
-    return init(&control->init);
-  case audio_cmd_config:
-    return config(&control->config);
-  case audio_cmd_play:
-    return play(&control->play);
-  case audio_cmd_finish:
-    return finish(&control->finish);
-  }
-
-  return 0;
-}
+# endif

@@ -1,4 +1,3 @@
-/* config.h.in.  Generated automatically from configure.in by autoheader.  */
 /*
  * mad - MPEG audio decoder
  * Copyright (C) 2000 Robert Leslie
@@ -17,36 +16,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Id: acconfig.h,v 1.7 2000/08/02 05:48:45 rob Exp 
+ * $Id: acconfig.h,v 1.1 2000/08/02 05:48:51 rob Exp $
  */
 
 /*****************************************************************************
  * Definitions selected automatically by `configure'                         *
  *****************************************************************************/
+@TOP@
 
-/* Define to empty if the keyword does not work.  */
-#undef const
-
-/* Define if you don't have vprintf but do have _doprnt.  */
-#undef HAVE_DOPRNT
-
-/* Define if you have a working `mmap' system call.  */
-#undef HAVE_MMAP
-
-/* Define if you have the vprintf function.  */
-#undef HAVE_VPRINTF
-
-/* Define as __inline if that's what the C compiler calls it.  */
-#undef inline
-
-/* Define if you have the ANSI C header files.  */
-#undef STDC_HEADERS
-
-/* Define to be the name of your default audio output module. */
-#define AUDIO_DEFAULT 0
-
-/* Define only if compiling for the empeg-car. */
-#undef EMPEG
+/* Define to enable a Layer III intensity stereo kluge. */
+#undef OPT_ISKLUGE
 
 /* Define to enable diagnostic debugging support. */
 #undef DEBUG
@@ -54,14 +33,7 @@
 /* Define to enable experimental code. */
 #undef EXPERIMENTAL
 
-/* Define if you have the getpagesize function.  */
-#undef HAVE_GETPAGESIZE
-
-/* Define if you have the <getopt.h> header file.  */
-#undef HAVE_GETOPT_H
-
-/* Define if you have the <unistd.h> header file.  */
-#undef HAVE_UNISTD_H
+@BOTTOM@
 
 /*****************************************************************************
  * End of automatically configured definitions                               *

@@ -1,0 +1,80 @@
+.TH MADPLAY 1 26-Jul-2000 MAD
+.SH NAME
+madplay \- decode and play MPEG audio stream(s)
+.SH SYNOPSIS
+madplay
+.RB [ -m ]
+.RB [ -v | -q | -Q ]
+.RB [ -o
+.RI [ type :] file.out ]
+.I file.mpg
+[...]
+.SH DESCRIPTION
+.B madplay
+is a command-line front-end to the
+.I MAD
+library.
+.PP
+.I MAD
+is an MPEG audio decoder. It currently supports MPEG 1 as well as the MPEG 2
+extension to Lower Sampling Frequencies. All three audio layers (Layer I,
+Layer II, and Layer III aka MP3) are fully implemented.
+.PP
+.I MAD
+does not yet support MPEG 2 multichannel audio (although it should be backward
+compatible with such streams), nor does it support the so-called MPEG 2.5
+format.
+.PP
+By default
+.B
+madplay
+reads and decodes one or more input files containing MPEG audio data, and
+plays them on the native audio device. If the input file is a single dash
+(\-), data is read from stdin.
+.SH OPTIONS
+.TP
+-m
+Produce single-channel (mono) output.
+.TP
+-v
+Show information about the stream during decoding, including playing time,
+audio layer, bitrate, sampling frequency, and stereo mode.
+.TP
+-q
+Do not show any information during decoding, except errors.
+.TP
+-Q
+Do not show any information during decoding, including errors.
+.TP
+-o
+Direct the output to the specified location, rather than playing the audio on
+the native audio device. The format of the output can be specified by the
+given
+.I type
+which can be any of the supported output formats (see below.) Alternatively,
+if a format is not specified, one will be inferred from the specified output
+filename. If the filename is a single dash (\-), the output will be written to
+stdout.
+.SH OUTPUT FORMATS
+Other than playing on the native audio device, the following output formats
+are supported:
+.TP
+PCM
+raw 16-bit little-endian signed linear samples
+.TP
+WAV
+Microsoft RIFF/WAVE, PCM format
+.TP
+HEX
+24-bit signed linear hexadecimal text, one sample per output line (debug
+builds only)
+.TP
+NULL
+no output (usually for testing or timing the decoder)
+.SH NOTES
+.I MAD
+is implemented entirely without the use of floating point arithmetic and
+should therefore perform well on all architectures, especially those without
+an FPU.
+.SH AUTHOR
+Robert Leslie <rob@mars.org>

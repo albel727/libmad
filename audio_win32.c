@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_win32.c,v 1.25 2000/05/28 19:52:54 rob Exp $
+ * $Id: audio_win32.c,v 1.28 2000/07/27 04:34:16 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -26,21 +26,24 @@
 # include <windows.h>
 # include <mmsystem.h>
 
-# include "libmad.h"
+# include "mad.h"
 # include "audio.h"
 
 static HWAVEOUT wave_handle;
 static int opened;
 
-# define NBUFFERS	16
+# define NSLOTS		38	/* about one second of audio data */
+# define NBUFFERS	 3	/* triple buffer */
 
 static struct buffer {
   WAVEHDR wave_header;
   HANDLE event_handle;
-  unsigned char pcm_data[MAX_NSAMPLES * 2 * 2];
+  int playing;
+  unsigned int pcm_length;
+  unsigned char pcm_data[NSLOTS * MAX_NSAMPLES * 2 * 2];
 } output[NBUFFERS];
 
-static int buffer;
+static int bindex;
 static int stereo;
 
 static
@@ -63,7 +66,7 @@ int init(struct audio_init *init)
 
   for (i = 0; i < NBUFFERS; ++i) {
     output[i].event_handle = CreateEvent(0, FALSE /* manual reset */,
-					 TRUE /* initial state */, 0);
+					 FALSE /* initial state */, 0);
     if (output[i].event_handle == NULL) {
       while (i--)
 	CloseHandle(output[i].event_handle);
@@ -71,10 +74,17 @@ int init(struct audio_init *init)
       audio_error = "failed to create synchronization object";
       return -1;
     }
+
+    output[i].playing    = 0;
+    output[i].pcm_length = 0;
   }
 
-  buffer = 0;
+  bindex = 0;
   stereo = 0;
+
+  /* try to obtain high priority status */
+
+  SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 
   return 0;
 }
@@ -109,7 +119,6 @@ int open_dev(HWAVEOUT *handle, unsigned short channels, unsigned int speed)
   unsigned int block_al;
   unsigned long bytes_ps;
   MMRESULT error;
-  int i;
 
   block_al = channels * (16 / 8);
   bytes_ps = speed * block_al;
@@ -129,28 +138,6 @@ int open_dev(HWAVEOUT *handle, unsigned short channels, unsigned int speed)
     return -1;
   }
 
-  for (i = 0; i < NBUFFERS; ++i) {
-    output[i].wave_header.lpData         = output[i].pcm_data;
-    output[i].wave_header.dwBufferLength = sizeof(output[i].pcm_data);
-    output[i].wave_header.dwUser         = (DWORD) &output[i];
-    output[i].wave_header.dwFlags        = 0;
-
-    error = waveOutPrepareHeader(*handle, &output[i].wave_header,
-				 sizeof(output[i].wave_header));
-    if (error != MMSYSERR_NOERROR) {
-      audio_error = error_text(error);
-
-      while (i--) {
-	waveOutUnprepareHeader(*handle, &output[i].wave_header,
-			       sizeof(output[i].wave_header));
-      }
-
-      waveOutClose(*handle);
-
-      return -1;
-    }
-  }
-
   opened = 1;
 
   return 0;
@@ -160,16 +147,6 @@ static
 int close_dev(HWAVEOUT handle)
 {
   MMRESULT error;
-  int i;
-
-  for (i = 0; i < NBUFFERS; ++i) {
-    error = waveOutUnprepareHeader(handle, &output[i].wave_header,
-				   sizeof(output[i].wave_header));
-    if (error != MMSYSERR_NOERROR) {
-      audio_error = error_text(error);
-      return -1;
-    }
-  }
 
   error = waveOutClose(handle);
 
@@ -184,19 +161,45 @@ int close_dev(HWAVEOUT handle)
 }
 
 static
+int write_dev(HWAVEOUT handle, struct buffer *buffer)
+{
+  MMRESULT error;
+
+  buffer->wave_header.lpData         = buffer->pcm_data;
+  buffer->wave_header.dwBufferLength = buffer->pcm_length;
+  buffer->wave_header.dwUser         = (DWORD) buffer;
+  buffer->wave_header.dwFlags        = 0;
+
+  error = waveOutPrepareHeader(handle, &buffer->wave_header,
+			       sizeof(buffer->wave_header));
+  if (error != MMSYSERR_NOERROR) {
+    audio_error = error_text(error);
+    return -1;
+  }
+
+  error = waveOutWrite(handle, &buffer->wave_header,
+		       sizeof(buffer->wave_header));
+  if (error != MMSYSERR_NOERROR) {
+    audio_error = error_text(error);
+    return -1;
+  }
+
+  buffer->playing = 1;
+
+  return 0;
+}
+
+static
 int wait(struct buffer *buffer)
 {
+  MMRESULT error;
+
+  if (!buffer->playing)
+    return 0;
+
   switch (WaitForSingleObject(buffer->event_handle, INFINITE)) {
   case WAIT_OBJECT_0:
-    if (waveOutUnprepareHeader(wave_handle, &buffer->wave_header,
-			       sizeof(buffer->wave_header)) !=
-	MMSYSERR_NOERROR ||
-	waveOutPrepareHeader(wave_handle, &buffer->wave_header,
-			     sizeof(buffer->wave_header)) !=
-	MMSYSERR_NOERROR)
-      return -1;
-
-    return 0;
+    break;
 
   case WAIT_ABANDONED:
     audio_error = "wait abandoned";
@@ -211,18 +214,43 @@ int wait(struct buffer *buffer)
     audio_error = "wait failed";
     return -1;
   }
+
+  buffer->playing = 0;
+
+  error = waveOutUnprepareHeader(wave_handle, &buffer->wave_header,
+				 sizeof(buffer->wave_header));
+  if (error != MMSYSERR_NOERROR) {
+    audio_error = error_text(error);
+    return -1;
+  }
+
+  return 0;
+}
+
+static
+int flush(void)
+{
+  int i, result = 0;
+
+  if (output[bindex].pcm_length &&
+      write_dev(wave_handle, &output[bindex]) == -1)
+    result = -1;
+
+  for (i = 0; i < NBUFFERS; ++i) {
+    if (wait(&output[i]) == -1)
+      result = -1;
+  }
+
+  output[bindex].pcm_length = 0;
+
+  return result;
 }
 
 static
 int config(struct audio_config *config)
 {
   if (opened) {
-    int i;
-
-    for (i = 0; i < NBUFFERS; ++i) {
-      if (wait(&output[i]) == -1)
-	return -1;
-    }
+    flush();
 
     if (close_dev(wave_handle) == -1)
       return -1;
@@ -256,17 +284,19 @@ int play(struct audio_play *play)
 {
   unsigned char *ptr;
   mad_fixed_t const *left, *right;
+  struct buffer *buffer;
   unsigned int len;
-  MMRESULT error;
 
-  /* wait for previous block to finish */
+  buffer = &output[bindex];
 
-  if (wait(&output[buffer]) == -1)
+  /* wait for block to finish playing */
+
+  if (buffer->pcm_length == 0 && wait(buffer) == -1)
     return -1;
 
-  /* prepare new block */
+  /* prepare block */
 
-  ptr   = output[buffer].pcm_data;
+  ptr   = &buffer->pcm_data[buffer->pcm_length];
   len   = play->nsamples;
   left  = play->samples[0];
   right = play->samples[1];
@@ -291,18 +321,14 @@ int play(struct audio_play *play)
   if (stereo)
     len *= 2;
 
-  /* output new block */
+  buffer->pcm_length += len;
 
-  output[buffer].wave_header.dwBufferLength = len;
+  if (buffer->pcm_length + MAX_NSAMPLES * 2 * 2 > sizeof(buffer->pcm_data)) {
+    write_dev(wave_handle, buffer);
 
-  error = waveOutWrite(wave_handle, &output[buffer].wave_header,
-		       sizeof(output[buffer].wave_header));
-  if (error != MMSYSERR_NOERROR) {
-    audio_error = error_text(error);
-    return -1;
+    bindex = (bindex + 1) % NBUFFERS;
+    output[bindex].pcm_length = 0;
   }
-
-  buffer = (buffer + 1) % NBUFFERS;
 
   return 0;
 }
@@ -312,15 +338,16 @@ int finish(struct audio_finish *finish)
 {
   int i, result = 0;
 
-  if (wave_handle) {
-    for (i = 0; i < NBUFFERS; ++i) {
-      if (wait(&output[i]) == -1)
-	result = -1;
-    }
-
+  if (opened) {
+    if (flush() == -1)
+      result = -1;
     if (close_dev(wave_handle) == -1)
       result = -1;
   }
+
+  /* restore priority status */
+
+  SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 
   for (i = 0; i < NBUFFERS; ++i) {
     if (CloseHandle(output[i].event_handle) == 0 && result == 0) {
