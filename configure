@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# From configure.in Id: configure.in,v 1.40 2001/02/09 07:30:27 rob Exp 
+# From configure.in Id: configure.in,v 1.42 2001/02/12 15:16:14 rob Exp 
 
 
 
@@ -183,7 +183,7 @@ ac_help="$ac_help
 ac_help="$ac_help
   --enable-sso            use subband synthesis optimization"
 ac_help="$ac_help
-  --enable-aso            use architecture-specific optimizations"
+  --disable-aso           disable architecture-specific optimizations"
 ac_help="$ac_help
   --enable-strict-iso     use strict ISO/IEC interpretations"
 ac_help="$ac_help
@@ -873,7 +873,7 @@ fi
 
 PACKAGE=mad
 
-VERSION=0.12.4b
+VERSION=0.12.5b
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }

@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# From configure.in Id: configure.in,v 1.20 2001/02/09 07:30:30 rob Exp 
+# From configure.in Id: configure.in,v 1.22 2001/02/12 15:16:25 rob Exp 
 
 
 
@@ -136,7 +136,7 @@ ac_help="$ac_help
 ac_help="$ac_help
   --enable-sso            use subband synthesis optimization"
 ac_help="$ac_help
-  --enable-aso            use architecture-specific optimizations"
+  --disable-aso           disable architecture-specific optimizations"
 ac_help="$ac_help
   --enable-strict-iso     use strict ISO/IEC interpretations"
 ac_help="$ac_help
@@ -826,7 +826,7 @@ fi
 
 PACKAGE=libmad
 
-VERSION=0.12.4b
+VERSION=0.12.5b
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -1877,8 +1877,8 @@ then
 	    optimize="-O"
 	    optimize="$optimize -fforce-mem"
 	    optimize="$optimize -fforce-addr"
-	    optimize="$optimize -finline-functions"
-	    optimize="$optimize -fstrength-reduce"
+	    : #x optimize="$optimize -finline-functions"
+	    : #- optimize="$optimize -fstrength-reduce"
 	    optimize="$optimize -fthread-jumps"
 	    optimize="$optimize -fcse-follow-jumps"
 	    optimize="$optimize -fcse-skip-blocks"
@@ -1898,6 +1898,24 @@ then
 	    : #x optimize="$optimize -freduce-all-givs"
 	    : #? optimize="$optimize -fstrict-aliasing"
 	    : #* optimize="$optimize -fstructure-noalias"
+
+	    case "$host" in
+		arm*-*)
+		    # this provokes apparent bugs in gcc 2.95.2
+		    : #- optimize="$optimize -fstrength-reduce"
+		    #
+		    # this may actually be slower but it
+		    # triggers bugs if not included
+		    optimize="$optimize -finline-functions"
+		    ;;
+		mips*-*)
+		    optimize="$optimize -fstrength-reduce"
+		    optimize="$optimize -finline-functions"
+		    ;;
+		*)
+		    optimize="$optimize -fstrength-reduce"
+		    ;;
+	    esac
 	    ;;
     esac
 fi
@@ -1915,12 +1933,12 @@ esac
 
 
 echo $ac_n "checking for ANSI C header files""... $ac_c" 1>&6
-echo "configure:1919: checking for ANSI C header files" >&5
+echo "configure:1937: checking for ANSI C header files" >&5
 if eval "test \"`echo '$''{'ac_cv_header_stdc'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 1924 "configure"
+#line 1942 "configure"
 #include "confdefs.h"
 #include <stdlib.h>
 #include <stdarg.h>
@@ -1928,7 +1946,7 @@ else
 #include <float.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:1932: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:1950: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -1945,7 +1963,7 @@ rm -f conftest*
 if test $ac_cv_header_stdc = yes; then
   # SunOS 4.x string.h does not declare mem*, contrary to ANSI.
 cat > conftest.$ac_ext <<EOF
-#line 1949 "configure"
+#line 1967 "configure"
 #include "confdefs.h"
 #include <string.h>
 EOF
@@ -1963,7 +1981,7 @@ fi
 if test $ac_cv_header_stdc = yes; then
   # ISC 2.0.2 stdlib.h does not declare free, contrary to ANSI.
 cat > conftest.$ac_ext <<EOF
-#line 1967 "configure"
+#line 1985 "configure"
 #include "confdefs.h"
 #include <stdlib.h>
 EOF
@@ -1984,7 +2002,7 @@ if test "$cross_compiling" = yes; then
   :
 else
   cat > conftest.$ac_ext <<EOF
-#line 1988 "configure"
+#line 2006 "configure"
 #include "confdefs.h"
 #include <ctype.h>
 #define ISLOWER(c) ('a' <= (c) && (c) <= 'z')
@@ -1995,7 +2013,7 @@ if (XOR (islower (i), ISLOWER (i)) || toupper (i) != TOUPPER (i)) exit(2);
 exit (0); }
 
 EOF
-if { (eval echo configure:1999: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+if { (eval echo configure:2017: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
 then
   :
 else
@@ -2019,12 +2037,12 @@ EOF
 fi
 
 echo $ac_n "checking for sys/wait.h that is POSIX.1 compatible""... $ac_c" 1>&6
-echo "configure:2023: checking for sys/wait.h that is POSIX.1 compatible" >&5
+echo "configure:2041: checking for sys/wait.h that is POSIX.1 compatible" >&5
 if eval "test \"`echo '$''{'ac_cv_header_sys_wait_h'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 2028 "configure"
+#line 2046 "configure"
 #include "confdefs.h"
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -2040,7 +2058,7 @@ wait (&s);
 s = WIFEXITED (s) ? WEXITSTATUS (s) : 1;
 ; return 0; }
 EOF
-if { (eval echo configure:2044: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:2062: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   ac_cv_header_sys_wait_h=yes
 else
@@ -2064,17 +2082,17 @@ for ac_hdr in limits.h unistd.h
 do
 ac_safe=`echo "$ac_hdr" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for $ac_hdr""... $ac_c" 1>&6
-echo "configure:2068: checking for $ac_hdr" >&5
+echo "configure:2086: checking for $ac_hdr" >&5
 if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 2073 "configure"
+#line 2091 "configure"
 #include "confdefs.h"
 #include <$ac_hdr>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:2078: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:2096: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -2103,12 +2121,12 @@ done
 
 
 echo $ac_n "checking for working const""... $ac_c" 1>&6
-echo "configure:2107: checking for working const" >&5
+echo "configure:2125: checking for working const" >&5
 if eval "test \"`echo '$''{'ac_cv_c_const'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 2112 "configure"
+#line 2130 "configure"
 #include "confdefs.h"
 
 int main() {
@@ -2157,7 +2175,7 @@ ccp = (char const *const *) p;
 
 ; return 0; }
 EOF
-if { (eval echo configure:2161: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:2179: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   ac_cv_c_const=yes
 else
@@ -2178,21 +2196,21 @@ EOF
 fi
 
 echo $ac_n "checking for inline""... $ac_c" 1>&6
-echo "configure:2182: checking for inline" >&5
+echo "configure:2200: checking for inline" >&5
 if eval "test \"`echo '$''{'ac_cv_c_inline'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   ac_cv_c_inline=no
 for ac_kw in inline __inline__ __inline; do
   cat > conftest.$ac_ext <<EOF
-#line 2189 "configure"
+#line 2207 "configure"
 #include "confdefs.h"
 
 int main() {
 } $ac_kw foo() {
 ; return 0; }
 EOF
-if { (eval echo configure:2196: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:2214: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   ac_cv_c_inline=$ac_kw; break
 else
@@ -2218,12 +2236,12 @@ EOF
 esac
 
 echo $ac_n "checking for pid_t""... $ac_c" 1>&6
-echo "configure:2222: checking for pid_t" >&5
+echo "configure:2240: checking for pid_t" >&5
 if eval "test \"`echo '$''{'ac_cv_type_pid_t'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 2227 "configure"
+#line 2245 "configure"
 #include "confdefs.h"
 #include <sys/types.h>
 #if STDC_HEADERS
@@ -2252,7 +2270,7 @@ fi
 
 
 echo $ac_n "checking size of int""... $ac_c" 1>&6
-echo "configure:2256: checking size of int" >&5
+echo "configure:2274: checking size of int" >&5
 if eval "test \"`echo '$''{'ac_cv_sizeof_int'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
@@ -2260,7 +2278,7 @@ else
   ac_cv_sizeof_int=2
 else
   cat > conftest.$ac_ext <<EOF
-#line 2264 "configure"
+#line 2282 "configure"
 #include "confdefs.h"
 #include <stdio.h>
 main()
@@ -2271,7 +2289,7 @@ main()
   exit(0);
 }
 EOF
-if { (eval echo configure:2275: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+if { (eval echo configure:2293: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
 then
   ac_cv_sizeof_int=`cat conftestval`
 else
@@ -2291,7 +2309,7 @@ EOF
 
 
 echo $ac_n "checking size of long""... $ac_c" 1>&6
-echo "configure:2295: checking size of long" >&5
+echo "configure:2313: checking size of long" >&5
 if eval "test \"`echo '$''{'ac_cv_sizeof_long'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
@@ -2299,7 +2317,7 @@ else
   ac_cv_sizeof_long=4
 else
   cat > conftest.$ac_ext <<EOF
-#line 2303 "configure"
+#line 2321 "configure"
 #include "confdefs.h"
 #include <stdio.h>
 main()
@@ -2310,7 +2328,7 @@ main()
   exit(0);
 }
 EOF
-if { (eval echo configure:2314: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+if { (eval echo configure:2332: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
 then
   ac_cv_sizeof_long=`cat conftestval`
 else
@@ -2330,7 +2348,7 @@ EOF
 
 
 echo $ac_n "checking size of long long""... $ac_c" 1>&6
-echo "configure:2334: checking size of long long" >&5
+echo "configure:2352: checking size of long long" >&5
 if eval "test \"`echo '$''{'ac_cv_sizeof_long_long'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
@@ -2338,7 +2356,7 @@ else
   ac_cv_sizeof_long_long=8
 else
   cat > conftest.$ac_ext <<EOF
-#line 2342 "configure"
+#line 2360 "configure"
 #include "confdefs.h"
 #include <stdio.h>
 main()
@@ -2349,7 +2367,7 @@ main()
   exit(0);
 }
 EOF
-if { (eval echo configure:2353: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+if { (eval echo configure:2371: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
 then
   ac_cv_sizeof_long_long=`cat conftestval`
 else
@@ -2376,7 +2394,7 @@ EOF
 
 
 echo $ac_n "checking whether to optimize for speed or for accuracy""... $ac_c" 1>&6
-echo "configure:2380: checking whether to optimize for speed or for accuracy" >&5
+echo "configure:2398: checking whether to optimize for speed or for accuracy" >&5
 
 # Check whether --enable-speed or --disable-speed was given.
 if test "${enable_speed+set}" = set; then
@@ -2425,7 +2443,7 @@ then
 fi
 
 echo $ac_n "checking for architecture-specific fixed-point math routines""... $ac_c" 1>&6
-echo "configure:2429: checking for architecture-specific fixed-point math routines" >&5
+echo "configure:2447: checking for architecture-specific fixed-point math routines" >&5
 # Check whether --enable-fpm or --disable-fpm was given.
 if test "${enable_fpm+set}" = set; then
   enableval="$enable_fpm"
@@ -2486,32 +2504,33 @@ fi
 # Check whether --enable-aso or --disable-aso was given.
 if test "${enable_aso+set}" = set; then
   enableval="$enable_aso"
-  
-    case "$enableval" in
-	yes)
-	    case "$host" in
-		arm*-*)
-		    ASO="-DASO_IMDCT"
-		    IMDCT_L="imdct_l_arm.lo"
-		    ;;
-	    esac
-	    ;;
-    esac
-
+  :
 else
-  
-    case "$host" in
-	arm*-*)
-	    ASO="-DASO_IMDCT"
-	    IMDCT_L="imdct_l_arm.lo"
-	    ;;
-    esac
-
+  enable_aso=yes
 fi
 
 
+if test "$enable_aso" = yes
+then
+    case "$host" in
+	i?86-*)
+	    : #ASO="$ASO -DASO_INTERLEAVE1"
+	    ASO="$ASO -DASO_ZEROCHECK"
+	    ;;
+	arm*-*)
+	    ASO="$ASO -DASO_INTERLEAVE1"
+	    ASO="$ASO -DASO_IMDCT"
+	    IMDCT_L="imdct_l_arm.lo"
+	    ;;
+	mips*-*)
+	    ASO="$ASO -DASO_INTERLEAVE2"
+	    ASO="$ASO -DASO_ZEROCHECK"
+	    ;;
+    esac
+fi
+
 echo $ac_n "checking for ISO/IEC interpretation""... $ac_c" 1>&6
-echo "configure:2515: checking for ISO/IEC interpretation" >&5
+echo "configure:2534: checking for ISO/IEC interpretation" >&5
 # Check whether --enable-strict-iso or --disable-strict-iso was given.
 if test "${enable_strict_iso+set}" = set; then
   enableval="$enable_strict_iso"
@@ -2531,7 +2550,7 @@ fi
 echo "$ac_t""${interpretation-best accepted practices}" 1>&6
 
 echo $ac_n "checking whether to enable profiling""... $ac_c" 1>&6
-echo "configure:2535: checking whether to enable profiling" >&5
+echo "configure:2554: checking whether to enable profiling" >&5
 # Check whether --enable-profiling or --disable-profiling was given.
 if test "${enable_profiling+set}" = set; then
   enableval="$enable_profiling"
@@ -2545,7 +2564,7 @@ fi
 echo "$ac_t""${enable_profiling-no}" 1>&6
 
 echo $ac_n "checking whether to enable debugging""... $ac_c" 1>&6
-echo "configure:2549: checking whether to enable debugging" >&5
+echo "configure:2568: checking whether to enable debugging" >&5
 # Check whether --enable-debugging or --disable-debugging was given.
 if test "${enable_debugging+set}" = set; then
   enableval="$enable_debugging"
@@ -2581,7 +2600,7 @@ fi
 echo "$ac_t""${enable_debugging-default}" 1>&6
 
 echo $ac_n "checking whether to enable experimental code""... $ac_c" 1>&6
-echo "configure:2585: checking whether to enable experimental code" >&5
+echo "configure:2604: checking whether to enable experimental code" >&5
 # Check whether --enable-experimental or --disable-experimental was given.
 if test "${enable_experimental+set}" = set; then
   enableval="$enable_experimental"

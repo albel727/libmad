@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_sun.c,v 1.16 2001/01/21 00:18:09 rob Exp $
+ * $Id: audio_sun.c,v 1.17 2001/02/10 21:00:51 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -29,6 +29,7 @@
 # include <fcntl.h>
 # include <sys/ioctl.h>
 # include <sys/audioio.h>
+# include <string.h>
 # include <errno.h>
 
 # include "mad.h"

@@ -87,6 +87,9 @@ Frequently Asked Questions
 Changes
 =======
 
+  Changes since 0.12.4b:
+    - several more performance improvements
+
   Changes since 0.12.3b:
     - many performance improvements
     - alias reduction is now performed on mixed short blocks
