@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: Makefile.in,v 1.10 2000/03/05 07:39:41 rob Exp $
+# $Id: Makefile.in,v 1.12 2000/03/06 15:20:43 rob Exp $
 #
 
 ## OPTIONS ####################################################################
@@ -148,7 +148,7 @@ distclean :: clean
 maintainer-clean :: distclean
 	rm -f config.h.in configure
 
-dist ::
+dist :: $(INCMAD)
 	$(MAKE) config.h.in configure
 	$(MAKE) distclean
 
@@ -179,6 +179,7 @@ config.status: .stamp/configure .stamp/config.h.in Makefile.in
 ## DEPENDENCIES ###############################################################
 
 audio.o: audio.c config.h audio.h libmad.h
+audio_hex.o: audio_hex.c config.h libmad.h audio.h
 audio_null.o: audio_null.c config.h libmad.h audio.h
 audio_oss.o: audio_oss.c config.h libmad.h audio.h
 audio_sun.o: audio_sun.c config.h libmad.h audio.h
@@ -191,7 +192,6 @@ layer12.o: layer12.c config.h fixed.h bit.h mad.h stream.h frame.h \
  timer.h layer12.h sf_table.dat qc_table.dat
 layer3.o: layer3.c config.h fixed.h bit.h mad.h stream.h frame.h \
  timer.h huffman.h layer3.h rq_table.dat imdct_l.dat imdct_s.dat
-legacy.o: legacy.c
 mad.o: mad.c config.h bit.h timer.h stream.h frame.h fixed.h layer12.h \
  layer3.h mad.h
 madplay.o: madplay.c config.h libmad.h audio.h

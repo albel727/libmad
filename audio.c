@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.c,v 1.1 2000/03/05 05:19:16 rob Exp $
+ * $Id: audio.c,v 1.2 2000/03/06 15:20:43 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -49,6 +49,12 @@ audio_ctlfunc_t audio_output(char const *path)
     if (strcmp(ext, "wav") == 0 ||
 	strcmp(ext, "WAV") == 0)
       return audio_wav;
+
+# ifdef DEBUG
+    if (strcmp(ext, "hex") == 0 ||
+	strcmp(ext, "HEX") == 0)
+      return audio_hex;
+# endif
   }
 
   return 0;

@@ -16,38 +16,33 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_sun.c,v 1.4 2000/03/06 15:20:43 rob Exp $
+ * $Id: audio_hex.c,v 1.2 2000/03/07 07:59:25 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
 #  include "config.h"
 # endif
 
-# include <unistd.h>
-# include <fcntl.h>
-# include <sys/ioctl.h>
-# include <sys/audioio.h>
-# include <errno.h>
+# include <stdio.h>
 
 # include "libmad.h"
 # include "audio.h"
 
-# define AUDIO_DEVICE	"/dev/audio"
-
-static int sfd;
+static FILE *outfile;
 static int stereo;
 
 static
 int init(struct audio_init *init)
 {
-  if (init->path == 0)
-    init->path = AUDIO_DEVICE;
-
-  sfd = open(init->path, O_WRONLY);
-  if (sfd == -1) {
-    audio_error = ":";
-    return -1;
+  if (init->path) {
+    outfile = fopen(init->path, "w");
+    if (outfile == 0) {
+      audio_error = ":";
+      return -1;
+    }
   }
+  else
+    outfile = stdout;
 
   return 0;
 }
@@ -55,118 +50,73 @@ int init(struct audio_init *init)
 static
 int config(struct audio_config *config)
 {
-  audio_info_t info;
-
-  if (ioctl(sfd, AUDIO_DRAIN, 0) == -1) {
-    audio_error = ":ioctl(AUDIO_DRAIN)";
-    return -1;
-  }
-
-  AUDIO_INITINFO(&info);
-
-  info.play.sample_rate = config->speed;
-  info.play.channels    = config->channels;
-  info.play.precision   = 16;
-  info.play.encoding    = AUDIO_ENCODING_LINEAR;
-
-  if (ioctl(sfd, AUDIO_SETINFO, &info) == -1) {
-    audio_error = ":ioctl(AUDIO_SETINFO)";
-    return -1;
-  }
+  fprintf(outfile, "# %u channel%s, %u Hz\n",
+	  config->channels, config->channels == 1 ? "" : "s", config->speed);
 
   stereo = (config->channels == 2);
 
   return 0;
 }
 
-static
-int output(unsigned char const *ptr, unsigned int len)
-{
-  while (len) {
-    int wrote;
-
-    wrote = write(sfd, ptr, len);
-    if (wrote == -1) {
-      if (errno == EINTR)
-	continue;
-      else {
-	audio_error = ":write";
-	return -1;
-      }
-    }
-
-    ptr += wrote;
-    len -= wrote;
-  }
-
-  return 0;
-}
-
 static inline
-signed short scale(fixed_t sample)
+signed long scale(fixed_t sample)
 {
   /* round */
-  sample += 0x00001000L;
+  sample += 0x00000010L;
 
-  /* scale to signed 16-bit integer value */
+  /* scale to signed 24-bit integer value */
   if (sample >= 0x10000000L)		/* +1.0 */
-    return 0x7fff;
-  else if (sample <= -0x10000000L)	/* -1.0 */
-    return -0x8000;
+    return 0x7fffffL;
+  else if (sample < -0x10000000L)	/* -1.0 */
+    return -0x800000L;
   else
-    return sample >> 13;
+    return sample >> 5;
 }
 
 static
 int play(struct audio_play *play)
 {
-  unsigned char data[MAX_NSAMPLES * 2 * 2];
-  unsigned char *ptr;
   fixed_t const *left, *right;
   unsigned int len;
 
-  ptr   = data;
   len   = play->nsamples;
   left  = play->samples[0];
   right = play->samples[1];
 
   while (len--) {
-    signed short sample;
-
-    /* big-endian */
+    signed long sample;
 
     sample = scale(*left++);
-    *ptr++ = (sample >> 8) & 0xff;
-    *ptr++ = (sample >> 0) & 0xff;
+    fprintf(outfile, "%02X%02X%02X\n",
+	    (unsigned int) ((sample & 0xff0000L) >> 16),
+	    (unsigned int) ((sample & 0x00ff00L) >>  8),
+	    (unsigned int) ((sample & 0x0000ffL) >>  0));
 
     if (stereo) {
       sample = scale(*right++);
-      *ptr++ = (sample >> 8) & 0xff;
-      *ptr++ = (sample >> 0) & 0xff;
+      fprintf(outfile, "%02X%02X%02X\n",
+	      (unsigned int) ((sample & 0xff0000L) >> 16),
+	      (unsigned int) ((sample & 0x00ff00L) >>  8),
+	      (unsigned int) ((sample & 0x0000ffL) >>  0));
     }
   }
 
-  len = play->nsamples * 2;
-  if (stereo)
-    len *= 2;
-
-  return output(data, len);
+  return 0;
 }
 
 static
 int finish(struct audio_finish *finish)
 {
-  int result = 0;
-
-  if (close(sfd) == -1 && result == 0) {
+  if (outfile != stdout &&
+      fclose(outfile) == EOF) {
     audio_error = ":close";
-    result = -1;
+    return -1;
   }
 
-  return result;
+  return 0;
 }
 
-int audio_sun(union audio_control *control)
+int audio_hex(union audio_control *control)
 {
   audio_error = 0;
 

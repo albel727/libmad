@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.h,v 1.4 2000/03/05 18:11:34 rob Exp $
+ * $Id: audio.h,v 1.5 2000/03/06 15:20:43 rob Exp $
  */
 
 # ifndef AUDIO_H
@@ -64,6 +64,7 @@ int audio_oss(union audio_control *);
 int audio_sun(union audio_control *);
 
 int audio_wav(union audio_control *);
+int audio_hex(union audio_control *);
 int audio_null(union audio_control *);
 
 # endif

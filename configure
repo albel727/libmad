@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# From configure.in Id: configure.in,v 1.7 2000/03/05 07:31:55 rob Exp 
+# From configure.in Id: configure.in,v 1.8 2000/03/06 15:20:43 rob Exp 
 
 # Guess values for system-dependent variables and create Makefiles.
 # Generated automatically using autoconf version 2.13 
@@ -1961,10 +1961,13 @@ if test "${enable_debugging+set}" = set; then
   enableval="$enable_debugging"
   
     case "$enableval" in
-	yes) cat >> confdefs.h <<\EOF
+	yes)
+	    cat >> confdefs.h <<\EOF
 #define DEBUG 1
 EOF
- ;;
+
+	    AUDIO="$AUDIO audio_hex.o"
+	    ;;
 	no)
 	    if test -n "$PROFILER"
 	    then
