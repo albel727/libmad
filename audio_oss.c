@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_oss.c,v 1.3 2000/03/05 07:31:54 rob Exp $
+ * $Id: audio_oss.c,v 1.4 2000/03/05 18:11:34 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -40,7 +40,7 @@
 # endif
 
 static int sfd;
-static struct audio_config configuration;
+static int stereo;
 
 static
 int init(struct audio_init *init)
@@ -73,21 +73,21 @@ int init(struct audio_init *init)
 static
 int config(struct audio_config *config)
 {
-  int stereo, speed;
+  int speed;
 
   if (ioctl(sfd, SNDCTL_DSP_SYNC, 0) == -1) {
     audio_error = ":ioctl(SNDCTL_DSP_SYNC)";
     return -1;
   }
 
-  stereo = config->stereo;
+  stereo = (config->channels == 2);
   if (ioctl(sfd, SNDCTL_DSP_STEREO, &stereo) == -1) {
     audio_error = ":ioctl(SNDCTL_DSP_STEREO)";
     return -1;
   }
 
-  if ((stereo && !config->stereo) ||
-      (!stereo && config->stereo)) {
+  if ((stereo  && config->channels != 2) ||
+      (!stereo && config->channels == 2)) {
     audio_error = "stereo/mono configuration failed";
     return -1;
   }
@@ -102,8 +102,6 @@ int config(struct audio_config *config)
     audio_error = "sample speed not available";
     config->speed = speed;
   }
-
-  configuration = *config;
 
   return 0;
 }
@@ -219,7 +217,7 @@ int play(struct audio_play *play)
     *ptr++ = (sample >> 0) & 0xff;
     *ptr++ = (sample >> 8) & 0xff;
 
-    if (configuration.stereo) {
+    if (stereo) {
       sample = scale(*right++);
       *ptr++ = (sample >> 0) & 0xff;
       *ptr++ = (sample >> 8) & 0xff;
@@ -227,7 +225,7 @@ int play(struct audio_play *play)
   }
 
   len = play->nsamples * 2;
-  if (configuration.stereo)
+  if (stereo)
     len *= 2;
 
 # ifdef EMPEG

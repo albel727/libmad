@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.h,v 1.3 2000/03/05 07:31:54 rob Exp $
+ * $Id: audio.h,v 1.4 2000/03/05 18:11:34 rob Exp $
  */
 
 # ifndef AUDIO_H
@@ -41,12 +41,12 @@ union audio_control {
   } init;
   struct audio_config {
     short command;
-    short stereo;
+    unsigned short channels;
     unsigned int speed;
   } config;
   struct audio_play {
     short command;
-    unsigned int nsamples;
+    unsigned short nsamples;
     fixed_t const *samples[2];
   } play;
   struct audio_finish {

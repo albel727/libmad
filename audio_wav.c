@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_wav.c,v 1.3 2000/03/05 07:31:54 rob Exp $
+ * $Id: audio_wav.c,v 1.4 2000/03/05 18:11:34 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -32,7 +32,7 @@
 static FILE *outfile;
 static unsigned long riff_len, chunk_len;
 static long last_chunk;
-static struct audio_config configuration;
+static int stereo;
 
 static
 int init(struct audio_init *init)
@@ -96,7 +96,7 @@ static
 int config(struct audio_config *config)
 {
   unsigned char chunk[24];
-  unsigned int channels, block_al;
+  unsigned int block_al;
   unsigned long bytes_ps;
 
   if (last_chunk)
@@ -104,15 +104,14 @@ int config(struct audio_config *config)
 
   /* "fmt " chunk */
 
-  channels = config->stereo ? 2 : 1;
-  bytes_ps = channels * config->speed * (16 / 8);
-  block_al = channels * (16 / 8);
+  bytes_ps = config->channels * config->speed * (16 / 8);
+  block_al = config->channels * (16 / 8);
 
   memcpy(&chunk[0], "fmt ", 4);
   int4(&chunk[4], 16);
 
   int2(&chunk[8],  0x0001);		/* wFormatTag (WAVE_FORMAT_PCM) */
-  int2(&chunk[10], channels);		/* wChannels */
+  int2(&chunk[10], config->channels);	/* wChannels */
   int4(&chunk[12], config->speed);	/* dwSamplesPerSec */
   int4(&chunk[16], bytes_ps);		/* dwAvgBytesPerSec */
   int2(&chunk[20], block_al);		/* wBlockAlign */
@@ -136,7 +135,7 @@ int config(struct audio_config *config)
   chunk_len = 0;
   riff_len += 24 + 8;
 
-  configuration = *config;
+  stereo = (config->channels == 2);
 
   return 0;
 }
@@ -176,17 +175,17 @@ int play(struct audio_play *play)
     *ptr++ = (sample >> 0) & 0xff;
     *ptr++ = (sample >> 8) & 0xff;
 
-    if (configuration.stereo) {
+    if (stereo) {
       sample = scale(*right++);
       *ptr++ = (sample >> 0) & 0xff;
       *ptr++ = (sample >> 8) & 0xff;
     }
   }
 
-  fwrite(data, configuration.stereo ? 4 : 2, play->nsamples, outfile);
+  fwrite(data, stereo ? 4 : 2, play->nsamples, outfile);
 
   len = play->nsamples * 2;
-  if (configuration.stereo)
+  if (stereo)
     len *= 2;
 
   chunk_len += len;

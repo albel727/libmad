@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.13 2000/03/05 05:19:16 rob Exp $
+ * $Id: madplay.c,v 1.14 2000/03/05 18:11:34 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -49,7 +49,7 @@ struct audio {
 
   unsigned long framecount;
 
-  short stereo;
+  unsigned int channels;
   unsigned int speed;
 
   union audio_control control;
@@ -147,8 +147,8 @@ void initialize(struct audio *audio, void (*filter)(struct mad_frame *),
 
   audio->framecount = 0;
 
-  audio->stereo = -1;
-  audio->speed  = 0;
+  audio->channels = 0;
+  audio->speed    = 0;
 
   audio->command = command;
 }
@@ -156,24 +156,24 @@ void initialize(struct audio *audio, void (*filter)(struct mad_frame *),
 static
 int play(struct audio *audio)
 {
-  if (audio->stereo != (audio->frame.mode ? 1 : 0) ||
-      audio->speed  != audio->frame.samplefreq) {
+  if (audio->filter)
+    audio->filter(&audio->frame);
+
+  if (audio->channels != MAD_NUMCHANNELS(&audio->frame) ||
+      audio->speed    != audio->frame.samplefreq) {
     audio->control.command = audio_cmd_config;
 
-    audio->control.config.stereo = audio->frame.mode ? 1 : 0;
-    audio->control.config.speed  = audio->frame.samplefreq;
+    audio->control.config.channels = MAD_NUMCHANNELS(&audio->frame);
+    audio->control.config.speed    = audio->frame.samplefreq;
 
     if (audio->command(&audio->control) == -1) {
       error(audio_error);
       return -1;
     }
 
-    audio->stereo = audio->control.config.stereo;
-    audio->speed  = audio->control.config.speed;
+    audio->channels = audio->control.config.channels;
+    audio->speed    = audio->control.config.speed;
   }
-
-  if (audio->filter)
-    audio->filter(&audio->frame);
 
   mad_synthesis(&audio->frame, &audio->synth);
 
