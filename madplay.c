@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.47 2001/02/01 23:15:38 rob Exp $
+ * $Id: madplay.c,v 1.49 2001/04/05 04:56:09 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -54,6 +54,7 @@ struct option const options[] = {
   { "amplify",		required_argument, 0,		 'a' },
   { "attenuate",	required_argument, 0,		 'a' },
   { "author",		no_argument,	   0,		-'a' },
+  { "downsample",	no_argument,	   0,		-'d' },
   { "fade-in",		optional_argument, 0,		-'i' },
   { "help",		no_argument,	   0,		 'h' },
   { "left",		no_argument,	   0,		 '1' },
@@ -114,6 +115,7 @@ void show_usage(int verbose)
   EPUTS(_("  -o, --output=[TYPE:]PATH   send output to PATH with format TYPE"
 	                              " (see below)\n"));
   EPUTS(_("  -d, --no-dither            do not dither output PCM samples\n"));
+  EPUTS(_("      --downsample           reduce output sample rate 2:1\n"));
   fprintf(stderr,
 	_("      --fade-in[=DURATION]   fade-in songs over DURATION"
 	                              " (default %s)\n"), FADE_DEFAULT);
@@ -375,11 +377,10 @@ void get_options(int argc, char *argv[], struct player *player)
 
   while ((opt = getopt_long(argc, argv,
 			    "vqQ"	/* verbosity options */
-			    "o:d"	/* audio output options */
+			    "o:da:"	/* audio output options */
 # if 0
 			    "g:x"
 # endif
-			    "a:"
 			    "12mS"	/* channel selection options */
 			    "s:t:zr::"	/* playback options */
 			    "Vh",	/* miscellaneous options */
@@ -403,6 +404,10 @@ void get_options(int argc, char *argv[], struct player *player)
 
     case 'd':
       player->output.mode = AUDIO_MODE_ROUND;
+      break;
+
+    case -'d':
+      player->flags |= PLAYER_FLAG_DOWNSAMPLE;
       break;
 
 # if 0

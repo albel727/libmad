@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madmix.c,v 1.12 2001/01/21 00:18:09 rob Exp $
+ * $Id: madmix.c,v 1.15 2001/04/10 05:29:24 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -94,20 +94,20 @@ int do_output(int (*audio)(union audio_control *),
   static unsigned int channels;
   static unsigned long speed;
 
-  if (channels != MAD_NCHANNELS(&frame->header) ||
-      speed    != frame->header.sfreq) {
+  if (channels != synth->pcm.channels ||
+      speed    != synth->pcm.samplerate) {
     control.command = AUDIO_COMMAND_CONFIG;
 
-    control.config.channels = MAD_NCHANNELS(&frame->header);
-    control.config.speed    = frame->header.sfreq;
+    control.config.channels = synth->pcm.channels;
+    control.config.speed    = synth->pcm.samplerate;
 
     if (audio(&control) == -1) {
       error("output", audio_error);
       return -1;
     }
 
-    channels = MAD_NCHANNELS(&frame->header);
-    speed    = frame->header.sfreq;
+    channels = synth->pcm.channels;
+    speed    = synth->pcm.samplerate;
   }
 
   control.command = AUDIO_COMMAND_PLAY;
@@ -161,18 +161,18 @@ int do_mix(struct audio *mix, int ninputs, int (*audio)(union audio_control *))
       mix[i].frame.overlap = 0;
 
       if (frame.header.layer == 0) {
-	frame.header.layer    = mix[i].frame.header.layer;
-	frame.header.mode     = mix[i].frame.header.mode;
-	frame.header.mode_ext = mix[i].frame.header.mode_ext;
-	frame.header.emphasis = mix[i].frame.header.emphasis;
+	frame.header.layer	    = mix[i].frame.header.layer;
+	frame.header.mode	    = mix[i].frame.header.mode;
+	frame.header.mode_extension = mix[i].frame.header.mode_extension;
+	frame.header.emphasis	    = mix[i].frame.header.emphasis;
 
-	frame.header.bitrate  = mix[i].frame.header.bitrate;
-	frame.header.sfreq    = mix[i].frame.header.sfreq;
+	frame.header.bitrate	    = mix[i].frame.header.bitrate;
+	frame.header.samplerate	    = mix[i].frame.header.samplerate;
 
-	frame.header.flags    = mix[i].frame.header.flags;
-	frame.header.private  = mix[i].frame.header.private;
+	frame.header.flags	    = mix[i].frame.header.flags;
+	frame.header.private_bits   = mix[i].frame.header.private_bits;
 
-	frame.header.duration = mix[i].frame.header.duration;
+	frame.header.duration	    = mix[i].frame.header.duration;
       }
 
       for (ch = 0; ch < 2; ++ch) {
@@ -244,7 +244,7 @@ int audio_finish(int (*audio)(union audio_control *))
 static
 void usage(char const *argv0)
 {
-  fprintf(stderr, _("Usage: %s input1 [input2 ...]"), argv0);
+  fprintf(stderr, _("Usage: %s input1 [input2 ...]\n"), argv0);
 }
 
 /*

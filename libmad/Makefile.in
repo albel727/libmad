@@ -61,10 +61,10 @@ host_alias = @host_alias@
 host_triplet = @host@
 AS = @AS@
 ASO = @ASO@
+ASO_OBJS = @ASO_OBJS@
 CC = @CC@
 DLLTOOL = @DLLTOOL@
 FPM = @FPM@
-IMDCT_L = @IMDCT_L@
 LIBTOOL = @LIBTOOL@
 LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LN_S = @LN_S@
@@ -92,10 +92,10 @@ data_includes =  	D.dat imdct_s.dat qc_table.dat rq_table.dat sf_table.dat
 libmad_la_SOURCES =  	version.c fixed.c bit.c timer.c stream.c frame.c synth.c decoder.c  	layer12.c layer3.c huffman.c $(headers) $(data_includes)
 
 
-EXTRA_libmad_la_SOURCES = imdct_l_arm.S
+EXTRA_libmad_la_SOURCES = imdct_l_arm.S #synth_mmx.S
 
-libmad_la_DEPENDENCIES = @IMDCT_L@
-libmad_la_LIBADD = @IMDCT_L@
+libmad_la_DEPENDENCIES = @ASO_OBJS@
+libmad_la_LIBADD = @ASO_OBJS@
 
 #CFLAGS =	-Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
 #LDFLAGS =	@LDFLAGS@ $(PROFILER)

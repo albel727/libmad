@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.c,v 1.21 2001/01/21 00:18:09 rob Exp $
+ * $Id: audio.c,v 1.22 2001/02/22 07:53:36 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -88,7 +88,8 @@ audio_ctlfunc_t *audio_output(char const **path)
     *path = ext + 1;
 
     for (i = 0; i < sizeof(types) / sizeof(types[0]); ++i) {
-      if (strncasecmp(type, types[i].name, ext - type) == 0)
+      if (strncasecmp(type, types[i].name, ext - type) == 0 &&
+	  strlen(types[i].name) == ext - type)
 	return types[i].module;
     }
 

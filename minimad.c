@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: minimad.c,v 1.12 2001/01/21 00:18:09 rob Exp $
+ * $Id: minimad.c,v 1.13 2001/02/22 07:53:36 rob Exp $
  */
 
 # include <stdio.h>
@@ -107,9 +107,9 @@ enum mad_flow output(void *data,
   unsigned int nchannels, nsamples;
   mad_fixed_t const *left_ch, *right_ch;
 
-  /* header->sfreq contains the sampling frequency */
+  /* pcm->samplerate contains the sampling frequency */
 
-  nchannels = MAD_NCHANNELS(header);
+  nchannels = pcm->channels;
   nsamples  = pcm->length;
   left_ch   = pcm->samples[0];
   right_ch  = pcm->samples[1];

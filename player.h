@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: player.h,v 1.4 2001/01/21 00:18:10 rob Exp $
+ * $Id: player.h,v 1.6 2001/04/05 04:56:09 rob Exp $
  */
 
 # ifndef PLAYER_H
@@ -33,6 +33,7 @@
 
 enum {
   PLAYER_FLAG_SHUFFLE      = 0x0001,
+  PLAYER_FLAG_DOWNSAMPLE   = 0x0002,
 
   PLAYER_FLAG_SKIP         = 0x0010,
   PLAYER_FLAG_TIMED        = 0x0020,
@@ -85,6 +86,8 @@ struct player {
 
     unsigned char *data;
     unsigned long length;
+
+    int eof;
   } input;
 
   struct output {

@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: Makefile.in,v 1.9 2001/02/09 09:37:56 rob Exp $
+# $Id: Makefile.in,v 1.12 2001/04/05 05:37:38 rob Exp $
 #
 
 SHELL =		@SHELL@
@@ -39,13 +39,14 @@ DLL_EXP_DEF =	$(srcdir)/in_mad.def
 DLL_CFLAGS =	
 DLL_LDFLAGS =	
 DLL_LDLIBS =	-lcomctl32 -lgdi32 -lwininet #-lcomdlg32
-DLL_OBJS =	in_mad.o resource.o compat.o libmad.a
+DLL_OBJS =	in_mad.o compat.o resource.o libmad.a
 
 all: @WINAMP_TARGET@
 
 pimp: MAD\ plug-in\ $(VERSION).exe
 
 MAD\ plug-in\ $(VERSION).exe: in_mad.dll in_mad.txt in_mad.psc
+	strip in_mad.dll
 	test $(srcdir) = . || cp $(srcdir)/in_mad.txt .
 	makepimp in_mad.psc
 
@@ -54,7 +55,8 @@ in_mad.dll: $(DLL_OBJS)
 		--def $(DLL_EXP_DEF) -o $@  \
 		$(DLL_OBJS) $(DLL_LDFLAGS) $(DLL_LDLIBS)
 
-in_mad.o: in_mad.c ../config.h ../global.h resource.h messages.h
+in_mad.o: in_mad.c ../config.h ../global.h  \
+	resource.h messages.h in2.h out.h
 
 resource.o: resource.rc messages.rc
 	windres --include-dir $(srcdir) -o $@ $(srcdir)/resource.rc

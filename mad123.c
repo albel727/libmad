@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: mad123.c,v 1.2 2001/01/21 00:18:09 rob Exp $
+ * $Id: mad123.c,v 1.3 2001/03/25 20:03:31 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -193,6 +193,8 @@ int main(int argc, char *argv[])
 	    "THIS SOFTWARE COMES WITH ABSOLUTELY NO WARRANTY!"
 	    " USE AT YOUR OWN RISK!\n");
   }
+
+  /* ... */
 
   return 0;
 }

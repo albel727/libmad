@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: in_mad.c,v 1.9 2001/02/01 23:16:14 rob Exp $
+ * $Id: in_mad.c,v 1.23 2001/04/11 19:40:59 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -52,6 +52,11 @@
 # define GWL_MAD_JSPIE_I	(2 * 4)
 
 # define GWL_MAD_JSPIE_FRAMES	GWL_USERDATA
+
+# define JSPIE_MS_COLOR		0x00b0b0e0L
+# define JSPIE_MS_I_COLOR	0x00f0a0f0L
+# define JSPIE_I_COLOR		0x00e0b0b0L
+# define JSPIE_LR_COLOR		0x00d0d0d0L
 
 # define PCM_CHUNK		576
 
@@ -127,13 +132,8 @@ static HANDLE length_thread = INVALID_HANDLE_VALUE;
 
 static HINTERNET internet = INVALID_HANDLE_VALUE;
 
-# define JSPIE_MS_COLOR		0x00b0b0e0L
-# define JSPIE_MS_I_COLOR	0x00f0a0f0L
-# define JSPIE_I_COLOR		0x00e0b0b0L
-# define JSPIE_LR_COLOR		0x00d0d0d0L
-
 # define DEBUG_STR(x)		MessageBox(module.hMainWindow, (x), "Debug",  \
-					   MB_ICONEXCLAMATION | MB_OK);
+					   MB_ICONEXCLAMATION | MB_OK)
 
 static
 void show_error(HWND owner, char *title, DWORD error, ...)
@@ -209,55 +209,6 @@ void show_error(HWND owner, char *title, DWORD error, ...)
   if (message != str)
     LocalFree(message);
 }
-
-static
-void apply_config(void)
-{
-  module.FileExtensions = conf_enabled ?
-    "MP3\0" "MPEG Audio Layer III files (*.MP3)\0"
-    "MP2\0" "MPEG Audio Layer II files (*.MP2)\0"
-    "MP1\0" "MPEG Audio Layer I files (*.MP1)\0" : "";
-}
-
-static
-int peek_registry(char const *name, DWORD type, void *ptr, DWORD size)
-{
-  DWORD reg_type;
-
-  if (registry == INVALID_HANDLE_VALUE ||
-      RegQueryValueEx(registry, name, 0,
-		      &reg_type, ptr, &size) != ERROR_SUCCESS ||
-      reg_type != type)
-    return -1;
-
-  return 0;
-}
-
-static
-int poke_registry(char const *name, DWORD type, void *ptr, DWORD size)
-{
-  if (registry == INVALID_HANDLE_VALUE ||
-      RegSetValueEx(registry, name, 0, type, ptr, size) != ERROR_SUCCESS)
-    return -1;
-
-  return 0;
-}
-
-# define LOAD_CONF_DWORD(name, default)  \
-    (peek_registry((#name), REG_DWORD,  \
-		    &(conf_##name), sizeof(conf_##name)) == -1 ?  \
-     ((conf_##name) = (default)) : (conf_##name))
-
-# define LOAD_CONF_SZ(name, default)  \
-    (peek_registry((#name), REG_SZ,  \
-		    (conf_##name), sizeof(conf_##name)) == -1 ?  \
-     strcpy((conf_##name), (default)) : (conf_##name))
-
-# define SAVE_CONF_DWORD(name)  \
-    (poke_registry((#name), REG_DWORD, &(conf_##name), sizeof(conf_##name)))
-
-# define SAVE_CONF_SZ(name)  \
-    (poke_registry((#name), REG_SZ, (conf_##name), sizeof(conf_##name)))
 
 static
 void draw_ellipse(HDC dc, RECT const *area, COLORREF color)
@@ -406,16 +357,92 @@ LRESULT legend_wclass(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 }
 
 static
-void do_init(void)
+void ui_init(void)
 {
   WNDCLASSEX wclass;
+
+  InitCommonControls();
+
+  wclass.cbSize        = sizeof(wclass);
+  wclass.style         = 0;
+  wclass.lpfnWndProc   = pie_wclass;
+  wclass.cbClsExtra    = 0;
+  wclass.cbWndExtra    = 3 * 4;
+  wclass.hInstance     = module.hDllInstance;
+  wclass.hIcon         = 0;
+  wclass.hCursor       = 0;
+  wclass.hbrBackground = (HBRUSH) COLOR_WINDOW;
+  wclass.lpszMenuName  = 0;
+  wclass.lpszClassName = "MAD_JSPIE";
+  wclass.hIconSm       = 0;
+
+  RegisterClassEx(&wclass);
+
+  wclass.lpfnWndProc   = legend_wclass;
+  wclass.cbWndExtra    = 0;
+  wclass.lpszClassName = "MAD_LEGEND";
+
+  RegisterClassEx(&wclass);
+}
+
+static
+void apply_config(void)
+{
+  module.FileExtensions = conf_enabled ?
+    "MP3\0" "MPEG Audio Layer III files (*.MP3)\0"
+    "MP2\0" "MPEG Audio Layer II files (*.MP2)\0"
+    "MP1\0" "MPEG Audio Layer I files (*.MP1)\0" : "";
+}
+
+static
+int peek_registry(char const *name, DWORD type, void *ptr, DWORD size)
+{
+  DWORD reg_type;
+
+  if (registry == INVALID_HANDLE_VALUE ||
+      RegQueryValueEx(registry, name, 0,
+		      &reg_type, ptr, &size) != ERROR_SUCCESS ||
+      reg_type != type)
+    return -1;
+
+  return 0;
+}
+
+static
+int poke_registry(char const *name, DWORD type, void *ptr, DWORD size)
+{
+  if (registry == INVALID_HANDLE_VALUE ||
+      RegSetValueEx(registry, name, 0, type, ptr, size) != ERROR_SUCCESS)
+    return -1;
+
+  return 0;
+}
+
+# define LOAD_CONF_DWORD(name, default)  \
+    (peek_registry((#name), REG_DWORD,  \
+		    &(conf_##name), sizeof(conf_##name)) == -1 ?  \
+     ((conf_##name) = (default)) : (conf_##name))
+
+# define LOAD_CONF_SZ(name, default)  \
+    (peek_registry((#name), REG_SZ,  \
+		    (conf_##name), sizeof(conf_##name)) == -1 ?  \
+     strcpy((conf_##name), (default)) : (conf_##name))
+
+# define SAVE_CONF_DWORD(name)  \
+    (poke_registry((#name), REG_DWORD, &(conf_##name), sizeof(conf_##name)))
+
+# define SAVE_CONF_SZ(name)  \
+    (poke_registry((#name), REG_SZ, (conf_##name), sizeof(conf_##name)))
+
+static
+void do_init(void)
+{
+  ui_init();
 
 # if defined(OUR_EQ)
   /* tell Winamp we will handle the equalization */
   module.UsesOutputPlug |= 2;
 # endif
-
-  InitCommonControls();
 
   if (RegCreateKeyEx(HKEY_CURRENT_USER, REGISTRY_KEY,
 		     0, "", REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, 0,
@@ -438,27 +465,6 @@ void do_init(void)
     conf_resolution = 16;
 
   apply_config();
-
-  wclass.cbSize        = sizeof(wclass);
-  wclass.style         = 0;
-  wclass.lpfnWndProc   = pie_wclass;
-  wclass.cbClsExtra    = 0;
-  wclass.cbWndExtra    = 3 * 4;
-  wclass.hInstance     = module.hDllInstance;
-  wclass.hIcon         = 0;
-  wclass.hCursor       = 0;
-  wclass.hbrBackground = (HBRUSH) COLOR_WINDOW;
-  wclass.lpszMenuName  = 0;
-  wclass.lpszClassName = "MAD_JSPIE";
-  wclass.hIconSm       = 0;
-
-  RegisterClassEx(&wclass);
-
-  wclass.lpfnWndProc   = legend_wclass;
-  wclass.cbWndExtra    = 0;
-  wclass.lpszClassName = "MAD_LEGEND";
-
-  RegisterClassEx(&wclass);
 }
 
 static
@@ -662,8 +668,20 @@ void show_about(HWND parent)
 {
   MessageBox(parent,
 	     "MPEG Audio Decoder version " MAD_VERSION "\n"
+	     "Winamp plug-in version " PLUGIN_VERSION "\n\n"
+
 	     "Copyright \xA9 " MAD_PUBLISHYEAR " " MAD_AUTHOR "\n\n"
-	     "Winamp plug-in version " PLUGIN_VERSION,
+
+  "This program is free software; you can redistribute it and/or modify it\n"
+  "under the terms of the GNU General Public License as published by\n"
+  "the Free Software Foundation; either version 2 of the License, or (at\n"
+  "your option) any later version.\n\n"
+
+  "This program is distributed in the hope that it will be useful, but\n"
+  "WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+  "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
+  "See the GNU General Public License for more details.",
+
 	     "About MAD Plug-in", MB_ICONINFORMATION | MB_OK);
 }
 
@@ -1004,7 +1022,6 @@ signed long linear_dither(unsigned int bits, mad_fixed_t sample,
   return quantized >> (MAD_F_FRACBITS + 1 - bits);
 }
 
-# if 1
 static
 unsigned int pack_pcm(unsigned char *data, unsigned int nsamples,
 		      mad_fixed_t const *left, mad_fixed_t const *right,
@@ -1076,122 +1093,6 @@ unsigned int pack_pcm(unsigned char *data, unsigned int nsamples,
 
   return data - start;
 }
-# else
-static
-unsigned int pack_pcm(void *data, unsigned int nsamples,
-		      mad_fixed_t const *left, mad_fixed_t const *right,
-		      int resolution)
-{
-  static mad_fixed_t left_err, right_err;
-  unsigned char const *start;
-  register signed long sample0, sample1;
-
-  start = data;
-
-  if (right) {  /* stereo */
-    switch (resolution) {
-    case 8:
-      {
-	unsigned short *ptr = data;
-
-	while (nsamples--) {
-	  sample0 = linear_dither(8, *left++,  &left_err);
-	  sample1 = linear_dither(8, *right++, &right_err);
-
-	  *ptr++ = ((0x80 + sample0) & 0xff) | ((0x80 + sample1) << 8);
-	}
-
-	data = ptr;
-      }
-      break;
-
-    case 16:
-      {
-	unsigned long *ptr = data;
-
-	while (nsamples--) {
-	  sample0 = linear_dither(16, *left++,  &left_err);
-	  sample1 = linear_dither(16, *right++, &right_err);
-
-	  *ptr++ = (sample0 & 0xffff) | (sample1 << 16);
-	}
-
-	data = ptr;
-      }
-      break;
-
-    case 24:
-      {
-	unsigned short *ptr = data;
-
-	while (nsamples--) {
-	  sample0 = linear_dither(24, *left++,  &left_err);
-	  sample1 = linear_dither(24, *right++, &right_err);
-
-	  ptr[0] = sample0;
-	  ptr[1] = ((sample0 >> 16) & 0xff) | ((sample1 << 8) & 0xff00);
-	  ptr[2] = sample1 >> 8;
-
-	  ptr += 3;
-	}
-
-	data = ptr;
-      }
-      break;
-
-    case 32:
-      {
-	unsigned long *ptr = data;
-
-	while (nsamples--) {
-	  sample0 = linear_dither(24, *left++,  &left_err);
-	  sample1 = linear_dither(24, *right++, &right_err);
-
-	  ptr[0] = sample0 << 8;
-	  ptr[1] = sample1 << 8;
-
-	  ptr += 2;
-	}
-
-	data = ptr;
-      }
-      break;
-    }
-  }
-  else {  /* mono */
-    unsigned int effective, bytes;
-
-    effective = resolution;
-    if (resolution > 24)
-      effective = 24;
-
-    bytes = resolution / 8;
-
-    while (nsamples--) {
-      sample0 = linear_dither(effective, *left++, &left_err);
-
-      switch (resolution) {
-      case 8:
-	data[0] = sample0 + 0x80;
-	break;
-
-      case 32:
-	sample0 <<= 8;
-	data[3] = sample0 >> 24;
-      case 24:
-	data[2] = sample0 >> 16;
-      case 16:
-	data[1] = sample0 >>  8;
-	data[0] = sample0 >>  0;
-      }
-
-      data += bytes;
-    }
-  }
-
-  return (unsigned char const *) data - start;
-}
-# endif
 
 static
 void stats_init(struct stats *stats)
@@ -1285,6 +1186,41 @@ int do_error(struct mad_stream *stream, struct mad_frame *frame,
 }
 
 static
+void do_vis(char *data, int nch, int resolution, int position)
+{
+  static char vis_buffer[PCM_CHUNK * 2];
+  char *ptr;
+  int size, count;
+
+  /*
+   * Winamp visuals may have problems accepting sample sizes larger than
+   * 16 bits, so we reduce the sample size here.
+   */
+
+  switch (resolution) {
+  case 32:
+  case 24:
+    size  = resolution / 8;
+    count = PCM_CHUNK * nch;
+
+    ptr = vis_buffer;
+    while (count--) {
+      data += size;
+      *ptr++ = data[-1] ^ 0x80;
+    }
+
+    data = vis_buffer;
+    resolution = 8;
+
+  case 16:
+  case 8:
+  default:
+    module.SAAddPCMData(data,  nch, resolution, position);
+    module.VSAAddPCMData(data, nch, resolution, position);
+  }
+}
+
+static
 DWORD WINAPI run_decode_thread(void *param)
 {
   struct state *state = param;
@@ -1300,6 +1236,7 @@ DWORD WINAPI run_decode_thread(void *param)
 
   mad_timer_t timer, duration;
   int avgbitrate, bitrate, last_bitrate = 0, seek_skip = 0, last_error = 0;
+  int eof = 0;
 
   input_size = 40000 /* 1 s at 320 kbps */ * 5;
   input_buffer = LocalAlloc(0, input_size);
@@ -1316,15 +1253,20 @@ DWORD WINAPI run_decode_thread(void *param)
 
   stats_init(&state->stats);
 
-  while (1) {
-    if (input_length < input_size / 2) {
+  while (!eof) {
+    if (input_length < input_size / 4) {
       DWORD bytes;
 
       bytes = input_read(&state->input, input_buffer + input_length,
 			 input_size - input_length);
-      if (bytes <= 0) {
-	if (bytes == -1)
-	  show_error(0, "Error Reading Data", GetLastError());
+      if (bytes == 0) {
+	eof = 1;
+
+	while (bytes < MAD_BUFFER_GUARD)
+	  input_buffer[input_length + bytes++] = 0;
+      }
+      else if (bytes == -1) {
+	show_error(0, "Error Reading Data", GetLastError());
 	break;
       }
 
@@ -1447,7 +1389,7 @@ DWORD WINAPI run_decode_thread(void *param)
 
       mad_synth_frame(&synth, &frame);
 
-      nch = MAD_NCHANNELS(&frame.header);
+      nch = synth.pcm.channels;
       ch1 = synth.pcm.samples[0];
       ch2 = synth.pcm.samples[1];
 
@@ -1455,18 +1397,15 @@ DWORD WINAPI run_decode_thread(void *param)
 	ch2 = 0;
       else {
 	switch (state->channel) {
-	case CHANNEL_STEREO:
-	  break;
-
-	case CHANNEL_MONO:
-	case CHANNEL_LEFT:
-	  nch = 1;
-	  ch2 = 0;
-	  break;
-
 	case CHANNEL_RIGHT:
 	  ch1 = ch2;
+
+	case CHANNEL_LEFT:
 	  ch2 = 0;
+	  nch = 1;
+
+	case CHANNEL_MONO:
+	case CHANNEL_STEREO:
 	  break;
 
 	case CHANNEL_REVERSE:
@@ -1492,7 +1431,7 @@ DWORD WINAPI run_decode_thread(void *param)
 
       output_ptr = output_buffer;
 
-      mad_timer_set(&duration, 0, PCM_CHUNK, frame.header.sfreq);
+      mad_timer_set(&duration, 0, PCM_CHUNK, synth.pcm.samplerate);
 
       bytes = PCM_CHUNK * (resolution / 8) * nch;
 
@@ -1508,8 +1447,7 @@ DWORD WINAPI run_decode_thread(void *param)
 	if (state->stop || (state->seek != -1 && state->length >= 0))
 	  break;
 
-	module.SAAddPCMData(output_ptr,  nch, resolution, state->position);
-	module.VSAAddPCMData(output_ptr, nch, resolution, state->position);
+	do_vis(output_ptr, nch, resolution, state->position);
 
 	mad_timer_add(&timer, duration);
 	state->position = mad_timer_count(timer, MAD_UNITS_MILLISECONDS);
@@ -1521,7 +1459,8 @@ DWORD WINAPI run_decode_thread(void *param)
 	  memcpy(dsp_buffer, output_ptr, bytes);
 
 	  nsamples = module.dsp_dosamples((short *) dsp_buffer, PCM_CHUNK,
-					  resolution, nch, frame.header.sfreq);
+					  resolution, nch,
+					  synth.pcm.samplerate);
 	  module.outMod->Write(dsp_buffer, nsamples * (resolution / 8) * nch);
 	}
 	else
@@ -1562,17 +1501,87 @@ DWORD WINAPI run_decode_thread(void *param)
   return 0;
 }
 
+struct xing {
+  int flags;
+  unsigned long frames;
+  unsigned long bytes;
+  unsigned char toc[100];
+  long scale;
+};
+
+enum {
+  XING_FRAMES = 0x0001,
+  XING_BYTES  = 0x0002,
+  XING_TOC    = 0x0004,
+  XING_SCALE  = 0x0008
+};
+
+# define XING_MAGIC	(('X' << 24) | ('i' << 16) | ('n' << 8) | 'g')
+
 static
-int scan_header(struct input *input, struct mad_header *dest)
+int parse_xing(struct xing *xing, struct mad_bitptr ptr, unsigned int bitlen)
+{
+  if (bitlen < 64 || mad_bit_read(&ptr, 32) != XING_MAGIC)
+    goto fail;
+
+  xing->flags = mad_bit_read(&ptr, 32);
+  bitlen -= 64;
+
+  if (xing->flags & XING_FRAMES) {
+    if (bitlen < 32)
+      goto fail;
+
+    xing->frames = mad_bit_read(&ptr, 32);
+    bitlen -= 32;
+  }
+
+  if (xing->flags & XING_BYTES) {
+    if (bitlen < 32)
+      goto fail;
+
+    xing->bytes = mad_bit_read(&ptr, 32);
+    bitlen -= 32;
+  }
+
+  if (xing->flags & XING_TOC) {
+    int i;
+
+    if (bitlen < 800)
+      goto fail;
+
+    for (i = 0; i < 100; ++i)
+      xing->toc[i] = mad_bit_read(&ptr, 8);
+
+    bitlen -= 800;
+  }
+
+  if (xing->flags & XING_SCALE) {
+    if (bitlen < 32)
+      goto fail;
+
+    xing->scale = mad_bit_read(&ptr, 32);
+    bitlen -= 32;
+  }
+
+  return 0;
+
+ fail:
+  xing->flags = 0;
+  return -1;
+}
+
+static
+int scan_header(struct input *input, struct mad_header *header,
+		struct xing *xing)
 {
   struct mad_stream stream;
-  struct mad_header header;
+  struct mad_frame frame;
   unsigned char buffer[8192];
   unsigned int buflen = 0;
   int count = 0, result = 0;
 
   mad_stream_init(&stream);
-  mad_header_init(&header);
+  mad_frame_init(&frame);
 
   while (1) {
     if (buflen < sizeof(buffer)) {
@@ -1591,7 +1600,7 @@ int scan_header(struct input *input, struct mad_header *dest)
     mad_stream_buffer(&stream, buffer, buflen);
 
     while (1) {
-      if (mad_header_decode(&header, &stream) == -1) {
+      if (mad_frame_decode(&frame, &stream) == -1) {
 	if (!MAD_RECOVERABLE(stream.error))
 	  break;
 
@@ -1599,7 +1608,8 @@ int scan_header(struct input *input, struct mad_header *dest)
 	  continue;
       }
 
-      if (count++)
+      if (count++ ||
+	  (xing && parse_xing(xing, stream.anc_ptr, stream.anc_bitlen) == -1))
 	break;
     }
 
@@ -1610,12 +1620,14 @@ int scan_header(struct input *input, struct mad_header *dest)
 	    buflen = &buffer[buflen] - stream.next_frame);
   }
 
-  if (count)
-    *dest = header;
+  if (count) {
+    if (header)
+      *header = frame.header;
+  }
   else
     result = -1;
 
-  mad_header_finish(&header);
+  mad_frame_finish(&frame);
   mad_stream_finish(&stream);
 
   return result;
@@ -1714,7 +1726,6 @@ int decode_start(struct state *state, struct mad_header *header)
   int max_latency, nch, priority;
   DWORD thread_id;
 
-  state->bitrate     = 0;
   state->position    = 0;
   state->paused      = 0;
   state->seek        = -1;
@@ -1734,14 +1745,14 @@ int decode_start(struct state *state, struct mad_header *header)
   }
 
   max_latency =
-    module.outMod->Open(header->sfreq, nch, conf_resolution, -1, -1);
+    module.outMod->Open(header->samplerate, nch, conf_resolution, -1, -1);
 
   if (max_latency < 0) {  /* error opening output device */
     input_close(&state->input);
     return 3;
   }
 
-  module.SetInfo(header->bitrate / 1000, header->sfreq / 1000, nch, 0);
+  module.SetInfo(header->bitrate / 1000, header->samplerate / 1000, nch, 0);
 
   if (state->input.type == INPUT_FILE) {
     /* start file length calculation thread */
@@ -1751,8 +1762,8 @@ int decode_start(struct state *state, struct mad_header *header)
   }
 
   /* initialize visuals */
-  module.SAVSAInit(max_latency, header->sfreq);
-  module.VSASetInfo(header->sfreq, nch);
+  module.SAVSAInit(max_latency, header->samplerate);
+  module.VSASetInfo(header->samplerate, nch);
 
   /* set the output module's default volume */
   module.outMod->SetVolume(-666);  /* ?? */
@@ -1804,15 +1815,16 @@ int play_stream(struct state *state)
 
   input_init(&state->input, INPUT_STREAM, stream);
 
-  if (scan_header(&state->input, &header) == -1) {
+  if (scan_header(&state->input, &header, 0) == -1) {
     input_close(&state->input);
 
     show_error(0, "Error Reading Stream", IDS_WARN_NOHEADER);
     return 2;
   }
 
-  state->size     = 0;
-  state->length   = 0;
+  state->size    = 0;
+  state->length  = 0;
+  state->bitrate = 0;
 
   module.is_seekable = 0;
 
@@ -1824,6 +1836,7 @@ int play_file(struct state *state)
 {
   HANDLE file;
   struct mad_header header;
+  struct xing xing;
 
   file = CreateFile(state->path, GENERIC_READ,
 		    FILE_SHARE_READ | FILE_SHARE_WRITE, 0,
@@ -1842,7 +1855,7 @@ int play_file(struct state *state)
 
   input_init(&state->input, INPUT_FILE, file);
 
-  if (scan_header(&state->input, &header) == -1) {
+  if (scan_header(&state->input, &header, &xing) == -1) {
     input_close(&state->input);
 
     show_error(0, "Error Reading File", IDS_WARN_NOHEADER);
@@ -1851,8 +1864,22 @@ int play_file(struct state *state)
 
   input_seek(&state->input, 0, FILE_BEGIN);
 
-  state->size   = GetFileSize(file, 0);
-  state->length = -(state->size / (header.bitrate / 8 / 1000));  /* est. */
+  state->size    = GetFileSize(file, 0);
+  state->bitrate = 0;
+
+  if (xing.flags & XING_FRAMES) {
+    mad_timer_t timer;
+
+    timer = header.duration;
+    mad_timer_multiply(&timer, xing.frames);
+
+    state->length = mad_timer_count(timer, MAD_UNITS_MILLISECONDS);
+
+    if (xing.flags & XING_BYTES)
+      state->bitrate = xing.bytes * 8 / state->length;
+  }
+  else
+    state->length = -(state->size * 8 / (header.bitrate / 1000));  /* est. */
 
   module.is_seekable = 1;
 
@@ -1984,8 +2011,7 @@ void strip(char *str)
   while (ptr > str && ptr[-1] == ' ')
     --ptr;
 
-  if (ptr > str || *ptr == ' ')
-    *ptr = 0;
+  *ptr = 0;
 }
 
 static
@@ -2102,7 +2128,7 @@ DWORD WINAPI run_scan_thread(void *param)
   input_init(&input, INPUT_FILE, file);
 
   input_seek(&input, 0, FILE_BEGIN);
-  scan_header(&input, &info->mpeg.header);
+  scan_header(&input, &info->mpeg.header, 0);
 
   if (!info->mpeg.stop)
     PostMessage(info->mpeg.dialog, WM_MAD_SCAN_FINISHED, 1, 0);
@@ -2155,34 +2181,6 @@ void groupnumber(char *str, int num)
     }
   }
 }
-
-# if 0
-static CALLBACK
-UINT mpeg_callback(HWND hwnd, UINT message, PROPSHEETPAGE *psp)
-{
-  struct fileinfo *info = (struct fileinfo *) psp->lParam;
-  HANDLE scan_thread = info->mpeg.scan_thread;
-
-  switch (message) {
-  case PSPCB_CREATE:
-    return TRUE;
-
-  case PSPCB_RELEASE:
-    if (scan_thread != INVALID_HANDLE_VALUE) {
-      info->mpeg.stop = 1;
-
-      if (WaitForSingleObject(scan_thread, INFINITE) == WAIT_TIMEOUT)
-	TerminateThread(scan_thread, 0);
-
-      CloseHandle(scan_thread);
-      info->mpeg.scan_thread = INVALID_HANDLE_VALUE;
-    }
-    break;
-  }
-
-  return 0;
-}
-# endif
 
 static CALLBACK
 BOOL mpeg_dialog(HWND dialog, UINT message,
@@ -2262,10 +2260,10 @@ BOOL mpeg_dialog(HWND dialog, UINT message,
     {
       struct mad_header *header = &info->mpeg.header;
       char *ptr;
-      char str[19];
+      char str[23];
 
       if (wparam) {
-	switch (header->sfreq) {
+	switch (header->samplerate) {
 	case 48000:
 	case 44100:
 	case 32000:
@@ -2308,9 +2306,13 @@ BOOL mpeg_dialog(HWND dialog, UINT message,
 	SetDlgItemText(dialog, IDC_MPEG_LAYER, ptr);
 
 	sprintf(str, "%lu kbps", header->bitrate / 1000);
+# if 0  /* not enough room for this in the dialog field */
+	if (header->flags & MAD_FLAG_FREEFORMAT)
+	  strcat(str, " (free format)");
+# endif
 	SetDlgItemText(dialog, IDC_MPEG_BITRATE, str);
 
-	sprintf(str, "%u Hz", header->sfreq);
+	sprintf(str, "%u Hz", header->samplerate);
 	SetDlgItemText(dialog, IDC_MPEG_SAMPLERATE, str);
 
 	switch (header->emphasis) {
@@ -2318,8 +2320,8 @@ BOOL mpeg_dialog(HWND dialog, UINT message,
 	  ptr = "none";
 	  break;
 
-	case MAD_EMPHASIS_50_15_MS:
-	  ptr = "50/15 ms";
+	case MAD_EMPHASIS_50_15_US:
+	  ptr = "50/15 \xb5s";
 	  break;
 
 	case MAD_EMPHASIS_CCITT_J_17:
@@ -2938,6 +2940,9 @@ char const *title_escape(int escape, struct id3v1 const *tag,
   case '1':  /* artist */
     return tag->artist;
 
+  case '2':  /* title */
+    return tag->title;
+
   case '3':  /* album */
     return tag->album;
 
@@ -2952,9 +2957,6 @@ char const *title_escape(int escape, struct id3v1 const *tag,
       return genre_str[tag->genre];
 
     break;
-
-  case '2':  /* title */
-    return tag->title;
 
   case '7':  /* file name */
     copy = strrchr(source, '\\');
@@ -2976,10 +2978,8 @@ char const *title_escape(int escape, struct id3v1 const *tag,
 
   case '9':  /* file extension */
     copy = strrchr(source, '.');
-    if (copy) {
-      strcpy(buffer, ++copy);
-      ptr = 0;
-    }
+    if (copy)
+      return copy + 1;
 
     break;
 
@@ -3014,14 +3014,25 @@ void get_fileinfo(char *path, char *title, int *length)
 			OPEN_EXISTING, 0, 0);
       if (file != INVALID_HANDLE_VALUE) {
 	struct mad_header header;
+	struct xing xing;
 	struct input input;
 
 	input_init(&input, INPUT_FILE, file);
 
 	if (conf_lengthcalc)
 	  scan_file(&input, 0, length, 0);
-	else if (scan_header(&input, &header) != -1)
-	  *length = GetFileSize(file, 0) / (header.bitrate / 8 / 1000);
+	else if (scan_header(&input, &header, &xing) != -1) {
+	  if (xing.flags & XING_FRAMES) {
+	    mad_timer_t timer;
+
+	    timer = header.duration;
+	    mad_timer_multiply(&timer, xing.frames);
+
+	    *length = mad_timer_count(timer, MAD_UNITS_MILLISECONDS);
+	  }
+	  else
+	    *length = GetFileSize(file, 0) * 8 / (header.bitrate / 1000);
+	}
       }
     }
   }

@@ -17,7 +17,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: abxtest,v 1.5 2001/01/21 00:18:09 rob Exp $
+# $Id: abxtest,v 1.6 2001/03/09 18:28:45 rob Exp $
 #
 
 #
@@ -28,28 +28,46 @@ min=10
 max=20
 goal=.05
 
+version="0.13.0 (beta)"
+publishyear="2000-2001"
+author="Robert Leslie"
+
 usage() {
     echo >&2 "Usage: $0 [-n min] [-m max] [-g goal] A-cmd B-cmd"
-    exit 1
+    exit $1
+}
+
+banner() {
+    echo >&2  \
+	"ABX Double-Blind Test $version - Copyright (C) $publishyear $author"
 }
 
 while [ $# -gt 0 ]
 do
     case "$1" in
+	--help)
+	    usage 0
+	    ;;
+
+	--version)
+	    banner
+	    exit 0
+	    ;;
+
 	-n)
-	    test $# -gt 1 || usage
+	    test $# -gt 1 || usage 1
 	    min="$2"
 	    shift 2
 	    ;;
 
 	-m)
-	    test $# -gt 1 || usage
+	    test $# -gt 1 || usage 1
 	    max="$2"
 	    shift 2
 	    ;;
 
 	-g)
-	    test $# -gt 1 || usage
+	    test $# -gt 1 || usage 1
 	    goal="$2"
 	    shift 2
 	    ;;
@@ -60,7 +78,7 @@ do
 	    ;;
 
 	-*)
-	    usage
+	    usage 1
 	    ;;
 
 	*)
@@ -69,9 +87,9 @@ do
     esac
 done
 
-test $# -eq 2 || usage
+test $# -eq 2 || usage 1
 
-echo >&2 "ABX Double-Blind Test - Copyright (C) 2000-2001 Robert Leslie"
+banner
 echo "minimum $min, maximum $max trials"
 echo "statistical goal to disprove null hypothesis is p <= $goal"
 

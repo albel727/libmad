@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madtime.c,v 1.14 2001/02/01 23:15:38 rob Exp $
+ * $Id: madtime.c,v 1.15 2001/02/22 07:53:36 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -190,6 +190,22 @@ int main(int argc, char *argv[])
 # endif
 
   /* initialize and get options */
+
+  if (argc > 1) {
+    if (strcmp(argv[1], "--version") == 0) {
+      printf("%s - %s\n", mad_version, mad_copyright);
+      printf(_("Build options: %s\n"), mad_build);
+      return 0;
+    }
+    if (strcmp(argv[1], "--author") == 0) {
+      printf("%s\n", mad_author);
+      return 0;
+    }
+    if (strcmp(argv[1], "--help") == 0) {
+      usage(argv[0]);
+      return 0;
+    }
+  }
 
   while ((opt = getopt(argc, argv, "s")) != -1) {
     switch (opt) {

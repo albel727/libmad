@@ -1,24 +1,24 @@
-\"
-\" mad - MPEG audio decoder
-\" Copyright (C) 2000-2001 Robert Leslie
-\"
-\" This program is free software; you can redistribute it and/or modify
-\" it under the terms of the GNU General Public License as published by
-\" the Free Software Foundation; either version 2 of the License, or
-\" (at your option) any later version.
-\"
-\" This program is distributed in the hope that it will be useful,
-\" but WITHOUT ANY WARRANTY; without even the implied warranty of
-\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-\" GNU General Public License for more details.
-\"
-\" You should have received a copy of the GNU General Public License
-\" along with this program; if not, write to the Free Software
-\" Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-\"
-\" $Id: madplay.1,v 1.14 2001/01/21 00:18:09 rob Exp $
-\"
-.TH MADPLAY 1 "16 January 2001" "MAD" "MPEG Audio Decoder"
+.\"
+.\" mad - MPEG audio decoder
+.\" Copyright (C) 2000-2001 Robert Leslie
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+.\"
+.\" $Id: madplay.1,v 1.17 2001/04/05 04:56:09 rob Exp $
+.\"
+.TH MADPLAY 1 "03 April 2001" "MAD" "MPEG Audio Decoder"
 .SH NAME
 madplay \- decode and play MPEG audio stream(s)
 .SH SYNOPSIS
@@ -92,6 +92,10 @@ is a single dash (\-), the output will be written to standard output.
 Do not dither the output PCM samples. This may result in lower sound quality
 but is useful for analyzing output from the decoder.
 .TP
+.B \-\-downsample
+Reduce the output sampling frequency 2:1. This also reduces the computational
+overhead of the decoder.
+.TP
 \fB\-\-fade\-in\fR[\fB=\fIduration\fR]
 Gradually fade-in the audio from each file over
 .IR duration .
@@ -116,7 +120,7 @@ For dual channel streams, an output channel should be selected. If one is not
 selected, the first (left) channel will be used.
 .PP
 For stereo streams, making a channel selection other than stereo will cause
-the output to become monaural.
+the output to be monaural.
 .TP
 .BR \-1 " or " \-\-left
 Output the first (left) channel only.
@@ -156,7 +160,7 @@ option. If
 .B \-z
 .RB ( \-\-shuffle )
 is also used, the files will be continuously shuffled and repeated in such a
-way that the same file is not played twice unless at least half of the other
+way that the same file is not played again until at least half of the other
 files have played in the interim.
 .SS "Miscellaneous"
 .TP
@@ -198,7 +202,7 @@ specifications are recognized:
 .TP
 .IB hh : mm : ss . ddd
 Hours, minutes, seconds, and decimal fractions of a second. This specification
-is flexible; 
+is flexible;
 .IB hh : mm : ss\c
 ,
 .IB mmm : ss\c
@@ -229,10 +233,10 @@ The resolution of any time value cannot exceed 1/352800000 seconds.
 .B "error: frame #: lost synchronization"
 If encountered at the beginning of a file, this means the file contains
 something other than an ID3v2 tag before the MPEG audio data. If encountered
-in the middle of a file, it may mean the file is corrupted. This message is
-most commonly encountered, however, at the end of a file if the file contains
-an ID3v1 tag that is not aligned to an MPEG audio frame boundary. In this
-case, the message is harmless and may be ignored.
+in the middle of a file, it may mean the file is corrupt. This message is most
+commonly encountered, however, at the end of a file if the file contains an
+ID3v1 tag that is not aligned to an MPEG audio frame boundary. In this case,
+the message is harmless and may be ignored.
 .PP
 .TP
 .B "error: frame #: bad main_data_begin pointer"
@@ -281,8 +285,11 @@ MAD is implemented entirely without the use of floating point arithmetic and
 should therefore perform well on all architectures, especially those without
 an FPU.
 .SH BUGS
-If a file does not contain data (such as an ID3v1 tag) following the last
-frame of MPEG audio, the last frame may not be decoded.
+Granularity of start and stop times
+.RB ( \-\-start
+and
+.BR \-\-time )
+is not yet as fine as this specification suggests.
 .SH AUTHOR
 Robert Leslie <rob@mars.org>
 .SH "SEE ALSO"

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: filter.c,v 1.5 2001/01/21 00:18:09 rob Exp $
+ * $Id: filter.c,v 1.6 2001/02/22 07:53:36 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -166,9 +166,9 @@ enum mad_flow fadein_filter(void *data, struct mad_frame *frame)
       mad_timer_add(&length, player->fade_in);
 
       mad_timer_set(&ratio, 0,
-		    mad_timer_count(length, frame->header.sfreq),
+		    mad_timer_count(length, frame->header.samplerate),
 		    mad_timer_count(frame->header.duration,
-				    frame->header.sfreq));
+				    frame->header.samplerate));
 
       nsamples = mad_timer_fraction(ratio, nsamples);
     }
@@ -176,12 +176,12 @@ enum mad_flow fadein_filter(void *data, struct mad_frame *frame)
     /* determine starting scalefactor and step size */
 
     mad_timer_set(&ratio, 0,
-		  mad_timer_count(frame_start, frame->header.sfreq),
-		  mad_timer_count(player->fade_in, frame->header.sfreq));
+		  mad_timer_count(frame_start, frame->header.samplerate),
+		  mad_timer_count(player->fade_in, frame->header.samplerate));
 
     scalefactor = mad_timer_fraction(ratio, MAD_F_ONE);
     step = MAD_F_ONE / (mad_timer_count(player->fade_in,
-					frame->header.sfreq) / 32);
+					frame->header.samplerate) / 32);
 
     /* scale subband samples */
 

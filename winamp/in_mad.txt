@@ -13,6 +13,26 @@ Introduction
 
       http://www.mars.org/home/rob/proj/mpeg/mad-plugin/
 
+License
+=======
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+  for more details:
+
+      http://www.mars.org/home/rob/misc/GPL2.html
+
+  The source code for this plug-in is available from the same place you
+  obtained this plug-in. If you choose to redistribute this plug-in, you
+  must accompany it with the complete source code or an offer to obtain the
+  source in accordance with section 3 of the GPL.
+
 Recommendations
 ===============
 
@@ -87,6 +107,13 @@ Frequently Asked Questions
 Changes
 =======
 
+  Changes since 0.12.5b:
+    - the last complete audio frame should now always be decoded
+    - Xing VBR headers are now detected and read if "Fast playing time
+      calculation" is enabled
+    - visuals for 24- and 32-bit output should now display correctly
+    - corrected a problem decoding MPEG-2 Layer III intensity stereo 
+
   Changes since 0.12.4b:
     - several more performance improvements
 
@@ -126,8 +153,6 @@ Known Issues
 
   - there are buffering issues related to streaming support
   - the ID3v2 tag editor is missing
-  - Xing headers are not read, so VBR playlist entries will not have
-    accurate times unless "Fast playing time calculation" is disabled
   - using DSP effects (including the equalizer) will negate the effects of
     dithering
 
@@ -140,6 +165,10 @@ Acknowledgments
 
       kaiwei
       David Shin
+
+  The following individuals have also made notable contributions:
+
+      John Stewart
 
 Feedback
 ========
