@@ -17,7 +17,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: abxtest,v 1.6 2001/03/09 18:28:45 rob Exp $
+# $Id: abxtest,v 1.8 2001/10/17 20:31:18 rob Exp $
 #
 
 #
@@ -28,7 +28,7 @@ min=10
 max=20
 goal=.05
 
-version="0.13.0 (beta)"
+version="0.14.0 (beta)"
 publishyear="2000-2001"
 author="Robert Leslie"
 

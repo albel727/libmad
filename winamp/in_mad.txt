@@ -107,6 +107,11 @@ Frequently Asked Questions
 Changes
 =======
 
+  Changes since 0.13.0b:
+    - a new, improved dithering algorithm has been implemented
+    - streaming can now be disabled (to use other plug-ins with better
+      streaming support)
+
   Changes since 0.12.5b:
     - the last complete audio frame should now always be decoded
     - Xing VBR headers are now detected and read if "Fast playing time

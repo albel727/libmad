@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.49 2001/04/05 04:56:09 rob Exp $
+ * $Id: madplay.c,v 1.54 2001/10/17 20:31:19 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -45,8 +45,8 @@
 # define FADE_DEFAULT	"0:05"
 
 # if defined(EXPERIMENTAL)
-static int external_mix = 0;
-static int experimental = 0;
+static int external_mix;
+static int experimental;
 # endif
 
 static
@@ -61,6 +61,7 @@ struct option const options[] = {
   { "license",		no_argument,	   0,		-'l' },
   { "mono",		no_argument,	   0,		 'm' },
   { "no-dither",	no_argument,	   0,		 'd' },
+  { "no-tty-control",	no_argument,	   0,		-'C' },
   { "output",		required_argument, 0,		 'o' },
   { "quiet",		no_argument,	   0,		 'q' },
   { "repeat",		optional_argument, 0,		 'r' },
@@ -69,6 +70,7 @@ struct option const options[] = {
   { "start",		required_argument, 0,		 's' },
   { "stereo",		no_argument,	   0,		 'S' },
   { "time",		required_argument, 0,		 't' },
+  { "tty-control",	no_argument,	   0,		-'c' },
   { "verbose",		no_argument,	   0,		 'v' },
   { "version",		no_argument,	   0,		 'V' },
   { "very-quiet",	no_argument,	   0,		 'Q' },
@@ -153,6 +155,8 @@ void show_usage(int verbose)
   EPUTS(_("  -z, --shuffle              randomize file list\n"));
   EPUTS(_("  -r, --repeat[=MAX]         play files MAX times,"
 	                              " or indefinitely\n"));
+  EPUTS(_("      --tty-control          enable keyboard controls\n"));
+  EPUTS(_("      --no-tty-control       do not enable keyboard controls\n"));
 
   EPUTS(_("\nMiscellaneous:\n"));
   EPUTS(_("  -V, --version              display version number and exit\n"));
@@ -374,6 +378,7 @@ static
 void get_options(int argc, char *argv[], struct player *player)
 {
   int opt, index;
+  int ttyset = 0;
 
   while ((opt = getopt_long(argc, argv,
 			    "vqQ"	/* verbosity options */
@@ -402,18 +407,28 @@ void get_options(int argc, char *argv[], struct player *player)
       printf("%s\n", mad_author);
       exit(0);
 
+    case -'c':
+      player->options |= PLAYER_OPTION_TTYCONTROL;
+      ttyset = 1;
+      break;
+
+    case -'C':
+      player->options &= ~PLAYER_OPTION_TTYCONTROL;
+      ttyset = 1;
+      break;
+
     case 'd':
       player->output.mode = AUDIO_MODE_ROUND;
       break;
 
     case -'d':
-      player->flags |= PLAYER_FLAG_DOWNSAMPLE;
+      player->options |= PLAYER_OPTION_DOWNSAMPLE;
       break;
 
 # if 0
     case 'g':
       player->gap = get_time(optarg, 0, _("gap time"));
-      player->flags |= PLAYER_FLAG_GAP;
+      player->options |= PLAYER_OPTION_GAP;
       break;
 # endif
 
@@ -424,16 +439,8 @@ void get_options(int argc, char *argv[], struct player *player)
     case -'i':
       player->fade_in = get_time(optarg ? optarg : FADE_DEFAULT, 1,
 				 _("fade-in time"));
-      player->flags |= PLAYER_FLAG_FADEIN;
+      player->options |= PLAYER_OPTION_FADEIN;
       break;
-
-# if 0
-    case -'o':
-      player->fade_out = get_time(optarg ? optarg : FADE_DEFAULT, 1,
-				  _("fade-out time"));
-      player->flags |= PLAYER_FLAG_FADEOUT;
-      break;
-# endif
 
     case -'l':
       ver_license(stdout);
@@ -452,7 +459,18 @@ void get_options(int argc, char *argv[], struct player *player)
       player->output.command = audio_output(&player->output.path);
       if (player->output.command == 0)
 	die(_("unknown output format type for \"%s\""), optarg);
+
+      if (!ttyset)
+	player->options &= ~PLAYER_OPTION_TTYCONTROL;
       break;
+
+# if 0
+    case -'o':
+      player->fade_out = get_time(optarg ? optarg : FADE_DEFAULT, 1,
+				  _("fade-out time"));
+      player->options |= PLAYER_OPTION_FADEOUT;
+      break;
+# endif
 
     case 'q':
       player->verbosity = -1;
@@ -474,7 +492,7 @@ void get_options(int argc, char *argv[], struct player *player)
 
     case 's':
       player->global_start = get_time(optarg, 0, _("start time"));
-      player->flags |= PLAYER_FLAG_SKIP;
+      player->options |= PLAYER_OPTION_SKIP;
       break;
 
     case 'S':
@@ -483,7 +501,7 @@ void get_options(int argc, char *argv[], struct player *player)
 
     case 't':
       player->global_stop = get_time(optarg, 1, _("playing time"));
-      player->flags |= PLAYER_FLAG_TIMED;
+      player->options |= PLAYER_OPTION_TIMED;
       break;
 
     case 'v':
@@ -498,12 +516,12 @@ void get_options(int argc, char *argv[], struct player *player)
 
 # if 0
     case 'x':
-      player->flags |= PLAYER_FLAG_CROSSFADE;
+      player->options |= PLAYER_OPTION_CROSSFADE;
       break;
 # endif
 
     case 'z':
-      player->flags |= PLAYER_FLAG_SHUFFLE;
+      player->options |= PLAYER_OPTION_SHUFFLE;
       break;
 
     case '?':
@@ -544,6 +562,12 @@ int main(int argc, char *argv[])
 
   player_init(&player);
 
+# if !defined(__CYGWIN__)  /* Cygwin support for this is currently buggy */
+  /* check for default tty control */
+  if (isatty(STDIN_FILENO))
+    player.options |= PLAYER_OPTION_TTYCONTROL;
+# endif
+
   get_options(argc, argv, &player);
 
   /* main processing */
@@ -551,15 +575,15 @@ int main(int argc, char *argv[])
   if (player.verbosity >= 0)
     ver_banner(stderr);
 
-  if (player.flags & PLAYER_FLAG_CROSSFADE) {
-    if (!(player.flags & PLAYER_FLAG_GAP))
+  if (player.options & PLAYER_OPTION_CROSSFADE) {
+    if (!(player.options & PLAYER_OPTION_GAP))
       warn(_("cross-fade ignored without gap"));
     else if (mad_timer_sign(player.gap) >= 0)
       warn(_("cross-fade ignored without negative gap"));
   }
 
   /* make stop time absolute */
-  if (player.flags & PLAYER_FLAG_TIMED)
+  if (player.options & PLAYER_OPTION_TIMED)
     mad_timer_add(&player.global_stop, player.global_start);
 
   /* get default audio output module */
@@ -568,11 +592,11 @@ int main(int argc, char *argv[])
 
 # if defined(EXPERIMENTAL)
   if (external_mix) {
-    player.flags |= PLAYER_FLAG_EXTERNALMIX;
+    player.options |= PLAYER_OPTION_EXTERNALMIX;
     player.output.command = 0;
   }
   if (experimental)
-    player.flags |= PLAYER_FLAG_EXPERIMENTAL;
+    player.options |= PLAYER_OPTION_EXPERIMENTAL;
 # endif
 
   /* run the player */

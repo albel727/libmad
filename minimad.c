@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: minimad.c,v 1.13 2001/02/22 07:53:36 rob Exp $
+ * $Id: minimad.c,v 1.15 2001/09/24 23:11:42 rob Exp $
  */
 
 # include <stdio.h>
@@ -79,7 +79,15 @@ enum mad_flow input(void *data,
   return MAD_FLOW_CONTINUE;
 }
 
-/* utility to scale and round samples to 16 bits */
+/*
+ * N.B.:
+ *
+ * The following routine performs simple rounding, clipping, and scaling of
+ * MAD's high-resolution samples down to 16 bits. It does not perform any
+ * dithering or noise shaping, which would be recommended to obtain any
+ * exceptional audio quality. It is therefore not recommended to use this
+ * routine if high-quality output is desired.
+ */
 
 static inline
 signed int scale(mad_fixed_t sample)

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_wave.c,v 1.6 2001/01/21 00:18:09 rob Exp $
+ * $Id: audio_wave.c,v 1.8 2001/09/11 00:25:06 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -155,7 +155,7 @@ int config(struct audio_config *config)
   }
 
   chunk_len = 0;
-  riff_len += 24 + 8;
+  riff_len += sizeof(chunk) + 8;
 
   return 0;
 }
@@ -179,6 +179,12 @@ int play(struct audio_play *play)
   chunk_len += len;
   riff_len  += len;
 
+  return 0;
+}
+
+static
+int stop(struct audio_stop *stop)
+{
   return 0;
 }
 
@@ -212,6 +218,9 @@ int audio_wave(union audio_control *control)
 
   case AUDIO_COMMAND_PLAY:
     return play(&control->play);
+
+  case AUDIO_COMMAND_STOP:
+    return stop(&control->stop);
 
   case AUDIO_COMMAND_FINISH:
     return finish(&control->finish);

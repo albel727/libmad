@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: in_mad.c,v 1.23 2001/04/11 19:40:59 rob Exp $
+ * $Id: in_mad.c,v 1.30 2001/10/17 19:33:18 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -40,6 +40,7 @@
 
 # include "in2.h"
 # include "mad.h"
+# include "xing.h"
 
 # define PLUGIN_VERSION		VERSION ""
 
@@ -108,12 +109,14 @@ static struct state {
   mad_fixed_t attenuation;	/* attenuation factor */
   int equalizer;		/* using equalizer */
   mad_fixed_t eqfactor[32];	/* equalizer settings */
+  struct xing xing;		/* Xing VBR header */
   struct stats stats;		/* statistics */
 } state;
 
 # define REGISTRY_KEY		"Software\\Winamp\\MAD Plug-in"
 
 static DWORD conf_enabled;		/* plug-in enabled? */
+static DWORD conf_streaming;		/* use plug-in for streaming? */
 static char  conf_titlefmt[96];		/* title format */
 static DWORD conf_channel;		/* channel selection */
 static DWORD conf_priority;		/* decoder thread priority -2..+2 */
@@ -450,6 +453,7 @@ void do_init(void)
     registry = INVALID_HANDLE_VALUE;
 
   LOAD_CONF_DWORD(enabled, 1);
+  LOAD_CONF_DWORD(streaming, 0);
   LOAD_CONF_DWORD(channel, CHANNEL_STEREO);
   LOAD_CONF_DWORD(priority, 0);
   LOAD_CONF_DWORD(resolution, 16);
@@ -491,6 +495,12 @@ BOOL config_dialog(HWND dialog, UINT message,
   case WM_INITDIALOG:
     if (conf_enabled)
       CheckDlgButton(dialog, IDC_CONF_ENABLED, BST_CHECKED);
+    if (conf_streaming)
+      CheckDlgButton(dialog, IDC_CONF_STREAMING, BST_CHECKED);
+
+    PostMessage(dialog, WM_COMMAND,
+		MAKELONG(IDC_CONF_ENABLED, BN_CLICKED),
+		(LPARAM) GetDlgItem(dialog, IDC_CONF_ENABLED));
 
     /* Title Format */
 
@@ -558,6 +568,18 @@ BOOL config_dialog(HWND dialog, UINT message,
 
   case WM_COMMAND:
     switch (LOWORD(wparam)) {
+    case IDC_CONF_ENABLED:
+      {
+	BOOL state;
+
+	state =
+	  IsDlgButtonChecked(dialog, IDC_CONF_ENABLED) == BST_CHECKED ?
+	  TRUE : FALSE;
+
+	EnableWindow(GetDlgItem(dialog, IDC_CONF_STREAMING), state);
+      }
+      break;
+
     case IDC_OUT_AUTOATTENUATION:
       {
 	BOOL state;
@@ -576,6 +598,8 @@ BOOL config_dialog(HWND dialog, UINT message,
     case IDOK:
       conf_enabled =
 	(IsDlgButtonChecked(dialog, IDC_CONF_ENABLED) == BST_CHECKED);
+      conf_streaming =
+	(IsDlgButtonChecked(dialog, IDC_CONF_STREAMING) == BST_CHECKED);
 
       /* Title Format */
 
@@ -649,6 +673,7 @@ void show_config(HWND parent)
   if (DialogBox(module.hDllInstance, MAKEINTRESOURCE(IDD_CONFIG),
 		parent, config_dialog) == IDOK) {
     SAVE_CONF_DWORD(enabled);
+    SAVE_CONF_DWORD(streaming);
     SAVE_CONF_DWORD(channel);
     SAVE_CONF_DWORD(priority);
     SAVE_CONF_DWORD(resolution);
@@ -666,23 +691,23 @@ void show_config(HWND parent)
 static
 void show_about(HWND parent)
 {
-  MessageBox(parent,
-	     "MPEG Audio Decoder version " MAD_VERSION "\n"
-	     "Winamp plug-in version " PLUGIN_VERSION "\n\n"
+  char about[] =
+    "MPEG Audio Decoder version " MAD_VERSION "\n"
+    "Winamp plug-in version " PLUGIN_VERSION "\n\n"
 
-	     "Copyright \xA9 " MAD_PUBLISHYEAR " " MAD_AUTHOR "\n\n"
+    "Copyright \xa9 " MAD_PUBLISHYEAR " " MAD_AUTHOR "\n\n"
 
-  "This program is free software; you can redistribute it and/or modify it\n"
-  "under the terms of the GNU General Public License as published by\n"
-  "the Free Software Foundation; either version 2 of the License, or (at\n"
-  "your option) any later version.\n\n"
+    "This program is free software; you can redistribute it and/or modify it\n"
+    "under the terms of the GNU General Public License as published by\n"
+    "the Free Software Foundation; either version 2 of the License, or (at\n"
+    "your option) any later version.\n\n"
 
-  "This program is distributed in the hope that it will be useful, but\n"
-  "WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-  "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
-  "See the GNU General Public License for more details.",
+    "This program is distributed in the hope that it will be useful, but\n"
+    "WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+    "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
+    "See the GNU General Public License for more details.";
 
-	     "About MAD Plug-in", MB_ICONINFORMATION | MB_OK);
+  MessageBox(parent, about, "About MAD Plug-in", MB_ICONINFORMATION | MB_OK);
 }
 
 static
@@ -696,7 +721,7 @@ int is_stream(char *path)
 static
 int is_ourfile(char *path)
 {
-  return conf_enabled && is_stream(path);
+  return conf_enabled && conf_streaming && is_stream(path);
 }
 
 static
@@ -905,10 +930,10 @@ int id3v2_tag(unsigned char const *buffer, unsigned long buflen,
   ptr = tag;
   end = tag + size;
 
-  goto done;
-
- fail:
-  result = -1;
+  if (0) {
+  fail:
+    result = -1;
+  }
 
  done:
   if (tag)
@@ -982,6 +1007,86 @@ void equalizer_filter(struct mad_frame *frame, mad_fixed_t eqfactor[32])
 }
 # endif
 
+# define NEW_DITHER
+# ifdef NEW_DITHER
+struct dither {
+  mad_fixed_t error[3];
+  mad_fixed_t random;
+};
+
+/*
+ * NAME:	prng()
+ * DESCRIPTION:	32-bit pseudo-random number generator
+ */
+static inline
+unsigned long prng(unsigned long state)
+{
+  return (state * 0x0019660dL + 0x3c6ef35fL) & 0xffffffffL;
+}
+
+static inline
+signed long linear_dither(unsigned int bits, mad_fixed_t sample,
+			  struct dither *dither, unsigned long *clipped,
+			  mad_fixed_t *clipping)
+{
+  unsigned int scalebits;
+  mad_fixed_t output, mask, random;
+
+  enum {
+    MIN = -MAD_F_ONE,
+    MAX =  MAD_F_ONE - 1
+  };
+
+  /* noise shape */
+  sample += dither->error[0] - dither->error[1] + dither->error[2];
+
+  dither->error[2] = dither->error[1];
+  dither->error[1] = dither->error[0] / 2;
+
+  /* bias */
+  output = sample + (1L << (MAD_F_FRACBITS + 1 - bits - 1));
+
+  scalebits = MAD_F_FRACBITS + 1 - bits;
+  mask = (1L << scalebits) - 1;
+
+  /* dither */
+  random  = prng(dither->random);
+  output += (random & mask) - (dither->random & mask);
+
+  dither->random = random;
+
+  /* clip */
+  if (output > MAX) {
+    ++*clipped;
+    if (output - MAX > *clipping)
+      *clipping = output - MAX;
+
+    output = MAX;
+
+    if (sample > MAX)
+      sample = MAX;
+  }
+  else if (output < MIN) {
+    ++*clipped;
+    if (MIN - output > *clipping)
+      *clipping = MIN - output;
+
+    output = MIN;
+
+    if (sample < MIN)
+      sample = MIN;
+  }
+
+  /* quantize */
+  output &= ~mask;
+
+  /* error feedback */
+  dither->error[0] = sample - output;
+
+  /* scale */
+  return output >> scalebits;
+}
+# else
 static inline
 signed long linear_dither(unsigned int bits, mad_fixed_t sample,
 			  mad_fixed_t *error, unsigned long *clipped,
@@ -1021,6 +1126,7 @@ signed long linear_dither(unsigned int bits, mad_fixed_t sample,
   /* scale */
   return quantized >> (MAD_F_FRACBITS + 1 - bits);
 }
+# endif
 
 static
 unsigned int pack_pcm(unsigned char *data, unsigned int nsamples,
@@ -1028,7 +1134,11 @@ unsigned int pack_pcm(unsigned char *data, unsigned int nsamples,
 		      int resolution, unsigned long *clipped,
 		      mad_fixed_t *clipping)
 {
-  static mad_fixed_t left_err, right_err;
+# ifdef NEW_DITHER
+  static struct dither left_dither, right_dither;
+# else
+  static mad_fixed_t left_dither, right_dither;
+# endif
   unsigned char const *start;
   register signed long sample0, sample1;
   int effective, bytes;
@@ -1039,15 +1149,15 @@ unsigned int pack_pcm(unsigned char *data, unsigned int nsamples,
 
   if (right) {  /* stereo */
     while (nsamples--) {
-      sample0 = linear_dither(effective, *left++, &left_err,
+      sample0 = linear_dither(effective, *left++, &left_dither,
 			      clipped, clipping);
-      sample1 = linear_dither(effective, *right++, &right_err,
+      sample1 = linear_dither(effective, *right++, &right_dither,
 			      clipped, clipping);
 
       switch (resolution) {
       case 8:
-	data[0] = sample0 + 0x80;
-	data[1] = sample1 + 0x80;
+	data[0] = sample0 ^ 0x80;
+	data[1] = sample1 ^ 0x80;
 	break;
 
       case 32:
@@ -1070,12 +1180,12 @@ unsigned int pack_pcm(unsigned char *data, unsigned int nsamples,
   }
   else {  /* mono */
     while (nsamples--) {
-      sample0 = linear_dither(effective, *left++, &left_err,
+      sample0 = linear_dither(effective, *left++, &left_dither,
 			      clipped, clipping);
 
       switch (resolution) {
       case 8:
-	data[0] = sample0 + 0x80;
+	data[0] = sample0 ^ 0x80;
 	break;
 
       case 32:
@@ -1313,8 +1423,7 @@ DWORD WINAPI run_decode_thread(void *param)
 
 	if (input_seek(&state->input, (double) new_position *
 		       state->size / state->length, FILE_BEGIN) != -1) {
-	  mad_timer_set(&timer, new_position / 1000,
-			new_position % 1000, 1000);
+	  mad_timer_set(&timer, 0, new_position, 1000);
 
 	  mad_frame_mute(&frame);
 	  mad_synth_mute(&synth);
@@ -1501,75 +1610,6 @@ DWORD WINAPI run_decode_thread(void *param)
   return 0;
 }
 
-struct xing {
-  int flags;
-  unsigned long frames;
-  unsigned long bytes;
-  unsigned char toc[100];
-  long scale;
-};
-
-enum {
-  XING_FRAMES = 0x0001,
-  XING_BYTES  = 0x0002,
-  XING_TOC    = 0x0004,
-  XING_SCALE  = 0x0008
-};
-
-# define XING_MAGIC	(('X' << 24) | ('i' << 16) | ('n' << 8) | 'g')
-
-static
-int parse_xing(struct xing *xing, struct mad_bitptr ptr, unsigned int bitlen)
-{
-  if (bitlen < 64 || mad_bit_read(&ptr, 32) != XING_MAGIC)
-    goto fail;
-
-  xing->flags = mad_bit_read(&ptr, 32);
-  bitlen -= 64;
-
-  if (xing->flags & XING_FRAMES) {
-    if (bitlen < 32)
-      goto fail;
-
-    xing->frames = mad_bit_read(&ptr, 32);
-    bitlen -= 32;
-  }
-
-  if (xing->flags & XING_BYTES) {
-    if (bitlen < 32)
-      goto fail;
-
-    xing->bytes = mad_bit_read(&ptr, 32);
-    bitlen -= 32;
-  }
-
-  if (xing->flags & XING_TOC) {
-    int i;
-
-    if (bitlen < 800)
-      goto fail;
-
-    for (i = 0; i < 100; ++i)
-      xing->toc[i] = mad_bit_read(&ptr, 8);
-
-    bitlen -= 800;
-  }
-
-  if (xing->flags & XING_SCALE) {
-    if (bitlen < 32)
-      goto fail;
-
-    xing->scale = mad_bit_read(&ptr, 32);
-    bitlen -= 32;
-  }
-
-  return 0;
-
- fail:
-  xing->flags = 0;
-  return -1;
-}
-
 static
 int scan_header(struct input *input, struct mad_header *header,
 		struct xing *xing)
@@ -1582,6 +1622,9 @@ int scan_header(struct input *input, struct mad_header *header,
 
   mad_stream_init(&stream);
   mad_frame_init(&frame);
+
+  if (xing)
+    xing->flags = 0;
 
   while (1) {
     if (buflen < sizeof(buffer)) {
@@ -1609,7 +1652,7 @@ int scan_header(struct input *input, struct mad_header *header,
       }
 
       if (count++ ||
-	  (xing && parse_xing(xing, stream.anc_ptr, stream.anc_bitlen) == -1))
+	  (xing && xing_parse(xing, stream.anc_ptr, stream.anc_bitlen) == -1))
 	break;
     }
 
@@ -1815,7 +1858,7 @@ int play_stream(struct state *state)
 
   input_init(&state->input, INPUT_STREAM, stream);
 
-  if (scan_header(&state->input, &header, 0) == -1) {
+  if (scan_header(&state->input, &header, &state->xing) == -1) {
     input_close(&state->input);
 
     show_error(0, "Error Reading Stream", IDS_WARN_NOHEADER);
@@ -1836,7 +1879,6 @@ int play_file(struct state *state)
 {
   HANDLE file;
   struct mad_header header;
-  struct xing xing;
 
   file = CreateFile(state->path, GENERIC_READ,
 		    FILE_SHARE_READ | FILE_SHARE_WRITE, 0,
@@ -1855,7 +1897,7 @@ int play_file(struct state *state)
 
   input_init(&state->input, INPUT_FILE, file);
 
-  if (scan_header(&state->input, &header, &xing) == -1) {
+  if (scan_header(&state->input, &header, &state->xing) == -1) {
     input_close(&state->input);
 
     show_error(0, "Error Reading File", IDS_WARN_NOHEADER);
@@ -1867,16 +1909,16 @@ int play_file(struct state *state)
   state->size    = GetFileSize(file, 0);
   state->bitrate = 0;
 
-  if (xing.flags & XING_FRAMES) {
+  if (state->xing.flags & XING_FRAMES) {
     mad_timer_t timer;
 
     timer = header.duration;
-    mad_timer_multiply(&timer, xing.frames);
+    mad_timer_multiply(&timer, state->xing.frames);
 
     state->length = mad_timer_count(timer, MAD_UNITS_MILLISECONDS);
 
-    if (xing.flags & XING_BYTES)
-      state->bitrate = xing.bytes * 8 / state->length;
+    if (state->xing.flags & XING_BYTES)
+      state->bitrate = state->xing.bytes * 8 / state->length;
   }
   else
     state->length = -(state->size * 8 / (header.bitrate / 1000));  /* est. */
@@ -2359,8 +2401,7 @@ BOOL mpeg_dialog(HWND dialog, UINT message,
 	  CheckDlgButton(dialog, IDC_MPEG_CRC, BST_CHECKED);
       }
       else {
-	mad_timer_set(&header->duration, info->mpeg.length / 1000,
-		      info->mpeg.length % 1000, 1000);
+	mad_timer_set(&header->duration, 0, info->mpeg.length, 1000);
 	mad_timer_string(header->duration, str,
 			 "%lu:%02u:%02u.%1u", MAD_UNITS_HOURS,
 			 MAD_UNITS_DECISECONDS, 0);
@@ -2371,7 +2412,7 @@ BOOL mpeg_dialog(HWND dialog, UINT message,
 
 	if (info->mpeg.bitrate != header->bitrate / 1000) {
 	  sprintf(str, "%d kbps", info->mpeg.bitrate);
-	  SetDlgItemText(dialog, IDC_MPEG_BITRATELABEL, "Avg. Bitrate:");
+	  SetDlgItemText(dialog, IDC_MPEG_BITRATELABEL, "Avg. Bit Rate:");
 	  SetDlgItemText(dialog, IDC_MPEG_BITRATE, str);
 	}
       }

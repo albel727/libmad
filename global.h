@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: global.h,v 1.3 2001/02/01 23:15:37 rob Exp $
+ * $Id: global.h,v 1.4 2001/09/25 08:49:13 rob Exp $
  */
 
 # ifndef GLOBAL_H
@@ -36,6 +36,23 @@
 
 # if defined(HAVE_MMAP) && !defined(USE_MMAP)
 #  undef HAVE_MMAP
+# endif
+
+# if defined(HAVE_TERMIOS_H)
+#  define USE_TTY
+# endif
+
+# if !defined(HAVE_UNISTD_H)
+signed long read(int, void *, unsigned long count);
+signed long lseek(int, signed long, int);
+int open(char const *, int);
+int close(int);
+
+#  define isatty(x)	((x) == STDIN_FILENO)
+#  define S_ISREG(x)	1
+
+#  define STDIN_FILENO	0
+#  define SEEK_CUR	1
 # endif
 
 /* conditional replacement function prototypes */

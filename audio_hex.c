@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_hex.c,v 1.14 2001/01/21 00:18:09 rob Exp $
+ * $Id: audio_hex.c,v 1.17 2001/10/18 20:34:42 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -30,6 +30,8 @@
 
 # include "mad.h"
 # include "audio.h"
+
+# if defined(DEBUG)
 
 static FILE *outfile;
 
@@ -83,23 +85,29 @@ int play(struct audio_play *play)
 
   case AUDIO_MODE_DITHER:
     {
-      static mad_fixed_t left_err, right_err;
+      static struct audio_dither left_dither, right_dither;
 
       while (len--) {
 	fprintf(outfile, "%06lX\n",
-		audio_linear_dither(24, *left++, &left_err, play->stats) &
-		0x00ffffffL);
+		audio_linear_dither(24, *left++, &left_dither,
+				    play->stats) & 0x00ffffffL);
 
 	if (right) {
 	  fprintf(outfile, "%06lX\n",
-		  audio_linear_dither(24, *right++, &right_err, play->stats) &
-		  0x00ffffffL);
+		  audio_linear_dither(24, *right++, &right_dither,
+				      play->stats) & 0x00ffffffL);
 	}
       }
     }
     break;
   }
 
+  return 0;
+}
+
+static
+int stop(struct audio_stop *stop)
+{
   return 0;
 }
 
@@ -129,9 +137,14 @@ int audio_hex(union audio_control *control)
   case AUDIO_COMMAND_PLAY:
     return play(&control->play);
 
+  case AUDIO_COMMAND_STOP:
+    return stop(&control->stop);
+
   case AUDIO_COMMAND_FINISH:
     return finish(&control->finish);
   }
 
   return 0;
 }
+
+# endif

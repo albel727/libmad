@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_null.c,v 1.10 2001/01/21 00:18:09 rob Exp $
+ * $Id: audio_null.c,v 1.11 2001/04/14 04:46:51 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -49,6 +49,12 @@ int play(struct audio_play *play)
 }
 
 static
+int stop(struct audio_stop *stop)
+{
+  return 0;
+}
+
+static
 int finish(struct audio_finish *finish)
 {
   return 0;
@@ -67,6 +73,9 @@ int audio_null(union audio_control *control)
 
   case AUDIO_COMMAND_PLAY:
     return play(&control->play);
+
+  case AUDIO_COMMAND_STOP:
+    return stop(&control->stop);
 
   case AUDIO_COMMAND_FINISH:
     return finish(&control->finish);

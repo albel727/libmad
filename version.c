@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: version.c,v 1.9 2001/01/21 00:18:10 rob Exp $
+ * $Id: version.c,v 1.10 2001/10/18 05:12:25 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -33,14 +33,13 @@
 static
 void copyright(FILE *stream)
 {
-  fprintf(stream, _("Copyright (C) %s %s"), MAD_PUBLISHYEAR, MAD_AUTHOR);
-  fputc('\n', stream);
+  fprintf(stream, "%s %s %s\n",
+	  _("Copyright (C)"), MAD_PUBLISHYEAR, MAD_AUTHOR);
 }
 
 void ver_banner(FILE *stream)
 {
-  fprintf(stream, _("MPEG Audio Decoder %s"), MAD_VERSION);
-  fputs(" - ", stream);
+  fprintf(stream, "%s %s - ", _("MPEG Audio Decoder"), MAD_VERSION);
   copyright(stream);
 
   fflush(stream);

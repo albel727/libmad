@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.c,v 1.22 2001/02/22 07:53:36 rob Exp $
+ * $Id: audio.c,v 1.25 2001/09/25 08:49:10 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -32,7 +32,12 @@
 
 char const *audio_error;
 
-static mad_fixed_t left_err, right_err;
+static struct audio_dither left_dither, right_dither;
+
+# if defined(_MSC_VER)
+#  pragma warning(disable: 4550)  /* expression evaluates to a function which
+				     is missing an argument list */
+# endif
 
 /*
  * NAME:	audio_output()
@@ -119,6 +124,74 @@ audio_ctlfunc_t *audio_output(char const **path)
 }
 
 /*
+ * NAME:	audio_control_init()
+ * DESCRIPTION:	initialize an audio control structure
+ */
+void audio_control_init(union audio_control *control,
+			enum audio_command command)
+{
+  switch (control->command = command) {
+  case AUDIO_COMMAND_INIT:
+    control->init.path = 0;
+    break;
+
+  case AUDIO_COMMAND_CONFIG:
+    control->config.channels = 0;
+    control->config.speed    = 0;
+    break;
+
+  case AUDIO_COMMAND_PLAY:
+    control->play.nsamples   = 0;
+    control->play.samples[0] = 0;
+    control->play.samples[1] = 0;
+    control->play.mode       = AUDIO_MODE_DITHER;
+    control->play.stats      = 0;
+    break;
+
+  case AUDIO_COMMAND_STOP:
+    control->stop.flush = 0;
+    break;
+
+  case AUDIO_COMMAND_FINISH:
+    break;
+  }
+}
+
+/*
+ * NAME:	clip()
+ * DESCRIPTION:	gather signal statistics while clipping
+ */
+static inline
+void clip(mad_fixed_t *sample, struct audio_stats *stats)
+{
+  enum {
+    MIN = -MAD_F_ONE,
+    MAX =  MAD_F_ONE - 1
+  };
+
+  if (*sample >= stats->peak_sample) {
+    if (*sample > MAX) {
+      ++stats->clipped_samples;
+      if (*sample - MAX > stats->peak_clipping)
+	stats->peak_clipping = *sample - MAX;
+
+      *sample = MAX;
+    }
+    stats->peak_sample = *sample;
+  }
+  else if (*sample < -stats->peak_sample) {
+    if (*sample < MIN) {
+      ++stats->clipped_samples;
+      if (MIN - *sample > stats->peak_clipping)
+	stats->peak_clipping = MIN - *sample;
+
+      *sample = MIN;
+    }
+    stats->peak_sample = -*sample;
+  }
+}
+
+/*
  * NAME:	audio_linear_round()
  * DESCRIPTION:	generic linear sample quantize routine
  */
@@ -129,36 +202,21 @@ signed long audio_linear_round(unsigned int bits, mad_fixed_t sample,
   /* round */
   sample += (1L << (MAD_F_FRACBITS - bits));
 
-# if 1
   /* clip */
-  if (sample >= stats->peak_sample) {
-    if (sample >= MAD_F_ONE) {
-      ++stats->clipped_samples;
-      if (sample - (MAD_F_ONE - 1) > stats->peak_clipping)
-	stats->peak_clipping = sample - (MAD_F_ONE - 1);
-      sample = MAD_F_ONE - 1;
-    }
-    stats->peak_sample = sample;
-  }
-  else if (sample < -stats->peak_sample) {
-    if (sample < -MAD_F_ONE) {
-      ++stats->clipped_samples;
-      if (-MAD_F_ONE - sample > stats->peak_clipping)
-	stats->peak_clipping = -MAD_F_ONE - sample;
-      sample = -MAD_F_ONE;
-    }
-    stats->peak_sample = -sample;
-  }
-# else
-  /* clip */
-  if (sample >= MAD_F_ONE)
-    sample = MAD_F_ONE - 1;
-  else if (sample < -MAD_F_ONE)
-    sample = -MAD_F_ONE;
-# endif
+  clip(&sample, stats);
 
   /* quantize and scale */
   return sample >> (MAD_F_FRACBITS + 1 - bits);
+}
+
+/*
+ * NAME:	prng()
+ * DESCRIPTION:	32-bit pseudo-random number generator
+ */
+static inline
+unsigned long prng(unsigned long state)
+{
+  return (state * 0x0019660dL + 0x3c6ef35fL) & 0xffffffffL;
 }
 
 /*
@@ -167,53 +225,71 @@ signed long audio_linear_round(unsigned int bits, mad_fixed_t sample,
  */
 inline
 signed long audio_linear_dither(unsigned int bits, mad_fixed_t sample,
-				mad_fixed_t *error, struct audio_stats *stats)
+				struct audio_dither *dither,
+				struct audio_stats *stats)
 {
-  mad_fixed_t quantized;
+  unsigned int scalebits;
+  mad_fixed_t output, mask, random;
+
+  enum {
+    MIN = -MAD_F_ONE,
+    MAX =  MAD_F_ONE - 1
+  };
+
+  /* noise shape */
+  sample += dither->error[0] - dither->error[1] + dither->error[2];
+
+  dither->error[2] = dither->error[1];
+  dither->error[1] = dither->error[0] / 2;
+
+  /* bias */
+  output = sample + (1L << (MAD_F_FRACBITS + 1 - bits - 1));
+
+  scalebits = MAD_F_FRACBITS + 1 - bits;
+  mask = (1L << scalebits) - 1;
 
   /* dither */
-  sample += *error;
+  random  = prng(dither->random);
+  output += (random & mask) - (dither->random & mask);
 
-# if 1
+  dither->random = random;
+
   /* clip */
-  quantized = sample;
-  if (sample >= stats->peak_sample) {
-    if (sample >= MAD_F_ONE) {
-      quantized = MAD_F_ONE - 1;
+  if (output >= stats->peak_sample) {
+    if (output > MAX) {
       ++stats->clipped_samples;
-      if (sample - quantized > stats->peak_clipping &&
-	  mad_f_abs(*error) < (MAD_F_ONE >> (MAD_F_FRACBITS + 1 - bits)))
-	stats->peak_clipping = sample - quantized;
+      if (output - MAX > stats->peak_clipping)
+	stats->peak_clipping = output - MAX;
+
+      output = MAX;
+
+      if (sample > MAX)
+	sample = MAX;
     }
-    stats->peak_sample = quantized;
+    stats->peak_sample = output;
   }
-  else if (sample < -stats->peak_sample) {
-    if (sample < -MAD_F_ONE) {
-      quantized = -MAD_F_ONE;
+  else if (output < -stats->peak_sample) {
+    if (output < MIN) {
       ++stats->clipped_samples;
-      if (quantized - sample > stats->peak_clipping &&
-	  mad_f_abs(*error) < (MAD_F_ONE >> (MAD_F_FRACBITS + 1 - bits)))
-	stats->peak_clipping = quantized - sample;
+      if (MIN - output > stats->peak_clipping)
+	stats->peak_clipping = MIN - output;
+
+      output = MIN;
+
+      if (sample < MIN)
+	sample = MIN;
     }
-    stats->peak_sample = -quantized;
+    stats->peak_sample = -output;
   }
-# else
-  /* clip */
-  quantized = sample;
-  if (sample >= MAD_F_ONE)
-    quantized = MAD_F_ONE - 1;
-  else if (sample < -MAD_F_ONE)
-    quantized = -MAD_F_ONE;
-# endif
 
   /* quantize */
-  quantized &= ~((1L << (MAD_F_FRACBITS + 1 - bits)) - 1);
+  output &= ~mask;
 
-  /* error */
-  *error = sample - quantized;
+  /* error feedback */
+  dither->error[0] = sample - output;
 
   /* scale */
-  return quantized >> (MAD_F_FRACBITS + 1 - bits);
+  return output >> scalebits;
 }
 
 /*
@@ -232,8 +308,8 @@ unsigned int audio_pcm_u8(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	data[0] = audio_linear_round(8, *left++,  stats) + 0x80;
-	data[1] = audio_linear_round(8, *right++, stats) + 0x80;
+	data[0] = audio_linear_round(8, *left++,  stats) ^ 0x80;
+	data[1] = audio_linear_round(8, *right++, stats) ^ 0x80;
 
 	data += 2;
       }
@@ -241,8 +317,10 @@ unsigned int audio_pcm_u8(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	data[0] = audio_linear_dither(8, *left++,  &left_err,  stats) + 0x80;
-	data[1] = audio_linear_dither(8, *right++, &right_err, stats) + 0x80;
+	data[0] = audio_linear_dither(8, *left++,
+				      &left_dither,  stats) ^ 0x80;
+	data[1] = audio_linear_dither(8, *right++,
+				      &right_dither, stats) ^ 0x80;
 
 	data += 2;
       }
@@ -258,12 +336,12 @@ unsigned int audio_pcm_u8(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--)
-	*data++ = audio_linear_round(8, *left++, stats) + 0x80;
+	*data++ = audio_linear_round(8, *left++, stats) ^ 0x80;
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--)
-	*data++ = audio_linear_dither(8, *left++, &left_err, stats) + 0x80;
+	*data++ = audio_linear_dither(8, *left++, &left_dither, stats) ^ 0x80;
       break;
 
     default:
@@ -305,8 +383,8 @@ unsigned int audio_pcm_s16le(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(16, *left++,  &left_err,  stats);
-	sample1 = audio_linear_dither(16, *right++, &right_err, stats);
+	sample0 = audio_linear_dither(16, *left++,  &left_dither,  stats);
+	sample1 = audio_linear_dither(16, *right++, &right_dither, stats);
 
 	data[0] = sample0 >> 0;
 	data[1] = sample0 >> 8;
@@ -338,7 +416,7 @@ unsigned int audio_pcm_s16le(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(16, *left++, &left_err, stats);
+	sample0 = audio_linear_dither(16, *left++, &left_dither, stats);
 
 	data[0] = sample0 >> 0;
 	data[1] = sample0 >> 8;
@@ -386,8 +464,8 @@ unsigned int audio_pcm_s16be(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(16, *left++,  &left_err,  stats);
-	sample1 = audio_linear_dither(16, *right++, &right_err, stats);
+	sample0 = audio_linear_dither(16, *left++,  &left_dither,  stats);
+	sample1 = audio_linear_dither(16, *right++, &right_dither, stats);
 
 	data[0] = sample0 >> 8;
 	data[1] = sample0 >> 0;
@@ -419,7 +497,7 @@ unsigned int audio_pcm_s16be(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(16, *left++, &left_err, stats);
+	sample0 = audio_linear_dither(16, *left++, &left_dither, stats);
 
 	data[0] = sample0 >> 8;
 	data[1] = sample0 >> 0;
@@ -470,8 +548,8 @@ unsigned int audio_pcm_s24le(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(24, *left++,  &left_err,  stats);
-	sample1 = audio_linear_dither(24, *right++, &right_err, stats);
+	sample0 = audio_linear_dither(24, *left++,  &left_dither,  stats);
+	sample1 = audio_linear_dither(24, *right++, &right_dither, stats);
 
 	data[0] = sample0 >>  0;
 	data[1] = sample0 >>  8;
@@ -507,7 +585,7 @@ unsigned int audio_pcm_s24le(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(24, *left++, &left_err, stats);
+	sample0 = audio_linear_dither(24, *left++, &left_dither, stats);
 
 	data[0] = sample0 >>  0;
 	data[1] = sample0 >>  8;
@@ -559,8 +637,8 @@ unsigned int audio_pcm_s24be(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(24, *left++,  &left_err,  stats);
-	sample1 = audio_linear_dither(24, *right++, &right_err, stats);
+	sample0 = audio_linear_dither(24, *left++,  &left_dither,  stats);
+	sample1 = audio_linear_dither(24, *right++, &right_dither, stats);
 
 	data[0] = sample0 >> 16;
 	data[1] = sample0 >>  8;
@@ -596,7 +674,7 @@ unsigned int audio_pcm_s24be(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample1 = audio_linear_dither(24, *left++, &left_err, stats);
+	sample1 = audio_linear_dither(24, *left++, &left_dither, stats);
 
 	data[0] = sample1 >> 16;
 	data[1] = sample1 >>  8;
@@ -650,8 +728,8 @@ unsigned int audio_pcm_s32le(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(24, *left++,  &left_err,  stats);
-	sample1 = audio_linear_dither(24, *right++, &right_err, stats);
+	sample0 = audio_linear_dither(24, *left++,  &left_dither,  stats);
+	sample1 = audio_linear_dither(24, *right++, &right_dither, stats);
 
 	data[0] = 0;
 	data[1] = sample0 >>  0;
@@ -690,7 +768,7 @@ unsigned int audio_pcm_s32le(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(24, *left++, &left_err, stats);
+	sample0 = audio_linear_dither(24, *left++, &left_dither, stats);
 
 	data[0] = 0;
 	data[1] = sample0 >>  0;
@@ -745,8 +823,8 @@ unsigned int audio_pcm_s32be(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(24, *left++,  &left_err,  stats);
-	sample1 = audio_linear_dither(24, *right++, &right_err, stats);
+	sample0 = audio_linear_dither(24, *left++,  &left_dither,  stats);
+	sample1 = audio_linear_dither(24, *right++, &right_dither, stats);
 
 	data[0] = sample0 >> 16;
 	data[1] = sample0 >>  8;
@@ -785,7 +863,7 @@ unsigned int audio_pcm_s32be(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample0 = audio_linear_dither(24, *left++, &left_err, stats);
+	sample0 = audio_linear_dither(24, *left++, &left_dither, stats);
 
 	data[0] = sample0 >> 16;
 	data[1] = sample0 >>  8;
@@ -804,11 +882,8 @@ unsigned int audio_pcm_s32be(unsigned char *data, unsigned int nsamples,
   }
 }
 
-/*
- * NAME:	audio_mulaw_round()
- * DESCRIPTION:	convert a linear PCM value to 8-bit ISDN mu-law
- */
-unsigned char audio_mulaw_round(mad_fixed_t sample)
+static
+unsigned char linear2mulaw(mad_fixed_t sample)
 {
   unsigned int sign, mulaw;
 
@@ -825,9 +900,8 @@ unsigned char audio_mulaw_round(mad_fixed_t sample)
     sign   = 0xff;
   }
 
-  if (sample >= MAD_F_ONE)
-    mulaw = 0x7f;
-  else {
+  mulaw = 0x7f;
+  if (sample < MAD_F_ONE) {
     unsigned int segment;
     unsigned long mask;
 
@@ -858,10 +932,9 @@ mad_fixed_t mulaw2linear(unsigned char mulaw)
     bias = (0x10 << 1) + 1
   };
 
-  mulaw = ~mulaw;
-
-  sign = (mulaw >> 7) & 0x01;
-  segment = (mulaw >> 4) & 0x07;
+  mulaw    = ~mulaw;
+  sign     = (mulaw >> 7) & 0x01;
+  segment  = (mulaw >> 4) & 0x07;
   mantissa = (mulaw >> 0) & 0x0f;
 
   value = ((0x21 | (mantissa << 1)) << segment) - bias;
@@ -872,53 +945,37 @@ mad_fixed_t mulaw2linear(unsigned char mulaw)
 }
 
 /*
+ * NAME:	audio_mulaw_round()
+ * DESCRIPTION:	convert a linear PCM value to 8-bit ISDN mu-law
+ */
+inline
+unsigned char audio_mulaw_round(mad_fixed_t sample, struct audio_stats *stats)
+{
+  clip(&sample, stats);
+
+  return linear2mulaw(sample);
+}
+
+/*
  * NAME:	audio_mulaw_dither()
  * DESCRIPTION:	convert a linear PCM value to dithered 8-bit ISDN mu-law
  */
-unsigned char audio_mulaw_dither(mad_fixed_t sample, mad_fixed_t *error)
+inline
+unsigned char audio_mulaw_dither(mad_fixed_t sample,
+				 struct audio_dither *dither,
+				 struct audio_stats *stats)
 {
-  int sign, mulaw;
-  mad_fixed_t biased;
+  unsigned char mulaw;
 
-  enum {
-    bias = (mad_fixed_t) ((0x10 << 1) + 1) << (MAD_F_FRACBITS - 13)
-  };
+  /* noise shape */
+  sample += dither->error[0];
 
-  /* dither */
-  sample += *error;
+  clip(&sample, stats);
 
-  if (sample < 0) {
-    biased = bias - sample;
-    sign   = 0x7f;
-  }
-  else {
-    biased = bias + sample;
-    sign   = 0xff;
-  }
+  mulaw = linear2mulaw(sample);
 
-  if (biased >= MAD_F_ONE)
-    mulaw = 0x7f;
-  else {
-    unsigned int segment;
-    unsigned long mask;
-
-    segment = 7;
-    for (mask = 1L << (MAD_F_FRACBITS - 1); !(biased & mask); mask >>= 1)
-      --segment;
-
-    mulaw = ((segment << 4) |
-	     ((biased >> (MAD_F_FRACBITS - 1 - (7 - segment) - 4)) & 0x0f));
-  }
-
-  mulaw ^= sign;
-
-# if 0
-  if (mulaw == 0x00)
-    mulaw = 0x02;
-# endif
-
-  /* error */
-  *error = sample - mulaw2linear(mulaw);
+  /* error feedback */
+  dither->error[0] = sample - mulaw2linear(mulaw);
 
   return mulaw;
 }
@@ -939,8 +996,8 @@ unsigned int audio_pcm_mulaw(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	data[0] = audio_mulaw_round(*left++);
-	data[1] = audio_mulaw_round(*right++);
+	data[0] = audio_mulaw_round(*left++,  stats);
+	data[1] = audio_mulaw_round(*right++, stats);
 
 	data += 2;
       }
@@ -948,8 +1005,8 @@ unsigned int audio_pcm_mulaw(unsigned char *data, unsigned int nsamples,
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	data[0] = audio_mulaw_dither(*left++,  &left_err);
-	data[1] = audio_mulaw_dither(*right++, &right_err);
+	data[0] = audio_mulaw_dither(*left++,  &left_dither,  stats);
+	data[1] = audio_mulaw_dither(*right++, &right_dither, stats);
 
 	data += 2;
       }
@@ -965,12 +1022,12 @@ unsigned int audio_pcm_mulaw(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--)
-	*data++ = audio_mulaw_round(*left++);
+	*data++ = audio_mulaw_round(*left++, stats);
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--)
-	*data++ = audio_mulaw_dither(*left++, &left_err);
+	*data++ = audio_mulaw_dither(*left++, &left_dither, stats);
       break;
 
     default:

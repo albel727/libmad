@@ -1,5 +1,5 @@
 /*
- * mad - MPEG audio decoder
+ * libid3 - ID3 tag manipulation library
  * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,21 +16,27 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: id3.h,v 1.4 2001/01/21 00:18:09 rob Exp $
+ * $Id: utf8.h,v 1.2 2001/10/14 06:26:44 rob Exp $
  */
 
-# ifndef ID3_H
-# define ID3_H
+# ifndef LIBID3_UTF8_H
+# define LIBID3_UTF8_H
 
-extern char const *id3_error;
+# include "id3.h"
 
-void id3_v1_show(int (*)(char const *, ...), unsigned char const [128]);
-int id3_v2_read(int (*)(char const *, ...), unsigned char const *,
-		 unsigned long, int, int, unsigned long *);
+id3_length_t id3_utf8_length(id3_utf8_t const *);
+id3_length_t id3_utf8_size(id3_utf8_t const *);
 
-void id3_text(int (*)(char const *, ...), char const *, char const *,
-	      unsigned int, unsigned char const *, unsigned long);
-void id3_comment(int (*)(char const *, ...), char const *, char const *,
-		 unsigned int, unsigned char const *, unsigned long);
+id3_length_t id3_utf8_decodechar(id3_utf8_t const *, id3_ucs4_t *);
+id3_length_t id3_utf8_encodechar(id3_utf8_t *, id3_ucs4_t);
+
+void id3_utf8_decode(id3_utf8_t const *, id3_ucs4_t *);
+void id3_utf8_encode(id3_utf8_t *, id3_ucs4_t const *);
+
+id3_length_t id3_utf8_put(id3_byte_t **, id3_utf8_t);
+id3_utf8_t id3_utf8_get(id3_byte_t const **);
+
+id3_length_t id3_utf8_serialize(id3_byte_t **, id3_ucs4_t const *, int);
+id3_ucs4_t *id3_utf8_deserialize(id3_byte_t const **, id3_length_t);
 
 # endif

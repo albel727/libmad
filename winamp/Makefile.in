@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: Makefile.in,v 1.12 2001/04/05 05:37:38 rob Exp $
+# $Id: Makefile.in,v 1.15 2001/10/01 20:54:35 rob Exp $
 #
 
 SHELL =		@SHELL@
@@ -33,13 +33,13 @@ CC =		gcc
 DEBUG =		-Wall -O2 #-g
 CFLAGS =	$(DEBUG) -m486
 CPPFLAGS =	-DHAVE_CONFIG_H  \
-			-I$(srcdir) -I.. -I$(top_srcdir) -I../libmad -I../intl
+			-I.. -I$(top_srcdir) -I$(top_srcdir)/libmad
 
 DLL_EXP_DEF =	$(srcdir)/in_mad.def
 DLL_CFLAGS =	
 DLL_LDFLAGS =	
 DLL_LDLIBS =	-lcomctl32 -lgdi32 -lwininet #-lcomdlg32
-DLL_OBJS =	in_mad.o compat.o resource.o libmad.a
+DLL_OBJS =	in_mad.o xing.o compat.o resource.o libmad.a
 
 all: @WINAMP_TARGET@
 
@@ -53,15 +53,19 @@ MAD\ plug-in\ $(VERSION).exe: in_mad.dll in_mad.txt in_mad.psc
 in_mad.dll: $(DLL_OBJS)
 	dllwrap --target=i386-mingw32 --driver-name=$(CC) -mno-cygwin  \
 		--def $(DLL_EXP_DEF) -o $@  \
-		$(DLL_OBJS) $(DLL_LDFLAGS) $(DLL_LDLIBS)
+		$(DLL_OBJS)  \
+		$(DLL_LDFLAGS) $(DLL_LDLIBS)
 
 in_mad.o: in_mad.c ../config.h ../global.h  \
-	resource.h messages.h in2.h out.h
+	resource.h messages.h in2.h out.h $(top_srcdir)/xing.h
+
+xing.o: $(top_srcdir)/xing.c ../config.h ../global.h
+	$(CC) -c $(DLL_CFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ $(top_srcdir)/xing.c
+
+compat.o: compat.c ../config.h ../global.h
 
 resource.o: resource.rc messages.rc
 	windres --include-dir $(srcdir) -o $@ $(srcdir)/resource.rc
-
-compat.o: compat.c ../config.h ../global.h
 
 $(srcdir)/messages.rc $(srcdir)/messages.h: $(srcdir)/messages.mc
 	cd $(srcdir) && mc -v -c messages.mc
@@ -74,6 +78,9 @@ libmad.a: ../libmad/.libs/libmad.a
 	$(CC) -c $(DLL_CFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ $<
 .c.s:
 	$(CC) -S $(DLL_CFLAGS) $(CPPFLAGS) $(CFLAGS) $<
+
+Makefile: Makefile.in ../config.status
+	cd .. && CONFIG_FILES=winamp/Makefile CONFIG_HEADERS= ./config.status
 
 clean:
 	rm -f *.dll *.o *.exe *.a
@@ -102,7 +109,7 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$/$$file $(distdir)/$$file; \
+	    cp -pr $$d/$$file $(distdir)/$$file; \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \

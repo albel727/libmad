@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_win32.c,v 1.43 2001/01/21 00:18:09 rob Exp $
+ * $Id: audio_win32.c,v 1.44 2001/04/14 04:46:51 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -237,7 +237,7 @@ int wait(struct buffer *buffer)
 }
 
 static
-int flush(void)
+int drain(void)
 {
   int i, result = 0;
 
@@ -259,7 +259,7 @@ static
 int config(struct audio_config *config)
 {
   if (opened) {
-    flush();
+    drain();
 
     if (close_dev(wave_handle) == -1)
       return -1;
@@ -303,12 +303,18 @@ int play(struct audio_play *play)
 }
 
 static
+int stop(struct audio_stop *stop)
+{
+  return 0;
+}
+
+static
 int finish(struct audio_finish *finish)
 {
   int i, result = 0;
 
   if (opened) {
-    if (flush() == -1)
+    if (drain() == -1)
       result = -1;
     if (close_dev(wave_handle) == -1)
       result = -1;
@@ -342,6 +348,9 @@ int audio_win32(union audio_control *control)
 
   case AUDIO_COMMAND_PLAY:
     return play(&control->play);
+
+  case AUDIO_COMMAND_STOP:
+    return stop(&control->stop);
 
   case AUDIO_COMMAND_FINISH:
     return finish(&control->finish);

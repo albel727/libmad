@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madmix.c,v 1.15 2001/04/10 05:29:24 rob Exp $
+ * $Id: madmix.c,v 1.16 2001/05/05 00:50:01 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -96,7 +96,7 @@ int do_output(int (*audio)(union audio_control *),
 
   if (channels != synth->pcm.channels ||
       speed    != synth->pcm.samplerate) {
-    control.command = AUDIO_COMMAND_CONFIG;
+    audio_control_init(&control, AUDIO_COMMAND_CONFIG);
 
     control.config.channels = synth->pcm.channels;
     control.config.speed    = synth->pcm.samplerate;
@@ -110,7 +110,7 @@ int do_output(int (*audio)(union audio_control *),
     speed    = synth->pcm.samplerate;
   }
 
-  control.command = AUDIO_COMMAND_PLAY;
+  audio_control_init(&control, AUDIO_COMMAND_PLAY);
 
   control.play.nsamples   = synth->pcm.length;
   control.play.samples[0] = synth->pcm.samples[0];
@@ -207,7 +207,7 @@ int audio_init(int (*audio)(union audio_control *), char const *path)
 {
   union audio_control control;
 
-  control.command   = AUDIO_COMMAND_INIT;
+  audio_control_init(&control, AUDIO_COMMAND_INIT);
   control.init.path = path;
 
   if (audio(&control) == -1) {
@@ -227,7 +227,7 @@ int audio_finish(int (*audio)(union audio_control *))
 {
   union audio_control control;
 
-  control.command = AUDIO_COMMAND_FINISH;
+  audio_control_init(&control, AUDIO_COMMAND_FINISH);
 
   if (audio(&control) == -1) {
     error("audio", audio_error);

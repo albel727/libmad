@@ -1,5 +1,5 @@
 /*
- * mad - MPEG audio decoder
+ * libid3 - ID3 tag manipulation library
  * Copyright (C) 2000-2001 Robert Leslie
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,20 +16,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: id3v2.h,v 1.4 2001/01/21 00:18:09 rob Exp $
+ * $Id: tag.h,v 1.5 2001/10/17 19:10:08 rob Exp $
  */
 
-# ifndef ID3V2_H
-# define ID3V2_H
+# ifndef LIBID3_TAG_H
+# define LIBID3_TAG_H
 
-struct id3v2_frame {
-  char const *id;
-  char const *description;
-  void (*handler)(int (*)(char const *, ...), char const *, char const *,
-		  unsigned int, unsigned char const *, unsigned long);
-};
+# include "id3.h"
 
-struct id3v2_frame const *id3v2_hash(register char const *,
-				     register unsigned int);
+void id3_tag_addref(struct id3_tag *);
+void id3_tag_delref(struct id3_tag *);
 
 # endif

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_empeg.c,v 1.7 2001/01/21 00:18:09 rob Exp $
+ * $Id: audio_empeg.c,v 1.9 2001/09/26 02:39:21 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -102,19 +102,19 @@ int buffer(unsigned char const *ptr, unsigned int len)
 
   if (len == 0) {
     if (held) {
-      memset(&hold[held], 0, AUDIO_FILLSZ - held);
+      memset(&hold[held], 0, sizeof(hold) - held);
       held = 0;
 
-      return output(hold, AUDIO_FILLSZ);
+      return output(hold, sizeof(hold));
     }
 
     return 0;
   }
 
-  if (held == 0 && len == AUDIO_FILLSZ)
+  if (held == 0 && len == sizeof(hold))
     return output(ptr, len);
 
-  left = AUDIO_FILLSZ - held;
+  left = sizeof(hold) - held;
 
   while (len) {
     grab = len < left ? len : left;
@@ -127,18 +127,18 @@ int buffer(unsigned char const *ptr, unsigned int len)
     len  -= grab;
 
     if (left == 0) {
-      if (output(hold, AUDIO_FILLSZ) == -1)
+      if (output(hold, sizeof(hold)) == -1)
 	return -1;
 
       held = 0;
-      left = AUDIO_FILLSZ;
+      left = sizeof(hold);
     }
   }
 
   return 0;
 }
 
-# define flush()  buffer(0, 0)
+# define drain()  buffer(0, 0)
 
 static
 int play(struct audio_play *play)
@@ -154,11 +154,17 @@ int play(struct audio_play *play)
 }
 
 static
+int stop(struct audio_stop *stop)
+{
+  return 0;
+}
+
+static
 int finish(struct audio_finish *finish)
 {
   int result = 0;
 
-  if (flush() == -1)
+  if (drain() == -1)
     result = -1;
 
   if (close(sfd) == -1 && result == 0) {
@@ -182,6 +188,9 @@ int audio_empeg(union audio_control *control)
 
   case AUDIO_COMMAND_PLAY:
     return play(&control->play);
+
+  case AUDIO_COMMAND_STOP:
+    return stop(&control->stop);
 
   case AUDIO_COMMAND_FINISH:
     return finish(&control->finish);

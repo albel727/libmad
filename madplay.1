@@ -16,9 +16,9 @@
 .\" along with this program; if not, write to the Free Software
 .\" Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 .\"
-.\" $Id: madplay.1,v 1.17 2001/04/05 04:56:09 rob Exp $
+.\" $Id: madplay.1,v 1.20 2001/10/18 06:19:20 rob Exp $
 .\"
-.TH MADPLAY 1 "03 April 2001" "MAD" "MPEG Audio Decoder"
+.TH MADPLAY 1 "17 October 2001" "MAD" "MPEG Audio Decoder"
 .SH NAME
 madplay \- decode and play MPEG audio stream(s)
 .SH SYNOPSIS
@@ -61,6 +61,13 @@ on the audio device by using the
 .B \-o
 .RB ( \-\-output )
 option.
+.PP
+For each
+.IR file ,
+.B madplay
+will also attempt to read and display ID3 tag information. If data is being
+read from standard input, ID3 tags will be displayed as they are encountered.
+The supported tag versions are ID3v1, ID3v1.1, ID3v2.2, ID3v2.3, and ID3v2.4.
 .SH OPTIONS
 .SS Verbosity
 .TP
@@ -120,7 +127,7 @@ For dual channel streams, an output channel should be selected. If one is not
 selected, the first (left) channel will be used.
 .PP
 For stereo streams, making a channel selection other than stereo will cause
-the output to be monaural.
+the output to become monaural.
 .TP
 .BR \-1 " or " \-\-left
 Output the first (left) channel only.
@@ -162,11 +169,49 @@ option. If
 is also used, the files will be continuously shuffled and repeated in such a
 way that the same file is not played again until at least half of the other
 files have played in the interim.
+.TP
+.B \-\-tty\-control
+Enable keyboard controls during playback. This is the default unless standard
+input is not a terminal or output is redirected with
+.B \-o
+.RB ( \-\-output ).
+The keyboard controls are:
+.RS
+.TP 3
+.B P
+Pause; press any key to resume.
+.TP 3
+.B S
+Stop; press any key to replay the current file from the beginning.
+.TP 3
+.B F
+Forward; advance to the next file.
+.TP 3
+.B B
+Back; replay the current file, unless it has been playing for less than 4
+seconds, in which case replay the previous file.
+.TP 3
+.B Q
+Quit; stop decoding and exit.
+.TP 3
+.B T
+Time display; change the time display mode. This only works with
+.B \-v
+.RB ( \-\-verbose ).
+The display mode alternates among overall playing time, current time
+remaining, and current playing time.
+.RE
+.TP
+.B \-\-no\-tty\-control
+Disable keyboard controls during playback. This is the default when standard
+input is not a terminal or output is redirected with
+.B \-o
+.RB ( \-\-output ).
 .SS "Miscellaneous"
 .TP
 .BR \-V " or " \-\-version
 Display the effective version and build options for
-.BR madplay ,
+.B madplay
 and exit.
 .TP
 .B \-\-license
@@ -268,6 +313,10 @@ computational accuracy requirements for compliance. In most configurations,
 MAD is a
 .I "Full Layer\ III ISO/IEC\ 11172-3 audio decoder"
 as defined by the standard.
+.PP
+The ID3 tag parsing library used by
+.B madplay
+conforms to the ID3v2.4.0 informal standard.
 .SH NOTES
 Because MAD produces output samples with a precision greater than 24 bits, by
 default

@@ -17,15 +17,15 @@ dnl You should have received a copy of the GNU General Public License
 dnl along with this program; if not, write to the Free Software
 dnl Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 dnl
-AC_REVISION([$Id: configure.in,v 1.43 2001/02/22 07:53:36 rob Exp $])dnl
+AC_REVISION([$Id: configure.in,v 1.51 2001/10/18 08:11:09 rob Exp $])dnl
 
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(libmad/decoder.h)
-AM_INIT_AUTOMAKE(mad, 0.13.0b)
+AM_INIT_AUTOMAKE(mad, 0.14.0b)
 
 AM_CONFIG_HEADER(config.h)
-AC_CONFIG_SUBDIRS(libmad)
+AC_CONFIG_SUBDIRS(libz libid3 libmad)
 
 dnl System type.
 
@@ -33,9 +33,7 @@ AC_CANONICAL_HOST
 
 dnl Checks for programs.
 
-AC_PROG_MAKE_SET
 AC_PROG_CC
-AC_PROG_INSTALL
 
 AC_ISC_POSIX
 
@@ -117,7 +115,8 @@ fi
 dnl Checks for header files.
 
 AC_HEADER_STDC
-dnl AC_CHECK_HEADERS(termios.h poll.h signal.h)
+AC_CHECK_HEADERS(termios.h)
+dnl AC_CHECK_HEADERS(poll.h signal.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 
@@ -132,6 +131,9 @@ AC_CHECK_FUNCS(madvise)
 AC_REPLACE_FUNCS(strcasecmp strncasecmp)
 AC_SEARCH_LIBS(pow, m)
 AC_SEARCH_LIBS(log10, m)
+
+AC_CHECK_LIB(z, compress2, build_libz=false, build_libz=true)
+AM_CONDITIONAL(BUILD_LIBZ, test $build_libz = true)
 
 case "$host" in
     *-linux*) AC_DEFINE(HAVE_MMAP) ;;
@@ -167,6 +169,13 @@ esac
 
 if test "$audio" = unknown
 then
+    AC_EGREP_CPP(waveOutOpen, [
+# include <mmsystem.h>
+], [audio="win32"; LIBS="$LIBS -lwinmm"])
+fi
+
+if test "$audio" = unknown
+then
     AC_EGREP_CPP(yes, [
 # include <sys/soundcard.h>
 # if defined(OPEN_SOUND_SYSTEM) || defined(UNIX_SOUND_SYSTEM) ||  \
@@ -181,13 +190,6 @@ then
     AC_EGREP_CPP(audio_info_t, [
 # include <sys/audioio.h>
 ], [audio="sun"])
-fi
-
-if test "$audio" = unknown
-then
-    AC_EGREP_CPP(waveOutOpen, [
-# include <mmsystem.h>
-], [audio="win32"; LIBS="$LIBS -lwinmm"])
 fi
 
 AC_MSG_RESULT($audio)
@@ -276,11 +278,14 @@ dnl Winamp options...
 WINAMP_TARGET=""
 AC_SUBST(WINAMP_TARGET)
 
+build_winamp=false
 case "$host" in
     *-pc-cygwin)
 	WINAMP_TARGET="in_mad.dll"
+	build_winamp=true
 	;;
 esac
+AM_CONDITIONAL(BUILD_WINAMP, test $build_winamp = true)
 
 dnl Create output files.
 
@@ -290,4 +295,6 @@ test -n "$optimize" && CFLAGS="$CFLAGS $optimize"
 test -n "$profile"  && CFLAGS="$CFLAGS $profile" LDFLAGS="$LDFLAGS $profile"
 
 AC_OUTPUT(Makefile intl/Makefile po/Makefile.in  \
-	  winamp/Makefile winamp/in_mad.psc)
+	  winamp/Makefile winamp/in_mad.psc  \
+	  msvc++/Makefile msvc++/libmad/Makefile msvc++/libid3/Makefile  \
+	  msvc++/libz/Makefile msvc++/demo/Makefile)

@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: acconfig.h,v 1.13 2001/01/21 00:18:09 rob Exp $
+ * $Id: config.h.in,v 1.54 2001/10/18 08:34:41 rob Exp $
  */
 
 # ifndef CONFIG_H
@@ -178,6 +178,9 @@
 
 /* Define if you have the <sys/param.h> header file.  */
 #undef HAVE_SYS_PARAM_H
+
+/* Define if you have the <termios.h> header file.  */
+#undef HAVE_TERMIOS_H
 
 /* Define if you have the <unistd.h> header file.  */
 #undef HAVE_UNISTD_H

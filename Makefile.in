@@ -91,8 +91,15 @@ USE_NLS = @USE_NLS@
 VERSION = @VERSION@
 WINAMP_TARGET = @WINAMP_TARGET@
 l = @l@
+@BUILD_WINAMP_TRUE@winamp = winamp
+@BUILD_WINAMP_FALSE@winamp = 
+@BUILD_LIBZ_TRUE@libz = libz
+@BUILD_LIBZ_FALSE@libz = 
+@BUILD_LIBZ_TRUE@ldadd_libz = -Llibz
+@BUILD_LIBZ_FALSE@ldadd_libz = 
 
-SUBDIRS = intl po libmad winamp
+SUBDIRS = intl po $(libz) libid3 libmad $(winamp)
+DIST_SUBDIRS = intl po   libz  libid3 libmad   winamp  msvc++
 
 bin_PROGRAMS = madplay
 bin_SCRIPTS = abxtest
@@ -100,8 +107,9 @@ EXTRA_PROGRAMS = madtime minimad madmix mad123
 
 man_MANS = madplay.1 abxtest.1
 
-EXTRA_DIST =  	$(man_MANS) $(bin_SCRIPTS)  	CHANGES COPYRIGHT CREDITS README TODO VERSION
+EXTRA_DIST =  	$(man_MANS) $(bin_SCRIPTS)  	CHANGES COPYRIGHT CREDITS README TODO VERSION  	id3genre.dat
 
+# id3genre.dat temporary until Winamp plug-in is revised
 
 default_audio =  	audio.c audio_raw.c audio_wave.c audio_snd.c audio_null.c audio.h
 
@@ -112,10 +120,10 @@ extra_audio =  	audio_empeg.c audio_hex.c audio_oss.c audio_sun.c audio_win32.c
 common_sources =  	version.c version.h global.h
 
 
-madplay_SOURCES =  	$(common_sources) $(default_audio)  	resample.c filter.c equalizer.c id3.c id3v2.c player.c madplay.c  	resample.h filter.h equalizer.h id3.h id3v2.h player.h  	id3genre.dat getopt.c getopt1.c getopt.h
+madplay_SOURCES =  	$(common_sources) $(default_audio) madplay.c  	resample.c filter.c equalizer.c xing.c player.c  	resample.h filter.h equalizer.h xing.h player.h  	getopt.c getopt1.c getopt.h
 
 
-EXTRA_madplay_SOURCES =  	$(extra_audio)  	id3v2.gperf
+EXTRA_madplay_SOURCES =  	$(extra_audio)
 
 
 madtime_SOURCES = $(common_sources) madtime.c
@@ -127,21 +135,17 @@ EXTRA_madmix_SOURCES = $(extra_audio)
 
 AUDIO = @AUDIO@
 
+localedir = $(datadir)/locale
+INCLUDES = -Ilibmad -I$(srcdir)/libid3 -Iintl  			-DLOCALEDIR=\"$(localedir)\"
+
+
 LDADD = @LIBOBJS@ libmad/libmad.la @INTLLIBS@
 
-madplay_DEPENDENCIES = $(AUDIO) $(LDADD)
-madplay_LDADD = $(AUDIO) $(LDADD)
+madplay_DEPENDENCIES = $(AUDIO) $(LDADD) libid3/libid3.la
+madplay_LDADD = $(AUDIO) $(LDADD) libid3/libid3.la $(ldadd_libz) -lz
 
 madmix_DEPENDENCIES = $(AUDIO) $(LDADD)
 madmix_LDADD = $(AUDIO) $(LDADD)
-
-localedir = $(datadir)/locale
-INCLUDES = -Ilibmad -Iintl -DLOCALEDIR=\"$(localedir)\"
-
-#CFLAGS =	-Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
-#LDFLAGS =	@LDFLAGS@ $(PROFILER)
-
-BUILT_SOURCES = id3v2.c
 
 CLEANFILES = $(EXTRA_PROGRAMS) *.exe gmon.out
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -171,8 +175,8 @@ mad123_LDADD = $(LDADD)
 mad123_DEPENDENCIES =  @LIBOBJS@ libmad/libmad.la
 mad123_LDFLAGS = 
 madplay_OBJECTS =  version.o audio.o audio_raw.o audio_wave.o \
-audio_snd.o audio_null.o resample.o filter.o equalizer.o id3.o id3v2.o \
-player.o madplay.o getopt.o getopt1.o
+audio_snd.o audio_null.o madplay.o resample.o filter.o equalizer.o \
+xing.o player.o getopt.o getopt1.o
 madplay_LDFLAGS = 
 SCRIPTS =  $(bin_SCRIPTS)
 
@@ -193,7 +197,7 @@ ltmain.sh missing mkinstalldirs strcasecmp.c strncasecmp.c
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
-TAR = gtar
+TAR = tar
 GZIP_ENV = --best
 SOURCES = $(madtime_SOURCES) $(minimad_SOURCES) $(madmix_SOURCES) $(EXTRA_madmix_SOURCES) $(mad123_SOURCES) $(madplay_SOURCES) $(EXTRA_madplay_SOURCES)
 OBJECTS = $(madtime_OBJECTS) $(minimad_OBJECTS) $(madmix_OBJECTS) $(mad123_OBJECTS) $(madplay_OBJECTS)
@@ -515,14 +519,14 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$/$$file $(distdir)/$$file; \
+	    cp -pr $$d/$$file $(distdir)/$$file; \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-	for subdir in $(SUBDIRS); do \
+	for subdir in $(DIST_SUBDIRS); do \
 	  if test "$$subdir" = .; then :; else \
 	    test -d $(distdir)/$$subdir \
 	    || mkdir $(distdir)/$$subdir \
@@ -575,7 +579,6 @@ distclean-generic:
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
-	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 mostlyclean-am:  mostlyclean-hdr mostlyclean-binPROGRAMS \
 		mostlyclean-compile mostlyclean-libtool \
 		mostlyclean-tags mostlyclean-generic
@@ -626,18 +629,14 @@ installdirs mostlyclean-generic distclean-generic clean-generic \
 maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
 
-$(srcdir)/id3v2.c: $(srcdir)/id3v2.gperf
-	gperf -tCTonD -K id -N id3v2_hash -s -3 -k '*' $< |  \
-	sed -e '/\$$''Id: /s/\$$//g' >$@
-
 libtool: $(LIBTOOL_DEPS)
 	$(SHELL) ./config.status --recheck
 
 profile: madplay gmon.out
 	gprof madplay | less
 
-gmon.out: madplay
-	./madplay -vo pcm:/dev/null test/profile.mpg
+gmon.out: madplay test/profile.mpg
+	./madplay -vo pcm:/dev/null test/profile.mpg || rm -f gmon.out
 
 .c.s:
 	$(COMPILE) -S $<

@@ -19,12 +19,27 @@
 ## If you would like to negotiate alternate licensing terms, you may do
 ## so by contacting the author: Robert Leslie <rob@mars.org>
 ##
-## $Id: Makefile.am,v 1.9 2001/02/09 07:30:27 rob Exp $
+## $Id: Makefile.am,v 1.14 2001/10/17 22:07:13 rob Exp $
 ##
 
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS =		intl po libmad winamp
+if BUILD_WINAMP
+winamp = winamp
+else
+winamp =
+endif
+
+if BUILD_LIBZ
+libz = libz
+ldadd_libz = -Llibz
+else
+libz =
+ldadd_libz =
+endif
+
+SUBDIRS =		intl po $(libz) libid3 libmad $(winamp)
+DIST_SUBDIRS =		intl po   libz  libid3 libmad   winamp  msvc++
 
 bin_PROGRAMS =		madplay
 bin_SCRIPTS =		abxtest
@@ -34,7 +49,9 @@ man_MANS =		madplay.1 abxtest.1
 
 EXTRA_DIST =  \
 	$(man_MANS) $(bin_SCRIPTS)  \
-	CHANGES COPYRIGHT CREDITS README TODO VERSION
+	CHANGES COPYRIGHT CREDITS README TODO VERSION  \
+	id3genre.dat
+# id3genre.dat temporary until Winamp plug-in is revised
 
 default_audio =  \
 	audio.c audio_raw.c audio_wave.c audio_snd.c audio_null.c audio.h
@@ -46,14 +63,13 @@ common_sources =  \
 	version.c version.h global.h
 
 madplay_SOURCES =  \
-	$(common_sources) $(default_audio)  \
-	resample.c filter.c equalizer.c id3.c id3v2.c player.c madplay.c  \
-	resample.h filter.h equalizer.h id3.h id3v2.h player.h  \
-	id3genre.dat getopt.c getopt1.c getopt.h
+	$(common_sources) $(default_audio) madplay.c  \
+	resample.c filter.c equalizer.c xing.c player.c  \
+	resample.h filter.h equalizer.h xing.h player.h  \
+	getopt.c getopt1.c getopt.h
 
 EXTRA_madplay_SOURCES =  \
-	$(extra_audio)  \
-	id3v2.gperf
+	$(extra_audio)
 
 madtime_SOURCES =	$(common_sources) madtime.c
 minimad_SOURCES =	minimad.c
@@ -64,27 +80,19 @@ EXTRA_madmix_SOURCES =	$(extra_audio)
 
 AUDIO =			@AUDIO@
 
+localedir =		$(datadir)/locale
+INCLUDES =		-Ilibmad -I$(srcdir)/libid3 -Iintl  \
+			-DLOCALEDIR=\"$(localedir)\"
+
 LDADD =			@LIBOBJS@ libmad/libmad.la @INTLLIBS@
 
-madplay_DEPENDENCIES =	$(AUDIO) $(LDADD)
-madplay_LDADD =		$(AUDIO) $(LDADD)
+madplay_DEPENDENCIES =	$(AUDIO) $(LDADD) libid3/libid3.la
+madplay_LDADD =		$(AUDIO) $(LDADD) libid3/libid3.la $(ldadd_libz) -lz
 
 madmix_DEPENDENCIES =	$(AUDIO) $(LDADD)
 madmix_LDADD =		$(AUDIO) $(LDADD)
 
-localedir =		$(datadir)/locale
-INCLUDES =		-Ilibmad -Iintl -DLOCALEDIR=\"$(localedir)\"
-
-#CFLAGS =	-Wall @CFLAGS@ $(ARCH) $(DEBUGGER) $(OPTIMIZER) $(PROFILER)
-#LDFLAGS =	@LDFLAGS@ $(PROFILER)
-
-BUILT_SOURCES =		id3v2.c
-
 CLEANFILES =		$(EXTRA_PROGRAMS) *.exe gmon.out
-
-$(srcdir)/id3v2.c: $(srcdir)/id3v2.gperf
-	gperf -tCTonD -K id -N id3v2_hash -s -3 -k '*' $< |  \
-	sed -e '/\$$''Id: /s/\$$//g' >$@
 
 libtool: $(LIBTOOL_DEPS)
 	$(SHELL) ./config.status --recheck
@@ -92,8 +100,8 @@ libtool: $(LIBTOOL_DEPS)
 profile: madplay gmon.out
 	gprof madplay | less
 
-gmon.out: madplay
-	./madplay -vo pcm:/dev/null test/profile.mpg
+gmon.out: madplay test/profile.mpg
+	./madplay -vo pcm:/dev/null test/profile.mpg || rm -f gmon.out
 
 .c.s:
 	$(COMPILE) -S $<

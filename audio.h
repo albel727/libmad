@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.h,v 1.22 2001/01/21 00:18:09 rob Exp $
+ * $Id: audio.h,v 1.24 2001/05/05 00:50:01 rob Exp $
  */
 
 # ifndef AUDIO_H
@@ -30,12 +30,13 @@ enum audio_command {
   AUDIO_COMMAND_INIT,
   AUDIO_COMMAND_CONFIG,
   AUDIO_COMMAND_PLAY,
+  AUDIO_COMMAND_STOP,
   AUDIO_COMMAND_FINISH
 };
 
 enum audio_mode {
-  AUDIO_MODE_ROUND  = 0x0001,
-  AUDIO_MODE_DITHER = 0x0002
+  AUDIO_MODE_ROUND,
+  AUDIO_MODE_DITHER
 };
 
 struct audio_stats {
@@ -66,9 +67,19 @@ union audio_control {
     struct audio_stats *stats;
   } play;
 
+  struct audio_stop {
+    enum audio_command command;
+    int flush;
+  } stop;
+
   struct audio_finish {
     enum audio_command command;
   } finish;
+};
+
+struct audio_dither {
+  mad_fixed_t error[3];
+  mad_fixed_t random;
 };
 
 extern char const *audio_error;
@@ -88,10 +99,12 @@ audio_ctlfunc_t audio_snd;
 audio_ctlfunc_t audio_hex;
 audio_ctlfunc_t audio_null;
 
+void audio_control_init(union audio_control *, enum audio_command);
+
 signed long audio_linear_round(unsigned int, mad_fixed_t,
 			       struct audio_stats *);
-signed long audio_linear_dither(unsigned int, mad_fixed_t, mad_fixed_t *,
-				struct audio_stats *);
+signed long audio_linear_dither(unsigned int, mad_fixed_t,
+				struct audio_dither *, struct audio_stats *);
 
 unsigned int audio_pcm_u8(unsigned char *, unsigned int,
 			  mad_fixed_t const *, mad_fixed_t const *,
@@ -115,8 +128,9 @@ unsigned int audio_pcm_s32be(unsigned char *, unsigned int,
 			     mad_fixed_t const *, mad_fixed_t const *,
 			     enum audio_mode, struct audio_stats *);
 
-unsigned char audio_mulaw_round(mad_fixed_t);
-unsigned char audio_mulaw_dither(mad_fixed_t, mad_fixed_t *);
+unsigned char audio_mulaw_round(mad_fixed_t, struct audio_stats *);
+unsigned char audio_mulaw_dither(mad_fixed_t, struct audio_dither *,
+				 struct audio_stats *);
 
 unsigned int audio_pcm_mulaw(unsigned char *, unsigned int,
 			     mad_fixed_t const *, mad_fixed_t const *,
