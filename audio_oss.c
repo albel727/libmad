@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_oss.c,v 1.16 2000/10/25 21:51:39 rob Exp $
+ * $Id: audio_oss.c,v 1.17 2000/11/16 10:51:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -48,6 +48,13 @@
 #  else
 #   define AFMT_S16_NE  AFMT_S16_LE
 #  endif
+# endif
+
+# if (defined(AFMT_S32_LE) && AFMT_S32_NE == AFMT_S32_LE) ||  \
+     (defined(AFMT_S32_BE) && AFMT_S32_NE == AFMT_S32_BE)
+#  define AUDIO_TRY32BITS
+# else
+#  undef  AUDIO_TRY32BITS
 # endif
 
 # define AUDIO_DEVICE	"/dev/dsp"
@@ -82,16 +89,26 @@ int config(struct audio_config *config)
     return -1;
   }
 
-# if (defined(AFMT_S32_LE) && AFMT_S32_NE == AFMT_S32_LE) ||  \
-     (defined(AFMT_S32_BE) && AFMT_S32_NE == AFMT_S32_BE)
+# if defined(AUDIO_TRY32BITS)
   format = AFMT_S32_NE;
 # else
   format = AFMT_S16_NE;
 # endif
 
   if (ioctl(sfd, SNDCTL_DSP_SETFMT, &format) == -1) {
-    audio_error = ":ioctl(SNDCTL_DSP_SETFMT)";
-    return -1;
+# if defined(AUDIO_TRY32BITS)
+    /*
+     * Some audio drivers may return an error instead of indicating a
+     * supported format when 32-bit format is requested but not available.
+     */
+    format = AFMT_S16_NE;
+    if (ioctl(sfd, SNDCTL_DSP_SETFMT, &format) == -1) {
+# endif
+      audio_error = ":ioctl(SNDCTL_DSP_SETFMT)";
+      return -1;
+# if defined(AUDIO_TRY32BITS)
+    }
+# endif
   }
 
   switch (format) {

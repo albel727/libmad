@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: equalizer.c,v 1.1 2000/10/25 21:51:39 rob Exp $
+ * $Id: equalizer.c,v 1.2 2000/11/16 10:51:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -51,8 +51,8 @@ enum mad_flow equalizer_filter(void *data, struct mad_frame *frame)
   struct equalizer *equalizer = data;
   unsigned int nch, ch, ns, s, sb;
 
-  nch = MAD_NCHANNELS(frame);
-  ns  = MAD_NSBSAMPLES(frame);
+  nch = MAD_NCHANNELS(&frame->header);
+  ns  = MAD_NSBSAMPLES(&frame->header);
 
   for (sb = 0; sb < 32; ++sb) {
     for (ch = 0; ch < nch; ++ch) {

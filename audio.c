@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio.c,v 1.18 2000/10/25 21:51:39 rob Exp $
+ * $Id: audio.c,v 1.19 2000/11/16 10:51:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -151,12 +151,11 @@ signed long audio_linear_dither(unsigned int bits, mad_fixed_t sample,
   sample += *error;
 
   /* clip */
+  quantized = sample;
   if (sample >= MAD_F_ONE)
     quantized = MAD_F_ONE - 1;
   else if (sample < -MAD_F_ONE)
     quantized = -MAD_F_ONE;
-  else
-    quantized = sample;
 
   /* quantize */
   quantized &= ~((1L << (MAD_F_FRACBITS + 1 - bits)) - 1);
@@ -184,15 +183,19 @@ unsigned int audio_pcm_u8(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	*data++ = audio_linear_round(8, *left++)  + 0x80;
-	*data++ = audio_linear_round(8, *right++) + 0x80;
+	data[0] = audio_linear_round(8, *left++)  + 0x80;
+	data[1] = audio_linear_round(8, *right++) + 0x80;
+
+	data += 2;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	*data++ = audio_linear_dither(8, *left++,  &left_err)  + 0x80;
-	*data++ = audio_linear_dither(8, *right++, &right_err) + 0x80;
+	data[0] = audio_linear_dither(8, *left++,  &left_err)  + 0x80;
+	data[1] = audio_linear_dither(8, *right++, &right_err) + 0x80;
+
+	data += 2;
       }
       break;
 
@@ -231,7 +234,7 @@ unsigned int audio_pcm_s16le(unsigned char *data, unsigned int nsamples,
 			     enum audio_mode mode)
 {
   unsigned int len;
-  register signed int sample;
+  register signed int sample0, sample1;
 
   len = nsamples;
 
@@ -239,25 +242,29 @@ unsigned int audio_pcm_s16le(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(16, *left++);
-	*data++ = (sample >> 0) & 0xff;
-	*data++ = (sample >> 8) & 0xff;
+	sample0 = audio_linear_round(16, *left++);
+	sample1 = audio_linear_round(16, *right++);
 
-	sample  = audio_linear_round(16, *right++);
-	*data++ = (sample >> 0) & 0xff;
-	*data++ = (sample >> 8) & 0xff;
+	data[0] = sample0 >> 0;
+	data[1] = sample0 >> 8;
+	data[2] = sample1 >> 0;
+	data[3] = sample1 >> 8;
+
+	data += 4;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(16, *left++,  &left_err);
-	*data++ = (sample >> 0) & 0xff;
-	*data++ = (sample >> 8) & 0xff;
+	sample0 = audio_linear_dither(16, *left++,  &left_err);
+	sample1 = audio_linear_dither(16, *right++, &right_err);
 
-	sample  = audio_linear_dither(16, *right++, &right_err);
-	*data++ = (sample >> 0) & 0xff;
-	*data++ = (sample >> 8) & 0xff;
+	data[0] = sample0 >> 0;
+	data[1] = sample0 >> 8;
+	data[2] = sample1 >> 0;
+	data[3] = sample1 >> 8;
+
+	data += 4;
       }
       break;
 
@@ -271,17 +278,23 @@ unsigned int audio_pcm_s16le(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(16, *left++);
-	*data++ = (sample >> 0) & 0xff;
-	*data++ = (sample >> 8) & 0xff;
+	sample0 = audio_linear_round(16, *left++);
+
+	data[0] = sample0 >> 0;
+	data[1] = sample0 >> 8;
+
+	data += 2;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(16, *left++, &left_err);
-	*data++ = (sample >> 0) & 0xff;
-	*data++ = (sample >> 8) & 0xff;
+	sample0 = audio_linear_dither(16, *left++, &left_err);
+
+	data[0] = sample0 >> 0;
+	data[1] = sample0 >> 8;
+
+	data += 2;
       }
       break;
 
@@ -302,7 +315,7 @@ unsigned int audio_pcm_s16be(unsigned char *data, unsigned int nsamples,
 			     enum audio_mode mode)
 {
   unsigned int len;
-  register signed int sample;
+  register signed int sample0, sample1;
 
   len = nsamples;
 
@@ -310,25 +323,29 @@ unsigned int audio_pcm_s16be(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(16, *left++);
-	*data++ = (sample >> 8) & 0xff;
-	*data++ = (sample >> 0) & 0xff;
+	sample0 = audio_linear_round(16, *left++);
+	sample1 = audio_linear_round(16, *right++);
 
-	sample  = audio_linear_round(16, *right++);
-	*data++ = (sample >> 8) & 0xff;
-	*data++ = (sample >> 0) & 0xff;
+	data[0] = sample0 >> 8;
+	data[1] = sample0 >> 0;
+	data[2] = sample1 >> 8;
+	data[3] = sample1 >> 0;
+
+	data += 4;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(16, *left++,  &left_err);
-	*data++ = (sample >> 8) & 0xff;
-	*data++ = (sample >> 0) & 0xff;
+	sample0 = audio_linear_dither(16, *left++,  &left_err);
+	sample1 = audio_linear_dither(16, *right++, &right_err);
 
-	sample  = audio_linear_dither(16, *right++, &right_err);
-	*data++ = (sample >> 8) & 0xff;
-	*data++ = (sample >> 0) & 0xff;
+	data[0] = sample0 >> 8;
+	data[1] = sample0 >> 0;
+	data[2] = sample1 >> 8;
+	data[3] = sample1 >> 0;
+
+	data += 4;
       }
       break;
 
@@ -342,17 +359,23 @@ unsigned int audio_pcm_s16be(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(16, *left++);
-	*data++ = (sample >> 8) & 0xff;
-	*data++ = (sample >> 0) & 0xff;
+	sample0 = audio_linear_round(16, *left++);
+
+	data[0] = sample0 >> 8;
+	data[1] = sample0 >> 0;
+
+	data += 2;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(16, *left++, &left_err);
-	*data++ = (sample >> 8) & 0xff;
-	*data++ = (sample >> 0) & 0xff;
+	sample0 = audio_linear_dither(16, *left++, &left_err);
+
+	data[0] = sample0 >> 8;
+	data[1] = sample0 >> 0;
+
+	data += 2;
       }
       break;
 
@@ -373,7 +396,7 @@ unsigned int audio_pcm_s24le(unsigned char *data, unsigned int nsamples,
 			     enum audio_mode mode)
 {
   unsigned int len;
-  register signed long sample;
+  register signed long sample0, sample1;
 
   len = nsamples;
 
@@ -381,29 +404,35 @@ unsigned int audio_pcm_s24le(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(24, *left++);
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	sample0 = audio_linear_round(24, *left++);
+	sample1 = audio_linear_round(24, *right++);
 
-	sample  = audio_linear_round(24, *right++);
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	data[0] = sample0 >>  0;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >> 16;
+
+	data[3] = sample1 >>  0;
+	data[4] = sample1 >>  8;
+	data[5] = sample1 >> 16;
+
+	data += 6;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(24, *left++,  &left_err);
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	sample0 = audio_linear_dither(24, *left++,  &left_err);
+	sample1 = audio_linear_dither(24, *right++, &right_err);
 
-	sample  = audio_linear_dither(24, *right++, &right_err);
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	data[0] = sample0 >>  0;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >> 16;
+
+	data[3] = sample1 >>  0;
+	data[4] = sample1 >>  8;
+	data[5] = sample1 >> 16;
+
+	data += 6;
       }
       break;
 
@@ -417,19 +446,25 @@ unsigned int audio_pcm_s24le(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(24, *left++);
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	sample0 = audio_linear_round(24, *left++);
+
+	data[0] = sample0 >>  0;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >> 16;
+
+	data += 3;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(24, *left++, &left_err);
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	sample0 = audio_linear_dither(24, *left++, &left_err);
+
+	data[0] = sample0 >>  0;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >> 16;
+
+	data += 3;
       }
       break;
 
@@ -450,7 +485,7 @@ unsigned int audio_pcm_s24be(unsigned char *data, unsigned int nsamples,
 			     enum audio_mode mode)
 {
   unsigned int len;
-  register signed long sample;
+  register signed long sample0, sample1;
 
   len = nsamples;
 
@@ -458,29 +493,35 @@ unsigned int audio_pcm_s24be(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(24, *left++);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
+	sample0 = audio_linear_round(24, *left++);
+	sample1 = audio_linear_round(24, *right++);
 
-	sample  = audio_linear_round(24, *right++);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
+	data[0] = sample0 >> 16;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >>  0;
+
+	data[3] = sample1 >> 16;
+	data[4] = sample1 >>  8;
+	data[5] = sample1 >>  0;
+
+	data += 6;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(24, *left++,  &left_err);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
+	sample0 = audio_linear_dither(24, *left++,  &left_err);
+	sample1 = audio_linear_dither(24, *right++, &right_err);
 
-	sample  = audio_linear_dither(24, *right++, &right_err);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
+	data[0] = sample0 >> 16;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >>  0;
+
+	data[3] = sample1 >> 16;
+	data[4] = sample1 >>  8;
+	data[5] = sample1 >>  0;
+
+	data += 6;
       }
       break;
 
@@ -494,19 +535,25 @@ unsigned int audio_pcm_s24be(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(24, *left++);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
+	sample0 = audio_linear_round(24, *left++);
+
+	data[0] = sample0 >> 16;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >>  0;
+
+	data += 3;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(24, *left++, &left_err);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
+	sample1 = audio_linear_dither(24, *left++, &left_err);
+
+	data[0] = sample1 >> 16;
+	data[1] = sample1 >>  8;
+	data[2] = sample1 >>  0;
+
+	data += 3;
       }
       break;
 
@@ -527,7 +574,7 @@ unsigned int audio_pcm_s32le(unsigned char *data, unsigned int nsamples,
 			     enum audio_mode mode)
 {
   unsigned int len;
-  register signed long sample;
+  register signed long sample0, sample1;
 
   len = nsamples;
 
@@ -535,33 +582,39 @@ unsigned int audio_pcm_s32le(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(24, *left++);
-	*data++ = 0;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	sample0 = audio_linear_round(24, *left++);
+	sample1 = audio_linear_round(24, *right++);
 
-	sample  = audio_linear_round(24, *right++);
-	*data++ = 0;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	data[0] = 0;
+	data[1] = sample0 >>  0;
+	data[2] = sample0 >>  8;
+	data[3] = sample0 >> 16;
+
+	data[4] = 0;
+	data[5] = sample1 >>  0;
+	data[6] = sample1 >>  8;
+	data[7] = sample1 >> 16;
+
+	data += 8;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(24, *left++,  &left_err);
-	*data++ = 0;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	sample0 = audio_linear_dither(24, *left++,  &left_err);
+	sample1 = audio_linear_dither(24, *right++, &right_err);
 
-	sample  = audio_linear_dither(24, *right++, &right_err);
-	*data++ = 0;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	data[0] = 0;
+	data[1] = sample0 >>  0;
+	data[2] = sample0 >>  8;
+	data[3] = sample0 >> 16;
+
+	data[4] = 0;
+	data[5] = sample1 >>  0;
+	data[6] = sample1 >>  8;
+	data[7] = sample1 >> 16;
+
+	data += 8;
       }
       break;
 
@@ -575,21 +628,27 @@ unsigned int audio_pcm_s32le(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(24, *left++);
-	*data++ = 0;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	sample0 = audio_linear_round(24, *left++);
+
+	data[0] = 0;
+	data[1] = sample0 >>  0;
+	data[2] = sample0 >>  8;
+	data[3] = sample0 >> 16;
+
+	data += 4;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(24, *left++, &left_err);
-	*data++ = 0;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >> 16) & 0xff;
+	sample0 = audio_linear_dither(24, *left++, &left_err);
+
+	data[0] = 0;
+	data[1] = sample0 >>  0;
+	data[2] = sample0 >>  8;
+	data[3] = sample0 >> 16;
+
+	data += 4;
       }
       break;
 
@@ -610,7 +669,7 @@ unsigned int audio_pcm_s32be(unsigned char *data, unsigned int nsamples,
 			     enum audio_mode mode)
 {
   unsigned int len;
-  register signed long sample;
+  register signed long sample0, sample1;
 
   len = nsamples;
 
@@ -618,33 +677,39 @@ unsigned int audio_pcm_s32be(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(24, *left++);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = 0;
+	sample0 = audio_linear_round(24, *left++);
+	sample1 = audio_linear_round(24, *right++);
 
-	sample  = audio_linear_round(24, *right++);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = 0;
+	data[0] = sample0 >> 16;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >>  0;
+	data[3] = 0;
+
+	data[4] = sample1 >> 16;
+	data[5] = sample1 >>  8;
+	data[6] = sample1 >>  0;
+	data[7] = 0;
+
+	data += 8;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(24, *left++,  &left_err);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = 0;
+	sample0 = audio_linear_dither(24, *left++,  &left_err);
+	sample1 = audio_linear_dither(24, *right++, &right_err);
 
-	sample  = audio_linear_dither(24, *right++, &right_err);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = 0;
+	data[0] = sample0 >> 16;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >>  0;
+	data[3] = 0;
+
+	data[4] = sample1 >> 16;
+	data[5] = sample1 >>  8;
+	data[6] = sample1 >>  0;
+	data[7] = 0;
+
+	data += 8;
       }
       break;
 
@@ -658,21 +723,27 @@ unsigned int audio_pcm_s32be(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	sample  = audio_linear_round(24, *left++);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = 0;
+	sample0 = audio_linear_round(24, *left++);
+
+	data[0] = sample0 >> 16;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >>  0;
+	data[3] = 0;
+
+	data += 4;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	sample  = audio_linear_dither(24, *left++, &left_err);
-	*data++ = (sample >> 16) & 0xff;
-	*data++ = (sample >>  8) & 0xff;
-	*data++ = (sample >>  0) & 0xff;
-	*data++ = 0;
+	sample0 = audio_linear_dither(24, *left++, &left_err);
+
+	data[0] = sample0 >> 16;
+	data[1] = sample0 >>  8;
+	data[2] = sample0 >>  0;
+	data[3] = 0;
+
+	data += 4;
       }
       break;
 
@@ -819,15 +890,19 @@ unsigned int audio_pcm_mulaw(unsigned char *data, unsigned int nsamples,
     switch (mode) {
     case AUDIO_MODE_ROUND:
       while (len--) {
-	*data++ = audio_mulaw_round(*left++);
-	*data++ = audio_mulaw_round(*right++);
+	data[0] = audio_mulaw_round(*left++);
+	data[1] = audio_mulaw_round(*right++);
+
+	data += 2;
       }
       break;
 
     case AUDIO_MODE_DITHER:
       while (len--) {
-	*data++ = audio_mulaw_dither(*left++,  &left_err);
-	*data++ = audio_mulaw_dither(*right++, &right_err);
+	data[0] = audio_mulaw_dither(*left++,  &left_err);
+	data[1] = audio_mulaw_dither(*right++, &right_err);
+
+	data += 2;
       }
       break;
 

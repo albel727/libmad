@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madtime.c,v 1.11 2000/10/25 21:51:40 rob Exp $
+ * $Id: madtime.c,v 1.12 2000/11/16 10:51:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -52,37 +52,37 @@ signed int scan(unsigned char const *ptr, unsigned long len,
 		mad_timer_t *duration)
 {
   struct mad_stream stream;
-  struct mad_frame frame;
+  struct mad_header header;
   unsigned long bitrate, kbps, count;
   int vbr;
 
   mad_stream_init(&stream);
-  mad_frame_init(&frame);
+  mad_header_init(&header);
 
   mad_stream_buffer(&stream, ptr, len);
 
   bitrate = kbps = count = vbr = 0;
 
   while (1) {
-    if (mad_frame_header(&frame, &stream) == -1) {
+    if (mad_header_decode(&header, &stream) == -1) {
       if (MAD_RECOVERABLE(stream.error))
 	continue;
       else
 	break;
     }
 
-    if (bitrate && frame.bitrate != bitrate)
+    if (bitrate && header.bitrate != bitrate)
       vbr = 1;
 
-    bitrate = frame.bitrate;
+    bitrate = header.bitrate;
 
     kbps += bitrate / 1000;
     ++count;
 
-    mad_timer_add(duration, frame.duration);
+    mad_timer_add(duration, header.duration);
   }
 
-  mad_frame_finish(&frame);
+  mad_header_finish(&header);
   mad_stream_finish(&stream);
 
   if (count == 0)

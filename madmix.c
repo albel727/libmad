@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madmix.c,v 1.9 2000/10/25 21:51:40 rob Exp $
+ * $Id: madmix.c,v 1.10 2000/11/16 10:51:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -94,20 +94,20 @@ int do_output(int (*audio)(union audio_control *),
   static unsigned int channels;
   static unsigned long speed;
 
-  if (channels != MAD_NCHANNELS(frame) ||
-      speed    != frame->sfreq) {
+  if (channels != MAD_NCHANNELS(&frame->header) ||
+      speed    != frame->header.sfreq) {
     control.command = AUDIO_COMMAND_CONFIG;
 
-    control.config.channels = MAD_NCHANNELS(frame);
-    control.config.speed    = frame->sfreq;
+    control.config.channels = MAD_NCHANNELS(&frame->header);
+    control.config.speed    = frame->header.sfreq;
 
     if (audio(&control) == -1) {
       error("output", audio_error);
       return -1;
     }
 
-    channels = MAD_NCHANNELS(frame);
-    speed    = frame->sfreq;
+    channels = MAD_NCHANNELS(&frame->header);
+    speed    = frame->header.sfreq;
   }
 
   control.command = AUDIO_COMMAND_PLAY;
@@ -160,19 +160,19 @@ int do_mix(struct audio *mix, int ninputs, int (*audio)(union audio_control *))
 
       mix[i].frame.overlap = 0;
 
-      if (frame.layer == 0) {
-	frame.layer    = mix[i].frame.layer;
-	frame.mode     = mix[i].frame.mode;
-	frame.mode_ext = mix[i].frame.mode_ext;
-	frame.emphasis = mix[i].frame.emphasis;
+      if (frame.header.layer == 0) {
+	frame.header.layer    = mix[i].frame.header.layer;
+	frame.header.mode     = mix[i].frame.header.mode;
+	frame.header.mode_ext = mix[i].frame.header.mode_ext;
+	frame.header.emphasis = mix[i].frame.header.emphasis;
 
-	frame.bitrate  = mix[i].frame.bitrate;
-	frame.sfreq    = mix[i].frame.sfreq;
+	frame.header.bitrate  = mix[i].frame.header.bitrate;
+	frame.header.sfreq    = mix[i].frame.header.sfreq;
 
-	frame.flags    = mix[i].frame.flags;
-	frame.private  = mix[i].frame.private;
+	frame.header.flags    = mix[i].frame.header.flags;
+	frame.header.private  = mix[i].frame.header.private;
 
-	frame.duration = mix[i].frame.duration;
+	frame.header.duration = mix[i].frame.header.duration;
       }
 
       for (ch = 0; ch < 2; ++ch) {

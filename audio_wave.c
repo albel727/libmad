@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: audio_wave.c,v 1.3 2000/10/25 21:51:39 rob Exp $
+ * $Id: audio_wave.c,v 1.4 2000/11/16 10:51:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -71,10 +71,10 @@ int init(struct audio_init *init)
 static
 void int32(unsigned char *ptr, unsigned long num)
 {
-  *ptr++ = (num >>  0) & 0xff;
-  *ptr++ = (num >>  8) & 0xff;
-  *ptr++ = (num >> 16) & 0xff;
-  *ptr++ = (num >> 24) & 0xff;
+  ptr[0] = num >>  0;
+  ptr[1] = num >>  8;
+  ptr[2] = num >> 16;
+  ptr[3] = num >> 24;
 }
 
 /*
@@ -84,8 +84,8 @@ void int32(unsigned char *ptr, unsigned long num)
 static
 void int16(unsigned char *ptr, unsigned int num)
 {
-  *ptr++ = (num >> 0) & 0xff;
-  *ptr++ = (num >> 8) & 0xff;
+  ptr[0] = num >> 0;
+  ptr[1] = num >> 8;
 }
 
 static

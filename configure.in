@@ -17,12 +17,12 @@ dnl You should have received a copy of the GNU General Public License
 dnl along with this program; if not, write to the Free Software
 dnl Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 dnl
-AC_REVISION([$Id: configure.in,v 1.30 2000/10/26 01:40:54 rob Exp $])dnl
+AC_REVISION([$Id: configure.in,v 1.32 2000/11/17 06:17:45 rob Exp $])dnl
 
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(libmad/decoder.h)
-AM_INIT_AUTOMAKE(mad, 0.12.0a)
+AM_INIT_AUTOMAKE(mad, 0.12.1b)
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SUBDIRS(libmad)
@@ -44,7 +44,7 @@ AM_PROG_LIBTOOL
 
 dnl Internationalization support.
 
-ALL_LINGUAS="en fr"
+ALL_LINGUAS="en es fr hr no"
 
 AM_GNU_GETTEXT
 
@@ -142,7 +142,8 @@ if test "$audio" = unknown
 then
     AC_EGREP_CPP(yes, [
 # include <sys/soundcard.h>
-# if defined(OPEN_SOUND_SYSTEM) || defined(UNIX_SOUND_SYSTEM)
+# if defined(OPEN_SOUND_SYSTEM) || defined(UNIX_SOUND_SYSTEM) ||  \
+    defined(VOXWARE)
 yes
 # endif
 ], [audio="oss"])
@@ -184,8 +185,6 @@ AC_ARG_ENABLE(accuracy,
 AC_ARG_ENABLE(fpm,
     [  --enable-fpm=<arch>     use <arch>-specific fixed-point math routines
                           (one of: intel, arm, mips, sparc, 64bit, approx)])
-AC_ARG_ENABLE(is-kluge,
-    [  --disable-is-kluge      do not use Layer III intensity stereo kluge])
 AC_ARG_ENABLE(sso,
     [  --enable-sso            use subband synthesis optimization])
 AC_ARG_ENABLE(aso,
@@ -242,6 +241,18 @@ AC_ARG_ENABLE(experimental,
 ])
 AC_MSG_RESULT(${enable_experimental-no})
 
+dnl Winamp options...
+
+WINAMP_TARGET=""
+AC_SUBST(WINAMP_TARGET)
+
+case "$host" in
+    *-pc-cygwin)
+	WINAMP_TARGET="in_mad.dll"
+	;;
+esac
+
 dnl Create output files.
 
-AC_OUTPUT(Makefile intl/Makefile po/Makefile.in)
+AC_OUTPUT(Makefile intl/Makefile po/Makefile.in  \
+	  winamp/Makefile winamp/in_mad.psc)

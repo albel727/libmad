@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: minimad.c,v 1.10 2000/10/25 21:51:40 rob Exp $
+ * $Id: minimad.c,v 1.11 2000/11/16 10:51:04 rob Exp $
  */
 
 # include <stdio.h>
@@ -101,15 +101,15 @@ signed int scale(mad_fixed_t sample)
 
 static
 enum mad_flow output(void *data,
-		     struct mad_frame const *frame,
+		     struct mad_header const *header,
 		     struct mad_pcm *pcm)
 {
   unsigned int nchannels, nsamples;
   mad_fixed_t const *left_ch, *right_ch;
 
-  /* frame->sfreq contains the sampling frequency */
+  /* header->sfreq contains the sampling frequency */
 
-  nchannels = MAD_NCHANNELS(frame);
+  nchannels = MAD_NCHANNELS(header);
   nsamples  = pcm->length;
   left_ch   = pcm->samples[0];
   right_ch  = pcm->samples[1];

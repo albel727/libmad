@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: version.c,v 1.7 2000/10/25 21:51:40 rob Exp $
+ * $Id: version.c,v 1.8 2000/11/16 10:51:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -67,8 +67,8 @@ void ver_license(FILE *stream)
     "with this program; if not, write to the Free Software Foundation, Inc.,\n"
     "59 Temple Place, Suite 330, Boston, MA 02111-1307 USA\n\n"
 
-    "If you would like to negotiate alternate licensing terms, you may do\n"
-    "so by contacting the author: %s <%s>\n"), MAD_AUTHOR, MAD_EMAIL);
+    "If you would like to negotiate alternate licensing terms, you may do so\n"
+    "by contacting the author: %s <%s>\n"), MAD_AUTHOR, MAD_EMAIL);
 
   fputc('\n', stream);
 }

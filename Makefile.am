@@ -1,6 +1,6 @@
 ##
-##  mad - MPEG audio decoder
-##  Copyright (C) 2000 Robert Leslie
+## mad - MPEG audio decoder
+## Copyright (C) 2000 Robert Leslie
 ##
 ## This program is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -19,18 +19,22 @@
 ## If you would like to negotiate alternate licensing terms, you may do
 ## so by contacting the author: Robert Leslie <rob@mars.org>
 ##
+## $Id: Makefile.am,v 1.4 2000/11/17 06:17:45 rob Exp $
+##
 
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS =		intl po libmad
+SUBDIRS =		intl po libmad winamp
 
 bin_PROGRAMS =		madplay
+bin_SCRIPTS =		abxtest
 EXTRA_PROGRAMS =	madtime minimad madmix mad123
 
-man_MANS =		madplay.1
+man_MANS =		madplay.1 abxtest.1
 
 EXTRA_DIST =  \
-	$(man_MANS) CHANGES COPYRIGHT CREDITS README TODO VERSION
+	$(man_MANS) $(bin_SCRIPTS)  \
+	CHANGES COPYRIGHT CREDITS README TODO VERSION
 
 default_audio =  \
 	audio.c audio_raw.c audio_wave.c audio_snd.c audio_null.c audio.h
@@ -45,7 +49,7 @@ madplay_SOURCES =  \
 	$(common_sources) $(default_audio)  \
 	resample.c filter.c id3.c id3v2.c player.c madplay.c  \
 	resample.h filter.h id3.h id3v2.h player.h  \
-	getopt.c getopt1.c getopt.h
+	getopt.c getopt1.c getopt.h id3genre.dat
 
 EXTRA_madplay_SOURCES =  \
 	$(extra_audio)  \
@@ -72,12 +76,12 @@ madmix_LDADD =		$(AUDIO) $(LDADD)
 localedir =		$(datadir)/locale
 INCLUDES =		-Ilibmad -Iintl -DLOCALEDIR=\"$(localedir)\"
 
-CFLAGS =		@CFLAGS@ -Wall @ARCH@ @DEBUGGER@ @OPTIMIZER@ @PROFILER@
+CFLAGS =		-Wall @CFLAGS@ @ARCH@ @DEBUGGER@ @OPTIMIZER@ @PROFILER@
 LDFLAGS =		@LDFLAGS@ @PROFILER@
 
 BUILT_SOURCES =		id3v2.c
 
-CLEANFILES =		$(EXTRA_PROGRAMS) gmon.out
+CLEANFILES =		$(EXTRA_PROGRAMS) *.exe gmon.out
 
 id3v2.c: id3v2.gperf
 	gperf -tCTonD -K id -N id3v2_hash -s -3 -k '*'  \

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: madplay.c,v 1.43 2000/10/25 21:51:40 rob Exp $
+ * $Id: madplay.c,v 1.44 2000/11/16 10:51:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -351,11 +351,13 @@ void get_options(int argc, char *argv[], struct player *player)
       player->flags |= PLAYER_FLAG_FADEIN;
       break;
 
+# if 0
     case -'o':
       get_time(&player->fade_out, 1,
 	       optarg ? optarg : FADE_DEFAULT, _("fade-out time"));
       player->flags |= PLAYER_FLAG_FADEOUT;
       break;
+# endif
 
     case -'l':
       ver_license(stdout);
@@ -385,9 +387,13 @@ void get_options(int argc, char *argv[], struct player *player)
       break;
 
     case 'r':
-      player->repeat = optarg ? atoi(optarg) : -1;
-      if (player->repeat == 0)
-	die(_("invalid repeat count \"%s\""), optarg);
+      if (optarg == 0)
+	player->repeat = -1;
+      else {
+	player->repeat = atoi(optarg);
+	if (player->repeat <= 0)
+	  die(_("invalid repeat count \"%s\""), optarg);
+      }
       break;
 
     case 's':

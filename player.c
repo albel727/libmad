@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: player.c,v 1.2 2000/10/25 21:51:40 rob Exp $
+ * $Id: player.c,v 1.3 2000/11/16 10:51:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -282,7 +282,7 @@ enum mad_flow decode_input(void *data, struct mad_stream *stream)
  * DESCRIPTION:	decide whether to continue decoding based on header
  */
 static
-enum mad_flow decode_header(void *data, struct mad_frame const *frame)
+enum mad_flow decode_header(void *data, struct mad_header const *header)
 {
   struct player *player = data;
 
@@ -291,10 +291,10 @@ enum mad_flow decode_header(void *data, struct mad_frame const *frame)
     return MAD_FLOW_STOP;
 
   ++player->stats.absolute_framecount;
-  mad_timer_add(&player->stats.absolute_timer, frame->duration);
+  mad_timer_add(&player->stats.absolute_timer, header->duration);
 
   ++player->stats.global_framecount;
-  mad_timer_add(&player->stats.global_timer, frame->duration);
+  mad_timer_add(&player->stats.global_timer, header->duration);
 
   if ((player->flags & PLAYER_FLAG_SKIP) &&
       mad_timer_compare(player->stats.global_timer, player->global_start) < 0)
@@ -329,13 +329,13 @@ char const *const mode_str[4] = {
  */
 static
 void show_status(struct stats *stats,
-		 struct mad_frame const *frame, char const *label)
+		 struct mad_header const *header, char const *label)
 {
   unsigned int bitrate;
   signed long seconds;
 
-  if (frame) {
-    bitrate = frame->bitrate / 1000;
+  if (header) {
+    bitrate = header->bitrate / 1000;
 
     stats->vbr_rate += bitrate;
     stats->vbr_frames++;
@@ -363,9 +363,9 @@ void show_status(struct stats *stats,
 
     if (label)
       message("%s %s", time_str, label);
-    else if (frame) {
-      if (frame->mode == MAD_MODE_JOINT_STEREO) {
-	switch (frame->flags & (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO)) {
+    else if (header) {
+      if (header->mode == MAD_MODE_JOINT_STEREO) {
+	switch (header->flags & (MAD_FLAG_MS_STEREO | MAD_FLAG_I_STEREO)) {
 	case 0:
 	  joint_str = _(" (LR)");
 	  break;
@@ -385,13 +385,13 @@ void show_status(struct stats *stats,
       }
 
       message(_("%s Layer %s, %s%u kbps%s, %u Hz, %s%s, %s"),
-	      time_str, gettext(layer_str[frame->layer - 1]),
+	      time_str, gettext(layer_str[header->layer - 1]),
 	      stats->vbr ? _("VBR (avg ") : "",
 	      stats->vbr ? ((stats->vbr_rate * 2) /
 			    stats->vbr_frames + 1) / 2 : stats->bitrate,
 	      stats->vbr ? _(")") : "",
-	      frame->sfreq, gettext(mode_str[frame->mode]), joint_str,
-	      (frame->flags & MAD_FLAG_PROTECTION) ? _("CRC") : _("no CRC"));
+	      header->sfreq, gettext(mode_str[header->mode]), joint_str,
+	      (header->flags & MAD_FLAG_PROTECTION) ? _("CRC") : _("no CRC"));
     }
     else
       message("%s", time_str);
@@ -403,8 +403,8 @@ void show_status(struct stats *stats,
  * DESCRIPTION: configure audio module and output decoded samples
  */
 static
-enum mad_flow decode_output(void *data,
-			    struct mad_frame const *frame, struct mad_pcm *pcm)
+enum mad_flow decode_output(void *data, struct mad_header const *header,
+			    struct mad_pcm *pcm)
 {
   struct player *player = data;
   struct output *output = &player->output;
@@ -412,13 +412,13 @@ enum mad_flow decode_output(void *data,
   unsigned int nchannels;
   union audio_control control;
 
-  if (frame->mode == MAD_MODE_SINGLE_CHANNEL) {
+  if (header->mode == MAD_MODE_SINGLE_CHANNEL) {
     nchannels = 1;
 
     ch1 = pcm->samples[0];
     ch2 = 0;
   }
-  else if (frame->mode == MAD_MODE_DUAL_CHANNEL || output->select > 0) {
+  else if (header->mode == MAD_MODE_DUAL_CHANNEL || output->select > 0) {
     nchannels = 1;
 
     if (output->select == 0) {
@@ -441,11 +441,11 @@ enum mad_flow decode_output(void *data,
   }
 
   if (output->channels != nchannels ||
-      output->speed_in != frame->sfreq) {
+      output->speed_in != header->sfreq) {
     control.command = AUDIO_COMMAND_CONFIG;
 
     control.config.channels = nchannels;
-    control.config.speed    = frame->sfreq;
+    control.config.speed    = header->sfreq;
 
     if (output->command(&control) == -1) {
       error("output", audio_error);
@@ -453,12 +453,12 @@ enum mad_flow decode_output(void *data,
     }
 
     output->channels  = nchannels;
-    output->speed_in  = frame->sfreq;
+    output->speed_in  = header->sfreq;
     output->speed_out = control.config.speed;
 
     if (output->speed_in != output->speed_out && player->verbosity >= 0) {
       error("output", _("sample frequency %u Hz not available; closest %u Hz"),
-	    frame->sfreq, control.config.speed);
+	    header->sfreq, control.config.speed);
     }
 
     /* check whether resampling is necessary */
@@ -535,10 +535,10 @@ enum mad_flow decode_output(void *data,
   }
 
   ++player->stats.play_framecount;
-  mad_timer_add(&player->stats.play_timer, frame->duration);
+  mad_timer_add(&player->stats.play_timer, header->duration);
 
   if (player->verbosity > 0)
-    show_status(&player->stats, frame, 0);
+    show_status(&player->stats, header, 0);
 
   return MAD_FLOW_CONTINUE;
 }

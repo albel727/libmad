@@ -1,0 +1,119 @@
+#
+# mad - MPEG audio decoder
+# Copyright (C) 2000 Robert Leslie
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# $Id: Makefile.in,v 1.3 2000/11/17 06:37:17 rob Exp $
+#
+
+SHELL =		@SHELL@
+VPATH =		@srcdir@
+
+srcdir =	@srcdir@
+top_srcdir =	@top_srcdir@
+
+PACKAGE =	@PACKAGE@
+VERSION =	@VERSION@
+
+CC =		gcc
+
+DEBUG =		-Wall -O2 #-g
+CFLAGS =	$(DEBUG) -m486
+CPPFLAGS =	-DHAVE_CONFIG_H  \
+			-I$(srcdir) -I.. -I$(top_srcdir) -I../libmad -I../intl
+
+DLLWRAP =	dllwrap
+
+DLL_EXP_DEF =	$(srcdir)/in_mad.def
+
+all: @WINAMP_TARGET@
+
+MAD\ plug-in\ $(VERSION).exe: in_mad.dll in_mad.txt in_mad.psc
+	test $(srcdir) = . || cp $(srcdir)/in_mad.txt .
+	makepimp in_mad.psc
+
+pimp :: MAD\ plug-in\ $(VERSION).exe
+
+resource.o: $(srcdir)/resource.rc $(srcdir)/messages.rc
+	windres --include-dir $(srcdir) -o $@ $(srcdir)/resource.rc
+
+messages.rc messages.h: $(srcdir)/messages.mc
+	mc -v -c $<
+
+in_mad.dll: in_mad.o resource.o libmad.a
+in_mad.o: in_mad.c resource.h messages.h
+
+libmad.a: ../libmad/.libs/libmad.a
+	cp ../libmad/.libs/libmad.a .
+	ar d libmad.a decoder.o
+
+DLL_CFLAGS =	
+DLL_LDFLAGS =	
+DLL_LDLIBS =	-lcomctl32 -lwininet #-lcomdlg32
+
+DLL_SRCS =	in_mad.c
+DLL_OBJS =	in_mad.o resource.o libmad.a
+
+DLLWRAP_FLAGS =	--def $(DLL_EXP_DEF)  \
+	--target=i386-mingw32 -mno-cygwin  \
+	--driver-name $(CC)
+
+in_mad.dll: $(DLL_OBJS)
+	$(DLLWRAP) $(DLLWRAP_FLAGS) -o $@  \
+		$(DLL_OBJS) $(DLL_LDFLAGS) $(DLL_LDLIBS)
+
+.c.o:
+	$(CC) -c $(DLL_CFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ $<
+.c.s:
+	$(CC) -S $(CPPFLAGS) $(CFLAGS) $<
+
+clean:
+	rm -f *.dll *.o *.exe *.a
+
+distclean:
+	rm -f Makefile in_mad.psc
+
+distdir = $(PACKAGE)-$(VERSION)
+
+DISTFILES =  \
+	Makefile.in  \
+	in2.h out.h  \
+	in_mad.c in_mad.def in_mad.psc.in in_mad.txt  \
+	resource.h resource.rc  \
+	messages.mc messages.h messages.rc MSG00001.bin
+
+distdir: $(DISTFILES)
+	-rm -rf $(distdir)
+	mkdir $(distdir)
+	-chmod 777 $(distdir)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pr $$/$$file $(distdir)/$$file; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	  fi; \
+	done
+
+dvi:
+check:
+install:
+installcheck:
+
+.PHONY: clean distclean distdir
+.PHONY: dvi check install installcheck

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: filter.c,v 1.2 2000/10/25 21:51:39 rob Exp $
+ * $Id: filter.c,v 1.3 2000/11/16 10:51:04 rob Exp $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -109,11 +109,11 @@ enum mad_flow filter_run(struct filter *filter, struct mad_frame *frame)
  */
 enum mad_flow mono_filter(void *data, struct mad_frame *frame)
 {
-  if (frame->mode != MAD_MODE_SINGLE_CHANNEL) {
+  if (frame->header.mode != MAD_MODE_SINGLE_CHANNEL) {
     unsigned int ns, s, sb;
     mad_fixed_t left, right;
 
-    ns = MAD_NSBSAMPLES(frame);
+    ns = MAD_NSBSAMPLES(&frame->header);
 
     for (s = 0; s < ns; ++s) {
       for (sb = 0; sb < 32; ++sb) {
@@ -125,7 +125,7 @@ enum mad_flow mono_filter(void *data, struct mad_frame *frame)
       }
     }
 
-    frame->mode = MAD_MODE_SINGLE_CHANNEL;
+    frame->header.mode = MAD_MODE_SINGLE_CHANNEL;
   }
 
   return MAD_FLOW_CONTINUE;
@@ -149,12 +149,12 @@ enum mad_flow fadein_filter(void *data, struct mad_frame *frame)
      * somewhere within the frame. Find out where processing should end.
      */
 
-    nsamples = MAD_NSBSAMPLES(frame);
+    nsamples = MAD_NSBSAMPLES(&frame->header);
 
     /* this frame has not yet been added to play_timer */
 
     frame_start = frame_end = player->stats.play_timer;
-    mad_timer_add(&frame_end, frame->duration);
+    mad_timer_add(&frame_end, frame->header.duration);
 
     if (mad_timer_compare(player->fade_in, frame_end) < 0) {
       mad_timer_t length;
@@ -165,8 +165,9 @@ enum mad_flow fadein_filter(void *data, struct mad_frame *frame)
       mad_timer_add(&length, player->fade_in);
 
       mad_timer_set(&ratio, 0,
-		    mad_timer_count(length, frame->sfreq),
-		    mad_timer_count(frame->duration, frame->sfreq));
+		    mad_timer_count(length, frame->header.sfreq),
+		    mad_timer_count(frame->header.duration,
+				    frame->header.sfreq));
 
       nsamples = mad_timer_fraction(ratio, nsamples);
     }
@@ -174,15 +175,16 @@ enum mad_flow fadein_filter(void *data, struct mad_frame *frame)
     /* determine starting scalefactor and step size */
 
     mad_timer_set(&ratio, 0,
-		  mad_timer_count(frame_start, frame->sfreq),
-		  mad_timer_count(player->fade_in, frame->sfreq));
+		  mad_timer_count(frame_start, frame->header.sfreq),
+		  mad_timer_count(player->fade_in, frame->header.sfreq));
 
     scalefactor = mad_timer_fraction(ratio, MAD_F_ONE);
-    step = MAD_F_ONE / (mad_timer_count(player->fade_in, frame->sfreq) / 32);
+    step = MAD_F_ONE / (mad_timer_count(player->fade_in,
+					frame->header.sfreq) / 32);
 
     /* scale subband samples */
 
-    nch = MAD_NCHANNELS(frame);
+    nch = MAD_NCHANNELS(&frame->header);
 
     for (s = 0; s < nsamples; ++s) {
       unsigned int ch, sb;
@@ -222,11 +224,11 @@ enum mad_flow mixer_filter(void *data, struct mad_frame *frame)
  */
 enum mad_flow experimental_filter(void *data, struct mad_frame *frame)
 {
-  if (frame->mode == MAD_MODE_STEREO ||
-      frame->mode == MAD_MODE_JOINT_STEREO) {
+  if (frame->header.mode == MAD_MODE_STEREO ||
+      frame->header.mode == MAD_MODE_JOINT_STEREO) {
     unsigned int ns, s, sb;
 
-    ns = MAD_NSBSAMPLES(frame);
+    ns = MAD_NSBSAMPLES(&frame->header);
 
     /* enhance stereo separation */
 
