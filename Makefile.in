@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# $Id: Makefile.in,v 1.21 2000/04/23 07:05:13 rob Exp $
+# $Id: Makefile.in,v 1.22 2000/05/06 02:33:08 rob Exp $
 #
 
 ## OPTIONS ####################################################################
@@ -147,7 +147,7 @@ id3v2.c: id3v2.gperf
 .c.s:
 	$(CC) $(ARCH) $(OPTIMIZER) $(DEFINES) -S $<
 
-*.o: Makefile
+*.o *.s: Makefile
 
 profile :: madplay gmon.out
 	gprof madplay | less
@@ -219,7 +219,7 @@ id3v2.o: id3v2.c config.h id3.h id3v2.h
 layer12.o: layer12.c config.h fixed.h bit.h stream.h frame.h timer.h \
  layer12.h sf_table.dat qc_table.dat
 layer3.o: layer3.c config.h fixed.h bit.h stream.h frame.h timer.h \
- huffman.h layer3.h rq_table.dat imdct_l.dat imdct_s.dat
+ huffman.h layer3.h rq_table.dat imdct_s.dat
 madplay.o: madplay.c config.h libmad.h audio.h id3.h
 madtime.o: madtime.c config.h libmad.h
 minimad.o: minimad.c libmad.h
